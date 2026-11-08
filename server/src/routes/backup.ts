@@ -76,7 +76,7 @@ setInterval(() => {
 // Directories
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BACKUP_DIR = path.join(process.cwd(), 'backups');
+const BACKUP_DIR = process.env.BACKUPS_DIR || path.join(process.cwd(), 'backups');
 const TEMP_DIR = path.join(BACKUP_DIR, 'temp');
 
 fs.mkdirSync(BACKUP_DIR, { recursive: true });

@@ -65,7 +65,7 @@ export const DEFAULT_PREFIX = 'Clients';
 
 /** Where the local driver writes. Same base documents.ts has always used. */
 export function localStorageRoot(): string {
-  return path.resolve(__dirname, '../../../uploads');
+  return process.env.UPLOADS_DIR || path.resolve(__dirname, '../../../uploads');
 }
 
 async function loadDbSettings(): Promise<Partial<Record<StorageSettingKey, string>>> {

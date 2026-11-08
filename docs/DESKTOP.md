@@ -2,12 +2,54 @@
 
 Desktop mode (`DESKTOP_MODE=true`) runs this engine as a Node Single Executable Application (SEA) for one user on one machine, against an embedded PostgreSQL 16 on 127.0.0.1, started by the ClientLedger Trial Balance launcher. Desktop code lives in `server/src/desktop/`; upstream files get one-line hooks only.
 
+## Build and run
+
+```
+cd server
+npm ci                      # @kisaesdevlab/vibe-auth needs a GitHub Packages read:packages token
+npm run desktop:build       # dist-desktop/clientledger-tb-engine[.exe] + dist-desktop/resources/
+npm run test:desktop        # desktop session gate
+```
+
+`desktop:build` regenerates `src/desktop/sources.generated.ts` (static lists of every migration and seed), bundles `src/desktop/main.ts` with esbuild into `dist-desktop/engine.cjs`, and injects it into a copy of the running Node binary (Node SEA, postject). Build on each target OS; Node 24.
+
+Bundle fix-ups (all in `scripts/desktop/build.mjs`, no upstream file changes):
+- `bcrypt` → `bcryptjs` alias (same API and hash format, no native module).
+- pdfkit/fontkit/linebreak `readFileSync(__dirname + …)` data files are inlined.
+- Migration `20260916000001_vibe_auth.js`: Vibe Auth's SQL is inlined instead of `require.resolve`d.
+- knex's unused SQL drivers are external.
+
+Commands: `clientledger-tb-engine [serve]` (migrate, seed a new database, start), `migrate`, `version`.
+
+Env from the launcher:
+
+| Variable | Meaning |
+|---|---|
+| `DATABASE_URL` | embedded Postgres on 127.0.0.1 |
+| `PORT` | loopback port to listen on |
+| `JWT_SECRET`, `ENCRYPTION_KEY` | from the OS keychain |
+| `CLTB_SESSION_TOKEN` | per-launch token; the UI sends it as `X-CLTB-Session` |
+| `UPLOADS_DIR`, `BACKUPS_DIR` | app data folders |
+| `KNOWLEDGE_DIR`, `FS_FONT_DIR` | `resources/knowledge`, `resources/fs-fonts` next to the engine |
+| `SEED_DEMO_DATA=true` | optional: seed the demo clients into a new database (tests) |
+
+The desktop entry forces `DESKTOP_MODE=true`, `BIND_HOST=127.0.0.1`, `NODE_ENV=production`, `TZ=UTC` (the engine assumes the appliance's UTC clock; DATE columns would otherwise shift a day east of UTC).
+
+What desktop mode changes at run time:
+- `X-CLTB-Session` gate (`src/desktop/session.ts`); a caller's own `Authorization` header is always dropped; `/api/v1/ping` and `/api/v1/health` stay open for the launcher.
+- First start seeds a new database (no admin yet); every start replaces the seeded admin's published password with a random one, clears the forced password change and turns the two-factor requirement off.
+- No MCP HTTP/SSE (stdio entry `src/mcp-stdio.ts` stays), no nightly backup cron, no QBO keepalive, no API rate limits.
+
+Upstream files touched (one-line hooks): `src/app.ts` (session middleware, rate-limit `skip`, MCP mount, `BIND_HOST`, schedulers), `src/routes/backup.ts` (`BACKUPS_DIR`), `src/lib/storage/index.ts` and `src/lib/documentStore.ts` (`UPLOADS_DIR`), `src/routes/support.ts` (`KNOWLEDGE_DIR`).
+
+Verified 2026-11-08 on Windows 11 x64 against PostgreSQL 16.15: fresh database ready in about 6 s (87 migrations + seeds), `/health` ok, session-token TB read 200, no token 401, `/mcp/sse` 404, listening on 127.0.0.1 only, TB PDF renders, client backup written to `BACKUPS_DIR`.
+
 ## Inventory at v0.1.56 (2026-11-08)
 
 What blocks or complicates an SEA build. Paths are relative to `server/`.
 
 ### Native modules and external programs
-- **bcrypt** (native prebuilds) — `src/routes/auth.ts`, `users.ts`, `settings.ts`, `passwordReset.ts`, `src/lib/stepUp.ts`, `src/lib/vibeAuthUsers.ts`, `src/mcp/auth.ts`, `seeds/001_default_admin.js`. Plan: `bcryptjs` (same API, same hash format).
+- **bcrypt** (native prebuilds) — `src/routes/auth.ts`, `users.ts`, `settings.ts`, `passwordReset.ts`, `src/lib/stepUp.ts`, `src/lib/vibeAuthUsers.ts`, `src/mcp/auth.ts`, `seeds/001_default_admin.js`. Done: bundler alias to `bcryptjs`.
 - **puppeteer-core** — Statement Writer PDFs only, lazy (`src/lib/fs/pdfBrowser.ts`); missing browser = 503, rest works. The probe list includes Edge, present on Windows 10/11.
 - **pdftoppm** (poppler) — `src/lib/pdfVision.ts`, used by PDF, bank-statement and scanned-sheet vision import; missing binary is handled. Plan (P06): the desktop app rasterizes with pdfium (`cltb-pdf`) and sends page images; the engine needs an image-input variant.
 - **pdf-parse 1.1.4** — dynamic `require(\`./pdf.js/${version}/build/pdf.js\`)`; bundler must alias it to the concrete path.
