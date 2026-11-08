@@ -74,7 +74,7 @@ jobs:
           retention-days: 14
 
   # P00 acceptance on Linux: the SEA starts against Postgres 16, migrates and
-  # seeds a new database, answers /health, reads the demo client's trial
+  # seeds a new database (demo clients by default), answers /health, reads the demo client's trial
   # balance with the session token, refuses without it, and binds loopback only.
   smoke:
     needs: build
@@ -108,7 +108,6 @@ jobs:
           JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789
           ENCRYPTION_KEY: ci-only-encryption-key-0123456789abcdef
           CLTB_SESSION_TOKEN: ci-only-session-token
-          SEED_DEMO_DATA: 'true'
         run: |
           set -euo pipefail
           mkdir -p data/uploads data/backups

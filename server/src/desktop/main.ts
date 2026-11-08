@@ -43,6 +43,9 @@ function applyDesktopEnv(): void {
   process.env.NODE_ENV = 'production';
   process.env.MIGRATIONS_AUTO = 'true';
   process.env.ALLOWED_ORIGIN ??= 'http://127.0.0.1';
+  // A new desktop database gets the demo clients (owner decision Q13); set
+  // SEED_DEMO_DATA=false for a clean one. Seeds only ever run on a new database.
+  process.env.SEED_DEMO_DATA ??= 'true';
   process.env.npm_package_version = pkg.version;
 }
 
