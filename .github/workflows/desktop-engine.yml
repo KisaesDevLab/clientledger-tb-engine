@@ -73,11 +73,53 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # Desktop builds must not need the private @kisaesdevlab/vibe-auth package or
+  # a GitHub Packages token (Q12): install without one, build, and hand this
+  # SEA to the smoke test.
+  tokenless:
+    name: build without vibe-auth (linux-x64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install server dependencies (no token)
+        run: npm ci --no-audit --no-fund
+        working-directory: server
+
+      - name: vibe-auth is not installed
+        shell: bash
+        working-directory: server
+        run: |
+          if node -e "require.resolve('@kisaesdevlab/vibe-auth')" 2>/dev/null; then
+            echo "vibe-auth resolved without a token"; exit 1
+          fi
+
+      - name: Desktop tests
+        run: npm run test:desktop
+        working-directory: server
+
+      - name: Build SEA
+        run: npm run desktop:build
+        working-directory: server
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clientledger-tb-engine-linux-x64-tokenless
+          path: |
+            server/dist-desktop/clientledger-tb-engine
+            server/dist-desktop/resources/
+          if-no-files-found: error
+          retention-days: 7
+
   # P00 acceptance on Linux: the SEA starts against Postgres 16, migrates and
   # seeds a new database, answers /health, reads the demo client's trial
   # balance with the session token, refuses without it, and binds loopback only.
   smoke:
-    needs: build
+    needs: [build, tokenless]
     runs-on: ubuntu-22.04
     services:
       postgres:
@@ -96,7 +138,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: clientledger-tb-engine-linux-x64
+          name: clientledger-tb-engine-linux-x64-tokenless
           path: engine
 
       - name: Start engine and check acceptance

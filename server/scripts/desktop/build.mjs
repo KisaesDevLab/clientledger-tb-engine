@@ -19,8 +19,21 @@ const bundleOnly = process.argv.includes('--bundle');
 // knex resolves every SQL dialect's driver lazily; only pg is used.
 const EXTERNAL = ['mysql', 'mysql2', 'sqlite3', 'better-sqlite3', 'oracledb', 'tedious', 'pg-query-stream', 'pg-native'];
 
-// Migration 20260916000001 reads Vibe Auth's SQL through require.resolve,
-// which has no file to resolve inside a bundle. Inline the text instead.
+// Desktop builds don't use or install @kisaesdevlab/vibe-auth (Q12):
+// - the package name resolves to src/desktop/vibeAuthStub.ts (local mode);
+// - migration 20260916000001 reads Vibe Auth's SQL through require.resolve;
+//   it gets the vendored copy in src/desktop/vendor/ instead.
+const VIBE_AUTH_STUB = path.join(server, 'src/desktop/vibeAuthStub.ts');
+const VIBE_AUTH_SQL = path.join(server, 'src/desktop/vendor/vibe-auth-auth_identities.sql');
+const vibeAuthStub = {
+  name: 'vibe-auth-stub',
+  setup(build) {
+    build.onResolve({ filter: /^@kisaesdevlab\/vibe-auth(\/.*)?$/ }, (args) => {
+      if (args.path === '@kisaesdevlab/vibe-auth') return { path: VIBE_AUTH_STUB };
+      throw new Error(`desktop bundle: unexpected import of ${args.path} from ${args.importer}`);
+    });
+  },
+};
 const inlineVibeAuthSql = {
   name: 'inline-vibe-auth-sql',
   setup(build) {
@@ -30,7 +43,7 @@ const inlineVibeAuthSql = {
       const normalized = src.replace(/\r\n/g, '\n');
       if (!normalized.includes(needle)) throw new Error('vibe_auth migration changed upstream; update inline-vibe-auth-sql');
       return {
-        contents: normalized.replace(needle, "return require('@kisaesdevlab/vibe-auth/sql/auth_identities.sql');"),
+        contents: normalized.replace(needle, `return require(${JSON.stringify(VIBE_AUTH_SQL)});`),
         loader: 'js',
       };
     });
@@ -77,7 +90,7 @@ const result = await esbuild.build({
   external: EXTERNAL,
   alias: { bcrypt: 'bcryptjs' }, // same API and hash format, no native module
   loader: { '.sql': 'text' },
-  plugins: [inlineVibeAuthSql, inlineDirnameReads],
+  plugins: [vibeAuthStub, inlineVibeAuthSql, inlineDirnameReads],
   legalComments: 'external',
   logLevel: 'warning',
   metafile: true,
