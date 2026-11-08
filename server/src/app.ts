@@ -71,6 +71,7 @@ import { isMailerConfigured } from './lib/mailService';
 import { isRateLimitedAuthPath, startVibeAuth, vibeAuthMiddleware } from './lib/vibeAuth';
 import { desktopSessionMiddleware } from './desktop/session';
 import { isDesktopMode, skipRateLimit } from './desktop/env';
+import { desktopRouter } from './desktop/openapi';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -391,6 +392,8 @@ app.use('/api/v1/clients/:clientId/payees', payeesRouter);
 app.use('/api/v1/clients/:clientId/units', unitsRouter);
 app.use('/api/v1/periods/:periodId/py-comparison', pyComparisonRouter);
 if (!isDesktopMode()) app.use('/mcp', mcpRouter); // desktop: MCP over stdio only
+
+if (isDesktopMode()) app.use('/api/v1', desktopRouter); // /api/v1/openapi.json
 
 // 404 for any /api/* path not matched above.
 app.use('/api', (req, res) => {

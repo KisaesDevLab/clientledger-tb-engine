@@ -46,7 +46,8 @@ test('desktop mode: wrong or missing token is refused and a forged Bearer is dro
   process.env.CLTB_SESSION_TOKEN = 'launch-token';
   session.setDesktopUser({ id: 7, username: 'admin', role: 'admin' });
 
-  for (const headers of [{}, { 'x-cltb-session': 'nope' }, { authorization: 'Bearer forged' }]) {
+  const attempts: Record<string, string>[] = [{}, { 'x-cltb-session': 'nope' }, { authorization: 'Bearer forged' }];
+  for (const headers of attempts) {
     const { req, res, nextCalled } = run('/api/v1/clients', headers);
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);

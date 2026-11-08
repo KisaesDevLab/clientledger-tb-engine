@@ -40,9 +40,13 @@ What desktop mode changes at run time:
 - First start seeds a new database (no admin yet); every start replaces the seeded admin's published password with a random one, clears the forced password change and turns the two-factor requirement off.
 - No MCP HTTP/SSE (stdio entry `src/mcp-stdio.ts` stays), no nightly backup cron, no QBO keepalive, no API rate limits.
 
-Upstream files touched (one-line hooks): `src/app.ts` (session middleware, rate-limit `skip`, MCP mount, `BIND_HOST`, schedulers), `src/routes/backup.ts` (`BACKUPS_DIR`), `src/lib/storage/index.ts` and `src/lib/documentStore.ts` (`UPLOADS_DIR`), `src/routes/support.ts` (`KNOWLEDGE_DIR`).
+OpenAPI: `src/desktop/openapi.ts` describes the routes the desktop app calls (OpenAPI 3.1, served at `/api/v1/openapi.json` in desktop mode). `npm run desktop:openapi` writes the committed `server/openapi.desktop.json`, which the desktop's Rust client is generated from. `npm run test:desktop` checks the document is valid, that responses recorded from a real desktop engine (`src/desktop/__tests__/fixtures/`, demo seed) match its schemas, and that the committed file is current. Add a route to the spec in the same change the desktop starts calling it.
 
-Verified 2026-11-08 on Windows 11 x64 against PostgreSQL 16.15: fresh database ready in about 6 s (87 migrations + seeds), `/health` ok, session-token TB read 200, no token 401, `/mcp/sse` 404, listening on 127.0.0.1 only, TB PDF renders, client backup written to `BACKUPS_DIR`.
+Upstream files touched (one-line hooks): `src/app.ts` (session middleware, rate-limit `skip`, MCP mount, `BIND_HOST`, schedulers, desktop router), `src/routes/backup.ts` (`BACKUPS_DIR`), `src/lib/storage/index.ts` and `src/lib/documentStore.ts` (`UPLOADS_DIR`), `src/routes/support.ts` (`KNOWLEDGE_DIR`).
+
+Verified 2026-11-08 on Windows 11 x64 against PostgreSQL 16.15: fresh database ready in about 6 s (87 migrations + seeds), `/health` ok, session-token TB read 200, no token 401, `/mcp/sse` 404, listening on 127.0.0.1 only, TB PDF renders, client backup written to `BACKUPS_DIR`, `/api/v1/openapi.json` served, PDF import parses a PDF (stops at "no AI key" as expected).
+
+Known noise: express-rate-limit prints `ERR_ERL_KEY_GEN_IPV6` validation warnings at startup (upstream `rateLimitKey`); harmless, also on the appliance.
 
 ## Inventory at v0.1.56 (2026-11-08)
 
@@ -84,7 +88,7 @@ What blocks or complicates an SEA build. Paths are relative to `server/`.
 - No `pg_dump`. Nightly node-cron backup at 02:00 (desktop: the launcher schedules backups instead).
 
 ### OpenAPI
-- None exists. Tracked in the shell repo's QUESTIONS.md (Q11).
+- None upstream. Desktop spec in `src/desktop/openapi.ts` (see above); grows per phase (shell repo Q11).
 
 ### Money on the wire
 - Amounts are BIGINT cents as integers. The Rust client converts at the boundary to `Decimal`.

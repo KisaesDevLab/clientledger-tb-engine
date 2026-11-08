@@ -26,7 +26,8 @@
     "test:leadsheetgrouping": "tsx --test src/lib/__tests__/leadSheetGrouping.test.ts",
     "desktop:gen": "node scripts/desktop/gen-sources.mjs",
     "desktop:build": "node scripts/desktop/build.mjs",
-    "test:desktop": "tsx --test src/desktop/__tests__/session.test.ts"
+    "test:desktop": "tsx --test src/desktop/__tests__/session.test.ts src/desktop/__tests__/openapi.test.ts",
+    "desktop:openapi": "tsx scripts/desktop/write-openapi.ts"
   },
   "vibeAuth": {
     "adapter": "./dist/vibeAuthAdapter.js"
@@ -71,6 +72,7 @@
     }
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "13.1.0",
     "@types/archiver": "^7.0.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
