@@ -1,0 +1,1439 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ClientLedger Trial Balance engine",
+    "version": "0.1.56",
+    "description": "Desktop-mode API of the Vibe Trial Balance engine. Every response uses the { data, error, meta } envelope. Amounts are integer cents.",
+    "license": {
+      "name": "PolyForm Small Business License 1.0.0",
+      "url": "https://polyformproject.org/licenses/small-business/1.0.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "3001"
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "desktopSession": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "desktopSession": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CLTB-Session",
+        "description": "Per-launch token from the launcher"
+      }
+    },
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "data",
+          "error"
+        ],
+        "properties": {
+          "data": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ListMeta": {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "ok",
+          "checks"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "ok"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "ms": {
+                  "type": "integer"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Ping": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Client": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "entity_type",
+          "tax_year_end",
+          "is_active",
+          "activity_type",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "client_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entity_type": {
+            "type": "string",
+            "enum": [
+              "1065",
+              "1120",
+              "1120S",
+              "1040_C"
+            ]
+          },
+          "tax_year_end": {
+            "type": "string",
+            "description": "MMDD, e.g. 1231"
+          },
+          "default_tax_software": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ultratax",
+                  "cch",
+                  "lacerte",
+                  "gosystem"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tax_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "activity_type": {
+            "type": "string",
+            "enum": [
+              "business",
+              "rental",
+              "farm",
+              "farm_rental"
+            ]
+          },
+          "default_source_account_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ClientCreate": {
+        "type": "object",
+        "required": [
+          "name",
+          "entityType"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "1065",
+              "1120",
+              "1120S",
+              "1040_C"
+            ]
+          },
+          "taxYearEnd": {
+            "type": "string",
+            "maxLength": 4,
+            "description": "MMDD; default 1231"
+          },
+          "defaultTaxSoftware": {
+            "type": "string",
+            "enum": [
+              "ultratax",
+              "cch",
+              "lacerte",
+              "gosystem"
+            ]
+          },
+          "taxId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          },
+          "activityType": {
+            "type": "string",
+            "enum": [
+              "business",
+              "rental",
+              "farm",
+              "farm_rental"
+            ]
+          },
+          "defaultSourceAccountId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        }
+      },
+      "ClientUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Any subset of ClientCreate.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "1065",
+              "1120",
+              "1120S",
+              "1040_C"
+            ]
+          },
+          "taxYearEnd": {
+            "type": "string",
+            "maxLength": 4
+          },
+          "defaultTaxSoftware": {
+            "type": "string",
+            "enum": [
+              "ultratax",
+              "cch",
+              "lacerte",
+              "gosystem"
+            ]
+          },
+          "taxId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          },
+          "activityType": {
+            "type": "string",
+            "enum": [
+              "business",
+              "rental",
+              "farm",
+              "farm_rental"
+            ]
+          },
+          "defaultSourceAccountId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        }
+      },
+      "Period": {
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "period_name",
+          "is_current",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "period_name": {
+            "type": "string"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "DATE column, serialized as UTC midnight"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "DATE column, serialized as UTC midnight"
+          },
+          "is_current": {
+            "type": "boolean"
+          },
+          "rolled_forward_from": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "locked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locked_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "folder_year": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PeriodCreate": {
+        "type": "object",
+        "required": [
+          "periodName"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "periodName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "folderYear": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          }
+        }
+      },
+      "PeriodUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Any subset of PeriodCreate.",
+        "properties": {
+          "periodName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "folderYear": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          }
+        }
+      },
+      "TrialBalanceRow": {
+        "type": "object",
+        "description": "One account on the adjusted trial balance (view v_adjusted_trial_balance). Each stage is a debit/credit pair in cents.",
+        "required": [
+          "period_id",
+          "account_id",
+          "account_number",
+          "account_name",
+          "category",
+          "normal_balance",
+          "is_active",
+          "unadjusted_debit",
+          "unadjusted_credit",
+          "prior_year_debit",
+          "prior_year_credit",
+          "trans_adj_debit",
+          "trans_adj_credit",
+          "post_trans_debit",
+          "post_trans_credit",
+          "book_adj_debit",
+          "book_adj_credit",
+          "tax_adj_debit",
+          "tax_adj_credit",
+          "book_adjusted_debit",
+          "book_adjusted_credit",
+          "tax_adjusted_debit",
+          "tax_adjusted_credit"
+        ],
+        "properties": {
+          "period_id": {
+            "type": "integer"
+          },
+          "account_id": {
+            "type": "integer"
+          },
+          "account_number": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "assets",
+              "liabilities",
+              "equity",
+              "revenue",
+              "expenses"
+            ]
+          },
+          "normal_balance": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "tax_line": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workpaper_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "preparer_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reviewer_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lead_sheet_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lead_sheet_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lead_sheet_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lead_sheet_sort": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "row_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unadjusted_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unadjusted debit (cents)"
+          },
+          "unadjusted_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unadjusted credit (cents)"
+          },
+          "prior_year_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Prior-year debit (cents)"
+          },
+          "prior_year_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Prior-year credit (cents)"
+          },
+          "trans_adj_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Transaction adjustments debit (cents)"
+          },
+          "trans_adj_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Transaction adjustments credit (cents)"
+          },
+          "post_trans_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "After transaction adjustments, debit (cents)"
+          },
+          "post_trans_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "After transaction adjustments, credit (cents)"
+          },
+          "book_adj_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Book AJE debit (cents)"
+          },
+          "book_adj_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Book AJE credit (cents)"
+          },
+          "tax_adj_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax AJE debit (cents)"
+          },
+          "tax_adj_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax AJE credit (cents)"
+          },
+          "book_adjusted_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Book adjusted debit (cents)"
+          },
+          "book_adjusted_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Book adjusted credit (cents)"
+          },
+          "tax_adjusted_debit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax basis debit (cents)"
+          },
+          "tax_adjusted_credit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax basis credit (cents)"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/ping": {
+      "get": {
+        "operationId": "ping",
+        "tags": [
+          "system"
+        ],
+        "security": [],
+        "summary": "Liveness probe (no database)",
+        "responses": {
+          "200": {
+            "description": "Process is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Ping"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "health",
+        "tags": [
+          "system"
+        ],
+        "security": [],
+        "summary": "Readiness probe (database)",
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Health"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A dependency is down",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Health"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "operationId": "openapi",
+        "tags": [
+          "system"
+        ],
+        "summary": "This document",
+        "responses": {
+          "200": {
+            "description": "OpenAPI document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients": {
+      "get": {
+        "operationId": "listClients",
+        "tags": [
+          "clients"
+        ],
+        "summary": "Active clients, by name",
+        "responses": {
+          "200": {
+            "description": "Clients",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Client"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createClient",
+        "tags": [
+          "clients"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Client"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getClient",
+        "tags": [
+          "clients"
+        ],
+        "responses": {
+          "200": {
+            "description": "Client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Client"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateClient",
+        "tags": [
+          "clients"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Client"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/periods": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listPeriods",
+        "tags": [
+          "periods"
+        ],
+        "responses": {
+          "200": {
+            "description": "Periods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Period"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPeriod",
+        "tags": [
+          "periods"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Period"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updatePeriod",
+        "tags": [
+          "periods"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Period"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/trial-balance": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTrialBalance",
+        "tags": [
+          "trial-balance"
+        ],
+        "summary": "Adjusted trial balance, active accounts, by account number",
+        "responses": {
+          "200": {
+            "description": "Rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TrialBalanceRow"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

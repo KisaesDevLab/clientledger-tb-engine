@@ -23,7 +23,11 @@
     "test:twofactor": "tsx --test src/lib/__tests__/publicUrl.test.ts src/lib/__tests__/loginStage.test.ts src/lib/__tests__/trustedBrowser.test.ts src/lib/__tests__/webauthnHelpers.test.ts src/lib/__tests__/totp.test.ts src/middleware/__tests__/authGates.test.ts",
     "reset-2fa": "tsx src/reset-2fa.ts",
     "test:aliases": "tsx --test src/lib/__tests__/importAliases.test.ts",
-    "test:leadsheetgrouping": "tsx --test src/lib/__tests__/leadSheetGrouping.test.ts"
+    "test:leadsheetgrouping": "tsx --test src/lib/__tests__/leadSheetGrouping.test.ts",
+    "desktop:gen": "node scripts/desktop/gen-sources.mjs",
+    "desktop:build": "node scripts/desktop/build.mjs",
+    "test:desktop": "tsx --test src/desktop/__tests__/session.test.ts src/desktop/__tests__/openapi.test.ts",
+    "desktop:openapi": "tsx scripts/desktop/write-openapi.ts"
   },
   "vibeAuth": {
     "adapter": "./dist/vibeAuthAdapter.js"
@@ -68,6 +72,7 @@
     }
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "13.1.0",
     "@types/archiver": "^7.0.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
@@ -81,6 +86,9 @@
     "@types/pg": "^8.11.6",
     "@types/qrcode": "^1.5.6",
     "@types/unzipper": "^0.10.11",
+    "bcryptjs": "3.0.3",
+    "esbuild": "0.27.4",
+    "postject": "1.0.0-alpha.6",
     "tsx": "^4.21.0",
     "typescript": "^5.5.0"
   }

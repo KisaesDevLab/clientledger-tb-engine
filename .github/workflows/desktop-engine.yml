@@ -1,0 +1,132 @@
+# Desktop engine (ClientLedger Trial Balance): Node SEA per platform.
+# See docs/DESKTOP.md. Fork-only workflow; upstream has no such file.
+name: Desktop engine
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'clientledger/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # @kisaesdevlab/vibe-auth comes from GitHub Packages (see sso-e2e.yml).
+  packages: read
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: windows-x64 }
+          - { os: macos-15, target: macos-arm64 }
+          - { os: macos-15-intel, target: macos-x64 }
+          - { os: ubuntu-22.04, target: linux-x64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com
+          scope: '@kisaesdevlab'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: server
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Type-check
+        run: npx tsc --noEmit -p .
+        working-directory: server
+
+      - name: Desktop tests
+        run: npm run test:desktop
+        working-directory: server
+
+      - name: Build SEA
+        run: npm run desktop:build
+        working-directory: server
+
+      - name: Generated sources are committed
+        shell: bash
+        run: git diff --exit-code -- server/src/desktop/sources.generated.ts
+
+      - name: Engine runs
+        shell: bash
+        working-directory: server/dist-desktop
+        run: ./clientledger-tb-engine version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clientledger-tb-engine-${{ matrix.target }}
+          path: |
+            server/dist-desktop/clientledger-tb-engine*
+            server/dist-desktop/resources/
+            server/dist-desktop/engine.cjs.LEGAL.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  # P00 acceptance on Linux: the SEA starts against Postgres 16, migrates and
+  # seeds a new database, answers /health, reads the demo client's trial
+  # balance with the session token, refuses without it, and binds loopback only.
+  smoke:
+    needs: build
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cltb
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: cltb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cltb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: clientledger-tb-engine-linux-x64
+          path: engine
+
+      - name: Start engine and check acceptance
+        shell: bash
+        working-directory: engine
+        env:
+          DATABASE_URL: postgres://cltb:ci-only-password@127.0.0.1:5432/cltb
+          PORT: '43117'
+          JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789
+          ENCRYPTION_KEY: ci-only-encryption-key-0123456789abcdef
+          CLTB_SESSION_TOKEN: ci-only-session-token
+          SEED_DEMO_DATA: 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p data/uploads data/backups
+          chmod +x clientledger-tb-engine
+          UPLOADS_DIR="$PWD/data/uploads" BACKUPS_DIR="$PWD/data/backups" \
+          KNOWLEDGE_DIR="$PWD/resources/knowledge" FS_FONT_DIR="$PWD/resources/fs-fonts" \
+            ./clientledger-tb-engine serve > engine.log 2>&1 &
+          B=http://127.0.0.1:$PORT/api/v1
+          for i in $(seq 1 60); do curl -sf "$B/health" >/dev/null && break; sleep 1; done
+          curl -sf "$B/health" | tee /dev/stderr | grep -q '"ok":true'
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$B/clients"); test "$code" = 401
+          curl -sf -H "X-CLTB-Session: $CLTB_SESSION_TOKEN" "$B/clients/1/periods" | grep -q '"period_name"'
+          curl -sf -H "X-CLTB-Session: $CLTB_SESSION_TOKEN" "$B/periods/1/trial-balance" | grep -q '"account_number"'
+          curl -sf -H "X-CLTB-Session: $CLTB_SESSION_TOKEN" "$B/openapi.json" | grep -q '"openapi":"3.1.0"'
+          listeners=$(ss -ltnH "sport = :$PORT" | awk '{print $4}')
+          echo "listening on: $listeners"
+          test "$listeners" = "127.0.0.1:$PORT"
+
+      - name: Engine log
+        if: always()
+        run: cat engine/engine.log || true

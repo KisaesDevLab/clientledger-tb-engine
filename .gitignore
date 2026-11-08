@@ -39,3 +39,6 @@ installer/Output/
 # Internal planning docs
 *_BUILD_PLAN*.md
 specs/*-plan.md
+
+# Desktop engine build output (ClientLedger Trial Balance)
+server/dist-desktop/

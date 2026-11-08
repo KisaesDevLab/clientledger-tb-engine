@@ -69,6 +69,9 @@ import { registerTbTaskClasses, validateAiModeEnv } from './lib/routerProvider';
 import { loadAiModeOverrides } from './lib/aiModeSettings';
 import { isMailerConfigured } from './lib/mailService';
 import { isRateLimitedAuthPath, startVibeAuth, vibeAuthMiddleware } from './lib/vibeAuth';
+import { desktopSessionMiddleware } from './desktop/session';
+import { isDesktopMode, skipRateLimit } from './desktop/env';
+import { desktopRouter } from './desktop/openapi';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -136,6 +139,7 @@ app.use(cors({
   exposedHeaders: ['Content-Disposition'],
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(desktopSessionMiddleware); // no-op unless DESKTOP_MODE=true
 
 // Rate-limit bucketing key lives in lib/rateLimitKey.ts (shared with the
 // per-account limiters on the second-factor endpoints).
@@ -153,6 +157,7 @@ app.use('/api/', rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKey,
+  skip: skipRateLimit,
   message: { data: null, error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' } },
 }));
 
@@ -179,6 +184,7 @@ const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKey,
+  skip: skipRateLimit,
   message: { data: null, error: { code: 'RATE_LIMITED', message: 'Too many upload/AI requests. Please try again later.' } },
 });
 
@@ -195,6 +201,7 @@ const aiStepLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKey,
+  skip: skipRateLimit,
   message: { data: null, error: { code: 'RATE_LIMITED', message: 'Too many import requests. Please try again later.' } },
 });
 
@@ -384,7 +391,9 @@ app.use('/api/v1/coa-templates', coaTemplatesRouter);
 app.use('/api/v1/clients/:clientId/payees', payeesRouter);
 app.use('/api/v1/clients/:clientId/units', unitsRouter);
 app.use('/api/v1/periods/:periodId/py-comparison', pyComparisonRouter);
-app.use('/mcp', mcpRouter);
+if (!isDesktopMode()) app.use('/mcp', mcpRouter); // desktop: MCP over stdio only
+
+if (isDesktopMode()) app.use('/api/v1', desktopRouter); // /api/v1/openapi.json
 
 // 404 for any /api/* path not matched above.
 app.use('/api', (req, res) => {
@@ -438,15 +447,21 @@ async function start(): Promise<void> {
   // is VIBE_AUTH_MODE=oidc_only with no break-glass account, whose message
   // says how to fix it — let it abort the boot.
   await startVibeAuth();
-  const server = app.listen(PORT, () => {
+  // BIND_HOST unset = every interface (appliance, behind nginx); desktop sets 127.0.0.1.
+  const bindHost = process.env.BIND_HOST;
+  const onListening = () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/api/v1/health`);
-    startBackupScheduler();
-    startQboKeepalive();
+    // Desktop: the app's own backup scheduler runs backups; QBO is out of scope.
+    if (!isDesktopMode()) {
+      startBackupScheduler();
+      startQboKeepalive();
+    }
     // Router mode only; non-blocking with retry — requests made before
     // registration completes fail closed at the router, which is correct.
     registerTbTaskClasses();
-  });
+  };
+  const server = bindHost ? app.listen(Number(PORT), bindHost, onListening) : app.listen(PORT, onListening);
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {

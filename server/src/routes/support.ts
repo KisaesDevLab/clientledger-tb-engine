@@ -21,7 +21,7 @@ supportRouter.use(authMiddleware);
 let cachedKnowledge: string | null = null;
 async function loadKnowledgeBase(): Promise<string> {
   if (cachedKnowledge !== null) return cachedKnowledge;
-  const knowledgeDir = path.resolve(__dirname, '../../knowledge');
+  const knowledgeDir = process.env.KNOWLEDGE_DIR || path.resolve(__dirname, '../../knowledge');
   let combined = '';
   try {
     const files = (await fs.promises.readdir(knowledgeDir)).filter((f) => f.endsWith('.md'));

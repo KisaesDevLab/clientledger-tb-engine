@@ -177,7 +177,7 @@ export function isLegacyRow(doc: DocumentRow): boolean {
   return !doc.object_key;
 }
 
-const legacyUploadsRoot = (): string => path.resolve(__dirname, '../../uploads');
+const legacyUploadsRoot = (): string => process.env.UPLOADS_DIR || path.resolve(__dirname, '../../uploads');
 
 /**
  * Open a document for reading, whichever backend and era it belongs to.
