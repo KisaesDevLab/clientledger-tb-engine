@@ -1,0 +1,38 @@
+-- Vendored from @kisaesdevlab/vibe-auth 1.0.1 sql/auth_identities.sql (Kisaes LLC).
+-- Desktop builds don't install the package (Q12); migration 20260916000001 reads
+-- this copy instead so desktop databases get the same tables as the appliance.
+-- Kept identical below this header; src/desktop/__tests__/vibeAuthStub.test.ts checks.
+--
+-- Vibe Auth client tables (Phase 3). Add to the product's migration set.
+-- user_id is TEXT so it fits uuid and text primary keys alike; products may
+-- add a FOREIGN KEY to their users table in their own migration.
+
+CREATE TABLE IF NOT EXISTS auth_identities (
+  id              BIGSERIAL PRIMARY KEY,
+  user_id         TEXT NOT NULL,
+  issuer          TEXT NOT NULL,
+  subject         TEXT NOT NULL,
+  email           TEXT,
+  email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+  last_login_at   TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT auth_identities_issuer_subject_uq UNIQUE (issuer, subject)
+);
+CREATE INDEX IF NOT EXISTS auth_identities_user_id_idx ON auth_identities (user_id);
+
+-- Settings → Authentication values (mode, issuer, wrapped client secret, role map...).
+CREATE TABLE IF NOT EXISTS auth_settings (
+  key         TEXT PRIMARY KEY,
+  value       JSONB NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Revocation list for stateless-JWT products (D16). Keys: "u:<user_id>" or "s:<sid>".
+-- Tokens issued at or before revoked_at are rejected until revoked_until (max token lifetime).
+CREATE TABLE IF NOT EXISTS auth_revocations (
+  subject_key    TEXT PRIMARY KEY,
+  revoked_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_until  TIMESTAMPTZ NOT NULL
+);
+ALTER TABLE auth_revocations ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ NOT NULL DEFAULT now();
+CREATE INDEX IF NOT EXISTS auth_revocations_until_idx ON auth_revocations (revoked_until);

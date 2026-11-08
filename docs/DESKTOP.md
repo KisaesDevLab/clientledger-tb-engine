@@ -6,7 +6,7 @@ Desktop mode (`DESKTOP_MODE=true`) runs this engine as a Node Single Executable 
 
 ```
 cd server
-npm ci                      # @kisaesdevlab/vibe-auth needs a GitHub Packages read:packages token
+npm ci                      # no GitHub Packages token needed; @kisaesdevlab/vibe-auth is optional (Q12)
 npm run desktop:build       # dist-desktop/clientledger-tb-engine[.exe] + dist-desktop/resources/
 npm run test:desktop        # desktop session gate
 ```
@@ -16,7 +16,8 @@ npm run test:desktop        # desktop session gate
 Bundle fix-ups (all in `scripts/desktop/build.mjs`, no upstream file changes):
 - `bcrypt` → `bcryptjs` alias (same API and hash format, no native module).
 - pdfkit/fontkit/linebreak `readFileSync(__dirname + …)` data files are inlined.
-- Migration `20260916000001_vibe_auth.js`: Vibe Auth's SQL is inlined instead of `require.resolve`d.
+- `@kisaesdevlab/vibe-auth` (private, single sign-on) is not used: the bundle resolves it to `src/desktop/vibeAuthStub.ts` (local mode: no SSO, no `/auth/*` routes, nothing revoked). It is an `optionalDependency`, so `npm ci` without a token skips it; with a token it is installed for type-checking and the upstream tests.
+- Migration `20260916000001_vibe_auth.js` reads the vendored `src/desktop/vendor/vibe-auth-auth_identities.sql` instead of `require.resolve`, so desktop databases get the same sign-in tables as the appliance. `vibeAuthStub.test.ts` fails if `src/` starts using another runtime export of the package or the package's SQL changes.
 - knex's unused SQL drivers are external.
 
 Commands: `clientledger-tb-engine [serve]` (migrate, seed a new database, start), `migrate`, `version`.
@@ -60,7 +61,7 @@ What blocks or complicates an SEA build. Paths are relative to `server/`.
 - **pdfmake / pdfkit** — vfs fonts are fine; pdfkit reads `__dirname/data/*.afm` only for standard fonts.
 
 ### Dynamic loading
-- `@kisaesdevlab/vibe-auth` is a hard static import (`src/lib/vibeAuth.ts`), started at boot (`src/app.ts`), from the private GitHub Packages registry. Migration `20260916000001_vibe_auth.js` does `require.resolve('@kisaesdevlab/vibe-auth/sql/auth_identities.sql')`.
+- Done (Q12, see above). Was: `@kisaesdevlab/vibe-auth` is a hard static import (`src/lib/vibeAuth.ts`), started at boot (`src/app.ts`), from the private GitHub Packages registry. Migration `20260916000001_vibe_auth.js` does `require.resolve('@kisaesdevlab/vibe-auth/sql/auth_identities.sql')`.
 - `knexfile.js` finds 87 migrations and 5 seeds by directory. Nothing in-process applies migrations (Docker's entrypoint runs `knex migrate:latest` + `seed:run`). Plan: static `migrationSource`/`seedSource` under `desktop/`, applied at desktop startup.
 - knex resolves dialects with a dynamic require; bundle only `pg`, mark `pg-native` external.
 
