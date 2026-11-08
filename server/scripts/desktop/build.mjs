@@ -106,6 +106,8 @@ execFileSync(process.execPath, ['--experimental-sea-config', seaConfig], { stdio
 
 const exe = path.join(out, process.platform === 'win32' ? 'clientledger-tb-engine.exe' : 'clientledger-tb-engine');
 fs.copyFileSync(process.execPath, exe);
+fs.chmodSync(exe, 0o755);
+if (process.platform === 'darwin') execFileSync('codesign', ['--remove-signature', exe], { stdio: 'inherit' });
 const postjectArgs = [exe, 'NODE_SEA_BLOB', blob, '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'];
 if (process.platform === 'darwin') postjectArgs.push('--macho-segment-name', 'NODE_SEA');
 execFileSync(process.execPath, [path.join(server, 'node_modules/postject/dist/cli.js'), ...postjectArgs], { stdio: 'inherit' });
