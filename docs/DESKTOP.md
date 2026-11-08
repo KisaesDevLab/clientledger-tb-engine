@@ -31,7 +31,7 @@ Env from the launcher:
 | `CLTB_SESSION_TOKEN` | per-launch token; the UI sends it as `X-CLTB-Session` |
 | `UPLOADS_DIR`, `BACKUPS_DIR` | app data folders |
 | `KNOWLEDGE_DIR`, `FS_FONT_DIR` | `resources/knowledge`, `resources/fs-fonts` next to the engine |
-| `SEED_DEMO_DATA=true` | optional: seed the demo clients into a new database (tests) |
+| `SEED_DEMO_DATA` | default `true`: a new database gets the demo clients (Demo Company LLC, Summit Ridge Consulting LLC); `false` for a clean one |
 
 The desktop entry forces `DESKTOP_MODE=true`, `BIND_HOST=127.0.0.1`, `NODE_ENV=production`, `TZ=UTC` (the engine assumes the appliance's UTC clock; DATE columns would otherwise shift a day east of UTC).
 
