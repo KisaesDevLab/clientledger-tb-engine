@@ -16,7 +16,7 @@ import { MIGRATIONS, SEEDS, type ModuleThunk } from './sources.generated';
 
 type Entry = readonly [string, ModuleThunk];
 
-function staticSource(entries: ReadonlyArray<Entry>) {
+export function staticSource(entries: ReadonlyArray<Entry>) {
   return {
     getMigrations: async () => [...entries],
     getMigrationName: (e: Entry) => e[0],

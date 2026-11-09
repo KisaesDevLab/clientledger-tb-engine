@@ -9,6 +9,7 @@
 // rows inside the { data, error, meta } envelope); amounts are integer cents.
 
 import { Router } from 'express';
+import { desktopBackupRouter } from './backupRoutes';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -226,6 +227,77 @@ const schemas: Record<string, Schema> = {
       tax_adjusted_credit: cents('Tax basis credit'),
     },
   },
+  FullBackupRequest: {
+    type: 'object',
+    required: ['fileName'],
+    additionalProperties: false,
+    properties: { fileName: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,150}\\.tbak$' } },
+  },
+  FullBackup: {
+    type: 'object',
+    required: ['path', 'fileName', 'size', 'sha256', 'schemaVersion', 'recordCounts', 'clientCount', 'fileCount'],
+    properties: {
+      path: { type: 'string', description: 'Absolute path inside BACKUPS_DIR' },
+      fileName: { type: 'string' },
+      size: { type: 'integer' },
+      sha256: { type: 'string', description: 'SHA-256 of the whole file, hex' },
+      schemaVersion: nullable('string'),
+      recordCounts: { type: 'object', additionalProperties: { type: 'integer' } },
+      clientCount: { type: 'integer' },
+      fileCount: { type: 'integer', description: 'Document files included' },
+    },
+  },
+  BackupRecord: {
+    type: 'object',
+    required: ['id', 'backup_level', 'filename', 'checksum', 'storage_local'],
+    properties: {
+      id: { type: 'integer' },
+      backup_type: { type: 'string' },
+      backup_level: { type: 'string', enum: ['full', 'settings', 'client', 'period'] },
+      client_id: nullable('integer'),
+      client_name: nullable('string'),
+      period_id: nullable('integer'),
+      period_name: nullable('string'),
+      filename: { type: 'string' },
+      file_size: nullable('integer'),
+      checksum: nullable('string', { description: 'sha256:<hex> of the whole file' }),
+      storage_local: nullable('string', { description: 'Absolute path inside BACKUPS_DIR' }),
+      trigger_type: { type: 'string' },
+      status: { type: 'string' },
+      created_at: dateTime,
+    },
+  },
+  RestoreUpload: {
+    type: 'object',
+    required: ['tempFile', 'uploadNonce', 'manifest'],
+    properties: {
+      tempFile: { type: 'string' },
+      uploadNonce: { type: 'string' },
+      manifest: { type: 'object', description: 'The archive manifest (format 1 or 2, lib/backupManifest.ts)' },
+    },
+  },
+  RestoreRequest: {
+    type: 'object',
+    required: ['tempFile', 'uploadNonce', 'mode'],
+    properties: {
+      tempFile: { type: 'string' },
+      uploadNonce: { type: 'string' },
+      mode: { type: 'string', enum: ['as_new', 'replace'] },
+      targetClientId: { type: 'integer' },
+    },
+  },
+  RestoreResult: {
+    type: 'object',
+    required: ['success', 'mode', 'newClientId'],
+    properties: {
+      success: { type: 'boolean' },
+      mode: { type: 'string' },
+      newClientId: nullable('integer'),
+      droppedLinks: { type: 'integer' },
+      filesPlaced: { type: 'integer' },
+      filesNotPlaced: { type: 'integer' },
+    },
+  },
 };
 
 const json = 'application/json';
@@ -324,11 +396,47 @@ export function buildOpenApiSpec(): Schema {
           responses: { '200': ok('Rows', { type: 'array', items: ref('TrialBalanceRow') }, true), '400': errorResponse('Invalid id'), ...commonErrors },
         },
       },
+      '/api/v1/desktop/backup/full': {
+        post: {
+          operationId: 'writeFullBackup', tags: ['backup'],
+          summary: 'Write a desktop full backup (every table and every document) into BACKUPS_DIR',
+          requestBody: jsonBody(ref('FullBackupRequest')),
+          responses: { '200': ok('Written', ref('FullBackup')), '400': errorResponse('Bad file name'), ...commonErrors },
+        },
+      },
+      '/api/v1/backup/client/{clientId}': {
+        parameters: [
+          idParam('clientId', 'Client id'),
+          { name: 'includeFiles', in: 'query', required: false, schema: { type: 'string', enum: ['1', 'true'] }, description: 'Carry document bytes under files/' },
+        ],
+        post: {
+          operationId: 'backupClient', tags: ['backup'],
+          summary: 'Write a client .tbak (appliance-compatible) into BACKUPS_DIR',
+          responses: { '200': ok('Written', ref('BackupRecord')), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/restore/upload': {
+        post: {
+          operationId: 'stageRestore', tags: ['backup'],
+          summary: 'Stage a .tbak for restore; checks its entries and schema',
+          requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['file'], properties: { file: { type: 'string', format: 'binary' } } } } } },
+          responses: { '200': ok('Staged', ref('RestoreUpload')), '400': errorResponse('Damaged, too new or not a backup'), ...commonErrors },
+        },
+      },
+      '/api/v1/restore/execute': {
+        post: {
+          operationId: 'executeRestore', tags: ['backup'],
+          summary: 'Restore a staged client .tbak as a new client or over one',
+          requestBody: jsonBody(ref('RestoreRequest')),
+          responses: { '200': ok('Restored', ref('RestoreResult')), '400': errorResponse('Damaged or invalid'), '403': errorResponse('Not this session'), ...commonErrors },
+        },
+      },
     },
   };
 }
 
 export const desktopRouter = Router();
+desktopRouter.use(desktopBackupRouter);
 desktopRouter.get('/openapi.json', (_req, res) => {
   res.json(buildOpenApiSpec());
 });
