@@ -925,6 +925,68 @@
           }
         }
       },
+      "ExtractClientRequest": {
+        "type": "object",
+        "required": [
+          "fileName",
+          "clientId",
+          "outName"
+        ],
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "description": "A desktop full backup in BACKUPS_DIR"
+          },
+          "clientId": {
+            "type": "integer",
+            "description": "The client id inside that backup"
+          },
+          "outName": {
+            "type": "string",
+            "description": "The client .tbak to write in BACKUPS_DIR"
+          }
+        }
+      },
+      "ExtractedClient": {
+        "type": "object",
+        "required": [
+          "path",
+          "fileName",
+          "size",
+          "sha256",
+          "fileCount",
+          "missingFiles"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "clientName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fileCount": {
+            "type": "integer"
+          },
+          "missingFiles": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
       "PlacedFiles": {
         "type": "object",
         "required": [
@@ -1987,6 +2049,89 @@
           },
           "403": {
             "description": "Not this session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/backup/extract-client": {
+      "post": {
+        "operationId": "extractClient",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Write one client of a desktop full backup as a client .tbak in BACKUPS_DIR (Q30)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractClientRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ExtractedClient"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a full backup, damaged, or bad names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Backup or client not found",
             "content": {
               "application/json": {
                 "schema": {

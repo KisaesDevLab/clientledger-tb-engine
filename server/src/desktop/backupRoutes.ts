@@ -9,6 +9,11 @@
 //     answer with its size, hash and contents summary. The app copies,
 //     encrypts and verifies it from there; nothing here writes elsewhere.
 //
+//   POST /api/v1/desktop/backup/extract-client  { "fileName", "clientId", "outName" }
+//     Take one client out of the desktop full backup BACKUPS_DIR/fileName and
+//     write it as an ordinary client .tbak at BACKUPS_DIR/outName
+//     (extractClient.ts, Q30), for the engine's own restore "as new".
+//
 //   POST /api/v1/desktop/restore/client-files  (multipart: file, newClientId, documentIds)
 //     After a client .tbak was restored AS NEW through /api/v1/restore/*,
 //     write its carried document files into the new client's own folder
@@ -31,6 +36,7 @@ import { sendServerError } from '../lib/safeError';
 import { localStorageRoot } from '../lib/storage';
 import { writeFullBackup } from './fullBackup';
 import { ClientFilesError, placeFilesForNewClient } from './clientFiles';
+import { ExtractError, extractClient } from './extractClient';
 
 /** The only names the route writes: plain .tbak names in the backups folder. */
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.tbak$/;
@@ -60,6 +66,41 @@ desktopBackupRouter.post('/desktop/backup/full', async (req: AuthRequest, res: R
     res.json({ data: { ...result, fileName }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'backup');
+  }
+});
+
+const plainName = (v: unknown): v is string => typeof v === 'string' && NAME_RE.test(v) && !v.includes('..');
+
+desktopBackupRouter.post('/desktop/backup/extract-client', async (req: AuthRequest, res: Response): Promise<void> => {
+  const body = (req.body ?? {}) as { fileName?: unknown; clientId?: unknown; outName?: unknown };
+  const clientId = Number(body.clientId);
+  if (!plainName(body.fileName) || !plainName(body.outName) || body.fileName === body.outName
+    || !Number.isInteger(clientId) || clientId <= 0) {
+    res.status(400).json({
+      data: null,
+      error: { code: 'VALIDATION_ERROR', message: 'fileName and outName must be plain .tbak names, clientId a client id' },
+    });
+    return;
+  }
+  try {
+    const r = await extractClient(
+      path.join(backupsDir(), body.fileName),
+      clientId,
+      path.join(backupsDir(), body.outName),
+      process.env.npm_package_version ?? 'unknown',
+    );
+    res.json({ data: { ...r, fileName: body.outName }, error: null });
+  } catch (err: unknown) {
+    if (err instanceof ExtractError) {
+      res.status(err.code === 'CLIENT_NOT_IN_BACKUP' ? 404 : 400).json({
+        data: null,
+        error: { code: err.code, message: err.message },
+      });
+    } else if ((err as { code?: string }).code === 'ENOENT') {
+      res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'The backup file was not found.' } });
+    } else {
+      sendServerError(res, err, 'backup');
+    }
   }
 });
 

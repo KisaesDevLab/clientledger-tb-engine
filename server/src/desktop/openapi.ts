@@ -303,6 +303,28 @@ const schemas: Record<string, Schema> = {
       },
     },
   },
+  ExtractClientRequest: {
+    type: 'object',
+    required: ['fileName', 'clientId', 'outName'],
+    properties: {
+      fileName: { type: 'string', description: 'A desktop full backup in BACKUPS_DIR' },
+      clientId: { type: 'integer', description: 'The client id inside that backup' },
+      outName: { type: 'string', description: 'The client .tbak to write in BACKUPS_DIR' },
+    },
+  },
+  ExtractedClient: {
+    type: 'object',
+    required: ['path', 'fileName', 'size', 'sha256', 'fileCount', 'missingFiles'],
+    properties: {
+      path: { type: 'string' },
+      fileName: { type: 'string' },
+      size: { type: 'integer' },
+      sha256: { type: 'string' },
+      clientName: nullable('string'),
+      fileCount: { type: 'integer' },
+      missingFiles: { type: 'array', items: { type: 'integer' } },
+    },
+  },
   PlacedFiles: {
     type: 'object',
     required: ['filesPlaced', 'filesNotPlaced'],
@@ -442,6 +464,14 @@ export function buildOpenApiSpec(): Schema {
           summary: 'Restore a staged client .tbak as a new client or over one',
           requestBody: jsonBody(ref('RestoreRequest')),
           responses: { '200': ok('Restored', ref('RestoreResult')), '400': errorResponse('Damaged or invalid'), '403': errorResponse('Not this session'), ...commonErrors },
+        },
+      },
+      '/api/v1/desktop/backup/extract-client': {
+        post: {
+          operationId: 'extractClient', tags: ['backup'],
+          summary: 'Write one client of a desktop full backup as a client .tbak in BACKUPS_DIR (Q30)',
+          requestBody: jsonBody(ref('ExtractClientRequest')),
+          responses: { '200': ok('Written', ref('ExtractedClient')), '400': errorResponse('Not a full backup, damaged, or bad names'), '404': errorResponse('Backup or client not found'), ...commonErrors },
         },
       },
       '/api/v1/desktop/restore/client-files': {

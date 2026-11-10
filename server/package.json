@@ -27,7 +27,7 @@
     "test:leadsheetgrouping": "tsx --test src/lib/__tests__/leadSheetGrouping.test.ts",
     "desktop:gen": "node scripts/desktop/gen-sources.mjs",
     "desktop:build": "node scripts/desktop/build.mjs",
-    "test:desktop": "tsx --test src/desktop/__tests__/session.test.ts src/desktop/__tests__/openapi.test.ts src/desktop/__tests__/vibeAuthStub.test.ts src/desktop/__tests__/fullBackup.test.ts src/lib/__tests__/backupManifest.test.ts",
+    "test:desktop": "tsx --test src/desktop/__tests__/session.test.ts src/desktop/__tests__/openapi.test.ts src/desktop/__tests__/vibeAuthStub.test.ts src/desktop/__tests__/fullBackup.test.ts src/desktop/__tests__/extractClient.test.ts src/lib/__tests__/backupManifest.test.ts",
     "desktop:openapi": "tsx scripts/desktop/write-openapi.ts"
   },
   "vibeAuth": {
