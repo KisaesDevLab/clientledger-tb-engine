@@ -9,7 +9,8 @@
 //   backup   every base table in `public`, read in ONE repeatable-read
 //            snapshot, plus every file under the documents folder
 //            (UPLOADS_DIR), into a .tbak with the format-2 manifest
-//            (lib/backupManifest.ts), backupLevel 'desktop_full'.
+//            (lib/backupManifest.ts), backupLevel 'desktop_full'. Sign-in
+//            data is left out (SIGN_IN_TABLES, REDACTED_COLUMNS; Q32).
 //   restore  into an EMPTY database (the launcher drops and recreates it):
 //            migrate up to the archive's schema version, empty what the
 //            migrations seeded, load every table with foreign keys deferred,
@@ -45,6 +46,42 @@ export const FULL_LEVEL = 'desktop_full';
 
 /** Never dumped: the schema version travels in the manifest instead. */
 export const EXCLUDED_TABLES: ReadonlySet<string> = new Set(['knex_migrations', 'knex_migrations_lock']);
+
+/**
+ * Sign-in data the desktop never uses (owner decision Q32): sessions,
+ * identities, second factors, reset tokens and SSO settings are left out of
+ * a desktop full backup. A restore leaves these tables empty; the desktop
+ * signs in with the launcher's session token, not with any of them.
+ */
+export const SIGN_IN_TABLES: ReadonlySet<string> = new Set([
+  'auth_identities',
+  'auth_revocations',
+  'auth_sessions_oidc',
+  'auth_settings',
+  'password_reset_tokens',
+  'trusted_browsers',
+  'user_passkeys',
+  'user_totp',
+  'webauthn_challenges',
+]);
+
+/**
+ * Columns written as a value that can never sign in (Q32). The rows stay,
+ * because entries, documents and the audit trail point at their users;
+ * '!' is the engine's own "cannot log in" hash (the mcp_agent user).
+ */
+export const REDACTED_COLUMNS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  app_users: { password_hash: '!' },
+};
+
+/** A row as it goes into a desktop full backup (Q32 redactions applied). */
+export function redactRow(table: string, row: Record<string, unknown>): Record<string, unknown> {
+  const cols = REDACTED_COLUMNS[table];
+  if (!cols) return row;
+  const out = { ...row };
+  for (const [c, v] of Object.entries(cols)) if (c in out) out[c] = v;
+  return out;
+}
 
 const BYTEA_TAG = '$bytea';
 const INSERT_BATCH = 500;
@@ -147,8 +184,9 @@ export async function writeFullBackup(
   await db.transaction(
     async (trx) => {
       for (const table of await listTables(trx)) {
+        if (SIGN_IN_TABLES.has(table)) continue;
         const rows = (await trx(table).select('*')) as Array<Record<string, unknown>>;
-        tableData[table] = JSON.stringify(rows.map(encodeRow));
+        tableData[table] = JSON.stringify(rows.map((r) => encodeRow(redactRow(table, r))));
         recordCounts[table] = rows.length;
       }
     },

@@ -10,7 +10,15 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EXCLUDED_TABLES, decodeRow, encodeRow, safeRelative } from '../fullBackup';
+import {
+  EXCLUDED_TABLES,
+  REDACTED_COLUMNS,
+  SIGN_IN_TABLES,
+  decodeRow,
+  encodeRow,
+  redactRow,
+  safeRelative,
+} from '../fullBackup';
 
 const cols = [
   { name: 'id', dataType: 'integer', generated: false },
@@ -64,4 +72,19 @@ test('only plain relative paths under files/ unpack', () => {
 
 test('only the migration bookkeeping is left out', () => {
   assert.deepEqual([...EXCLUDED_TABLES].sort(), ['knex_migrations', 'knex_migrations_lock']);
+});
+
+test('sign-in data is left out of a desktop full backup (Q32)', () => {
+  assert.deepEqual([...SIGN_IN_TABLES].sort(), [
+    'auth_identities', 'auth_revocations', 'auth_sessions_oidc', 'auth_settings', 'password_reset_tokens',
+    'trusted_browsers', 'user_passkeys', 'user_totp', 'webauthn_challenges',
+  ]);
+  const user = { id: 2, username: 'desktop', password_hash: '$2b$10$abcdefghijklmnopqrstuv', role: 'admin' };
+  const out = redactRow('app_users', user);
+  assert.equal(out.password_hash, '!', 'a hash that can never sign in');
+  assert.equal(out.username, 'desktop');
+  assert.equal(user.password_hash.startsWith('$2b$'), true, 'the row read from the database is not changed');
+  const je = { id: 1, created_by: 2, description: 'x' };
+  assert.equal(redactRow('journal_entries', je), je, 'other tables pass through');
+  assert.deepEqual(Object.keys(REDACTED_COLUMNS), ['app_users']);
 });
