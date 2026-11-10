@@ -296,6 +296,19 @@ const schemas: Record<string, Schema> = {
       droppedLinks: { type: 'integer' },
       filesPlaced: { type: 'integer' },
       filesNotPlaced: { type: 'integer' },
+      idMappings: {
+        type: 'object',
+        description: 'Per table, archive id -> restored id',
+        additionalProperties: { type: 'object', additionalProperties: { type: 'integer' } },
+      },
+    },
+  },
+  PlacedFiles: {
+    type: 'object',
+    required: ['filesPlaced', 'filesNotPlaced'],
+    properties: {
+      filesPlaced: { type: 'integer' },
+      filesNotPlaced: { type: 'integer' },
     },
   },
 };
@@ -429,6 +442,14 @@ export function buildOpenApiSpec(): Schema {
           summary: 'Restore a staged client .tbak as a new client or over one',
           requestBody: jsonBody(ref('RestoreRequest')),
           responses: { '200': ok('Restored', ref('RestoreResult')), '400': errorResponse('Damaged or invalid'), '403': errorResponse('Not this session'), ...commonErrors },
+        },
+      },
+      '/api/v1/desktop/restore/client-files': {
+        post: {
+          operationId: 'placeClientFiles', tags: ['backup'],
+          summary: 'After a client restore as new, write the archive document files into the new client folder (Q31)',
+          requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['file', 'newClientId', 'documentIds'], properties: { file: { type: 'string', format: 'binary' }, newClientId: { type: 'integer' }, documentIds: { type: 'string', description: 'JSON: idMappings.client_documents from the restore' } } } } } },
+          responses: { '200': ok('Placed', ref('PlacedFiles')), '400': errorResponse('Damaged, not a client backup, or invalid'), '404': errorResponse('Client not found'), ...commonErrors },
         },
       },
     },

@@ -912,6 +912,31 @@
           },
           "filesNotPlaced": {
             "type": "integer"
+          },
+          "idMappings": {
+            "type": "object",
+            "description": "Per table, archive id -> restored id",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "PlacedFiles": {
+        "type": "object",
+        "required": [
+          "filesPlaced",
+          "filesNotPlaced"
+        ],
+        "properties": {
+          "filesPlaced": {
+            "type": "integer"
+          },
+          "filesNotPlaced": {
+            "type": "integer"
           }
         }
       }
@@ -1962,6 +1987,107 @@
           },
           "403": {
             "description": "Not this session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/restore/client-files": {
+      "post": {
+        "operationId": "placeClientFiles",
+        "tags": [
+          "backup"
+        ],
+        "summary": "After a client restore as new, write the archive document files into the new client folder (Q31)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "newClientId",
+                  "documentIds"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "newClientId": {
+                    "type": "integer"
+                  },
+                  "documentIds": {
+                    "type": "string",
+                    "description": "JSON: idMappings.client_documents from the restore"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Placed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PlacedFiles"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Damaged, not a client backup, or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Client not found",
             "content": {
               "application/json": {
                 "schema": {
