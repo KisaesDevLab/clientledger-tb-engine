@@ -1180,6 +1180,75 @@
           }
         }
       },
+      "ClientSummary": {
+        "type": "object",
+        "description": "One period of an active client, as the Clients screen shows it (Q16).",
+        "required": [
+          "client_id",
+          "period_id",
+          "status",
+          "account_count",
+          "book_net",
+          "tax_net",
+          "book_in_balance",
+          "tax_in_balance",
+          "aje_count",
+          "last_worked"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "integer"
+          },
+          "period_id": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "ready_for_review"
+            ]
+          },
+          "account_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "book_net": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Book adjusted debits less credits (cents)"
+          },
+          "tax_net": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax basis debits less credits (cents)"
+          },
+          "book_in_balance": {
+            "type": "boolean"
+          },
+          "tax_in_balance": {
+            "type": "boolean"
+          },
+          "aje_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Book and tax adjusting entries"
+          },
+          "last_worked": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Newest change to the trial balance, an entry or a task"
+          }
+        }
+      },
       "TbCellSave": {
         "type": "object",
         "required": [
@@ -3129,6 +3198,65 @@
           },
           "404": {
             "description": "Period not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/clients/summary": {
+      "get": {
+        "operationId": "getClientsSummary",
+        "tags": [
+          "clients"
+        ],
+        "summary": "Status, balance state, AJE count and last worked for every period of every active client",
+        "responses": {
+          "200": {
+            "description": "Summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ClientSummary"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
             "content": {
               "application/json": {
                 "schema": {

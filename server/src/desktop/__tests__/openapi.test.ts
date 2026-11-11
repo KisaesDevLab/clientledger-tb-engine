@@ -52,6 +52,7 @@ for (const [pathKey, file] of [
   ['/api/v1/desktop/periods/{periodId}/trial-balance/totals', 'trial-balance-totals.json'],
   ['/api/v1/periods/{periodId}/journal-entries', 'journal-entries.json'],
   ['/api/v1/periods/{periodId}/variance-notes', 'variance-notes.json'],
+  ['/api/v1/desktop/clients/summary', 'clients-summary.json'],
 ] as const) {
   test(`recorded ${file} matches GET ${pathKey}`, () => {
     const validate = responseValidator(pathKey, 'get', '200');

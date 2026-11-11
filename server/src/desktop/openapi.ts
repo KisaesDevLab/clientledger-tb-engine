@@ -11,6 +11,7 @@
 import { Router } from 'express';
 import { desktopBackupRouter } from './backupRoutes';
 import { desktopTbRouter } from './tbTotals';
+import { desktopClientSummaryRouter } from './clientSummary';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -357,6 +358,23 @@ const schemas: Record<string, Schema> = {
       tax_in_balance: { type: 'boolean' },
     },
   },
+  ClientSummary: {
+    type: 'object',
+    description: 'One period of an active client, as the Clients screen shows it (Q16).',
+    required: ['client_id', 'period_id', 'status', 'account_count', 'book_net', 'tax_net', 'book_in_balance', 'tax_in_balance', 'aje_count', 'last_worked'],
+    properties: {
+      client_id: { type: 'integer' },
+      period_id: { type: 'integer' },
+      status: { type: 'string', enum: ['not_started', 'in_progress', 'ready_for_review'] },
+      account_count: { type: 'integer', minimum: 0 },
+      book_net: cents('Book adjusted debits less credits'),
+      tax_net: cents('Tax basis debits less credits'),
+      book_in_balance: { type: 'boolean' },
+      tax_in_balance: { type: 'boolean' },
+      aje_count: { type: 'integer', minimum: 0, description: 'Book and tax adjusting entries' },
+      last_worked: { anyOf: [dateTime, { type: 'null' }], description: 'Newest change to the trial balance, an entry or a task' },
+    },
+  },
   TbCellSave: {
     type: 'object',
     required: ['unadjustedDebit', 'unadjustedCredit'],
@@ -678,6 +696,13 @@ export function buildOpenApiSpec(): Schema {
           responses: { '200': ok('Totals', ref('TbTotals')), '400': errorResponse('Invalid id'), '404': errorResponse('Period not found'), ...commonErrors },
         },
       },
+      '/api/v1/desktop/clients/summary': {
+        get: {
+          operationId: 'getClientsSummary', tags: ['clients'],
+          summary: 'Status, balance state, AJE count and last worked for every period of every active client',
+          responses: { '200': ok('Summaries', { type: 'array', items: ref('ClientSummary') }, true), ...commonErrors },
+        },
+      },
       '/api/v1/periods/{periodId}/trial-balance/{accountId}': {
         parameters: [idParam('periodId', 'Period id'), idParam('accountId', 'Account id')],
         put: {
@@ -776,6 +801,7 @@ export function buildOpenApiSpec(): Schema {
 export const desktopRouter = Router();
 desktopRouter.use(desktopBackupRouter);
 desktopRouter.use(desktopTbRouter);
+desktopRouter.use(desktopClientSummaryRouter);
 desktopRouter.get('/openapi.json', (_req, res) => {
   res.json(buildOpenApiSpec());
 });
