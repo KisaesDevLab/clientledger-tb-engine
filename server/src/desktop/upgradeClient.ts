@@ -20,7 +20,11 @@
 //    not carry (a user, mostly) is cleared, as the engine's restore does;
 // 3. the database is migrated to this engine's schema;
 // 4. the client is written out again as a client .tbak at this schema,
-//    with the same document files, for the ordinary restore.
+//    with the same document files, for the ordinary restore. Tax code ids
+//    are made negative so that restore matches them by code (see
+//    awayFromLiveTaxCodeIds); a code the firm added that the restoring
+//    database lacks comes out unmapped, as for any backup from another
+//    computer (Q38).
 //
 // The launcher creates the scratch database for the run and drops it after;
 // the engine's own database is never touched.
@@ -96,6 +100,32 @@ async function singleColumnForeignKeys(trx: Knex.Transaction): Promise<ForeignKe
     JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
     JOIN pg_attribute pa ON pa.attrelid = c.confrelid AND pa.attnum = c.confkey[1]
     WHERE c.contype = 'f' AND n.nspname = 'public' AND array_length(c.conkey, 1) = 1`)).rows as ForeignKey[];
+}
+
+/**
+ * The working database numbered its tax codes itself, so an id here says
+ * nothing about the database the backup is restored into, where the engine's
+ * restore keeps an account's tax code id whenever that id exists. Every tax
+ * code id (and every column pointing at one) is made negative, which no live
+ * row has, so the restore matches each code by form, activity and code
+ * instead, as for a backup from another computer. Pure.
+ */
+export function awayFromLiveTaxCodeIds(tables: Tables, fks: Array<Pick<ForeignKey, 'child' | 'col' | 'parent'>>): Tables {
+  const flip = (v: unknown) => (typeof v === 'number' && v > 0 ? -v : v);
+  const cols = new Map<string, string[]>();
+  for (const fk of fks) {
+    if (fk.parent === 'tax_codes') cols.set(fk.child, [...(cols.get(fk.child) ?? []), fk.col]);
+  }
+  const out: Tables = {};
+  for (const [t, rows] of Object.entries(tables)) {
+    const these = [...(t === 'tax_codes' ? ['id'] : []), ...(cols.get(t) ?? [])];
+    out[t] = these.length === 0 ? rows : rows.map((r) => {
+      const row = { ...r };
+      for (const c of these) row[c] = flip(row[c]);
+      return row;
+    });
+  }
+  return out;
 }
 
 export interface UpgradeResult {
@@ -243,7 +273,10 @@ export async function upgradeClientBackup(
   // 4. The client again, at this schema.
   const all: Tables = {};
   for (const t of await listTables(db)) all[t] = (await db(t).select('*')) as Row[];
-  const selected = selectClientTables(all, clientId);
+  const selected = awayFromLiveTaxCodeIds(
+    selectClientTables(all, clientId),
+    await db.transaction((trx) => singleColumnForeignKeys(trx)),
+  );
   const fileEntries = new Map(dir.files.map((f) => [f.path, f]));
   const { recordCounts: _c, files: _f, missingFiles: _m, entries: _e, checksum: _s, ...kept } = manifest;
   const written = await writeClientArchive(

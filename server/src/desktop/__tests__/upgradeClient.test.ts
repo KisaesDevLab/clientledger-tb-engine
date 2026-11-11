@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import unzipper from 'unzipper';
-import { matchTaxCodes, upgradeDecision } from '../upgradeClient';
+import { awayFromLiveTaxCodeIds, matchTaxCodes, upgradeDecision } from '../upgradeClient';
 import { MANIFEST_PATH, hashArchive, verifyEntries } from '../../lib/backupManifest';
 
 const known = ['20260315000000_initial_schema.js', '20260320000001_mcp_support.js', '20260930000001_financial_statements.js'];
@@ -41,6 +41,26 @@ test('tax codes match by form, activity and code; others are added', () => {
     [8, null],
     [9, null],
   ]);
+});
+
+test('tax code ids leave the live range, so the restore matches codes by key', () => {
+  const out = awayFromLiveTaxCodeIds(
+    {
+      tax_codes: [{ id: 1, tax_code: '99001' }],
+      tax_code_software_maps: [{ id: 5, tax_code_id: 1 }],
+      chart_of_accounts: [{ id: 2, tax_code_id: 1 }, { id: 3, tax_code_id: null }],
+      periods: [{ id: 1 }],
+    },
+    [
+      { child: 'chart_of_accounts', col: 'tax_code_id', parent: 'tax_codes' },
+      { child: 'tax_code_software_maps', col: 'tax_code_id', parent: 'tax_codes' },
+      { child: 'trial_balance', col: 'account_id', parent: 'chart_of_accounts' },
+    ],
+  );
+  assert.deepEqual(out.tax_codes, [{ id: -1, tax_code: '99001' }]);
+  assert.deepEqual(out.tax_code_software_maps, [{ id: 5, tax_code_id: -1 }]);
+  assert.deepEqual(out.chart_of_accounts, [{ id: 2, tax_code_id: -1 }, { id: 3, tax_code_id: null }]);
+  assert.deepEqual(out.periods, [{ id: 1 }], 'other ids untouched');
 });
 
 test('the committed old-schema fixture is intact and from schema 20260320000001', async () => {
