@@ -50,7 +50,26 @@ export async function seedIfEmpty(db: Knex): Promise<boolean> {
   // knex's typings only allow a directory-based seed config; the runtime
   // accepts a seedSource the same way migrate accepts a migrationSource.
   await db.seed.run({ seedSource: staticSeedSource(SEEDS) } as unknown as Knex.SeederConfig);
+  await addSeededEntryRows(db);
   return true;
+}
+
+/**
+ * Upstream's demo seed inserts adjusting entries straight into the tables,
+ * without the trial balance rows the entry routes add for every account they
+ * touch (lib/ensureTrialBalanceRows.ts). v_adjusted_trial_balance starts from
+ * trial_balance, so those accounts (and their adjustments) were missing from
+ * the grid and its totals: the demo read as out of balance when every entry
+ * balances. Adds the same zero rows, once, on a brand-new database.
+ */
+export async function addSeededEntryRows(db: Knex): Promise<number> {
+  const result = await db.raw(`
+    INSERT INTO trial_balance (period_id, account_id, unadjusted_debit, unadjusted_credit, prior_year_debit, prior_year_credit)
+    SELECT DISTINCT je.period_id, jel.account_id, 0, 0, 0, 0
+      FROM journal_entry_lines jel
+      JOIN journal_entries je ON je.id = jel.journal_entry_id
+    ON CONFLICT (period_id, account_id) DO NOTHING`);
+  return Number((result as { rowCount?: number }).rowCount ?? 0);
 }
 
 export interface DesktopUserRow { id: number; username: string; role: string }

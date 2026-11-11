@@ -92,6 +92,33 @@ async function restoreFull(): Promise<void> {
   });
 }
 
+/**
+ * Q33: bring an older client .tbak up to this engine's schema. DATABASE_URL
+ * is an empty scratch database the launcher made for this run (never the
+ * engine's own); the launcher drops it afterwards.
+ */
+async function upgradeClient(): Promise<void> {
+  requireEnv(['DATABASE_URL', 'JWT_SECRET', 'ENCRYPTION_KEY']);
+  const [input, output] = [process.argv[3], process.argv[4]];
+  if (!input || !output) fatal('upgrade-client needs the backup file and the file to write');
+  const { upgradeClientBackup, UpgradeError } = require('./upgradeClient') as typeof import('./upgradeClient');
+  await withDb(async (db) => {
+    try {
+      const r = await upgradeClientBackup(db, input, output, pkg.version);
+      // One line the launcher reads; no client data in it.
+      console.log(r ? `UPGRADED from=${r.from} to=${r.to} rows=${r.rows} files=${r.fileCount}` : 'UPGRADED none');
+    } catch (err) {
+      if (err instanceof UpgradeError) {
+        console.error(`REFUSED ${err.code}: ${err.message}`);
+        await db.destroy();
+        process.exit(3);
+      }
+      throw err;
+    }
+    await db.destroy();
+  });
+}
+
 async function serve(): Promise<void> {
   requireEnv(['DATABASE_URL', 'PORT', 'JWT_SECRET', 'ENCRYPTION_KEY', 'CLTB_SESSION_TOKEN', 'UPLOADS_DIR', 'BACKUPS_DIR']);
   const desktopDb = require('./database') as typeof import('./database');
@@ -127,8 +154,12 @@ async function main(): Promise<void> {
       await restoreFull();
       process.exit(0);
       return;
+    case 'upgrade-client':
+      await upgradeClient();
+      process.exit(0);
+      return;
     default:
-      fatal(`unknown command "${command}" (expected serve, migrate, restore-full or version)`);
+      fatal(`unknown command "${command}" (expected serve, migrate, restore-full, upgrade-client or version)`);
   }
 }
 

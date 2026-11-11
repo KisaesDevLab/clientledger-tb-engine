@@ -26,6 +26,7 @@ import {
   type PnlFlag,
 } from '../lib/balancesExport';
 import { parseAliases, applyAliasClaims, type AliasClaim } from '../lib/importAliases';
+import { parseColumnMapping } from '../lib/csvColumnMapping';
 
 // ── Excel → CSV conversion ──────────────────────────────────────────────────
 
@@ -440,6 +441,12 @@ csvImportRouter.post(
         res.status(400).json({ data: null, error: { code: 'INVALID_PARAMS', message: 'periodId and clientId are required' } });
         return;
       }
+      // A column mapping the user chose replaces the guess (lib/csvColumnMapping.ts).
+      const userMapping = parseColumnMapping(req.body.columnMapping);
+      if (userMapping && 'error' in userMapping) {
+        res.status(400).json({ data: null, error: { code: 'INVALID_COLUMN_MAPPING', message: userMapping.error } });
+        return;
+      }
 
       // Read file content — convert Excel to CSV if needed
       let rawCsv: string;
@@ -529,7 +536,7 @@ Only give indexes for lines shown above — the file may be longer, and you must
 
       // A layout we know by its header row needs no model: the mapping is
       // fixed, and a guess would risk importing the wrong balance column.
-      const known = detectKnownLayout(allLines);
+      const known = userMapping ?? detectKnownLayout(allLines);
       if (known) {
         columnMapping = known;
       } else try {
