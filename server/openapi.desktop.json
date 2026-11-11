@@ -485,6 +485,71 @@
           }
         }
       },
+      "ChartAccount": {
+        "type": "object",
+        "description": "One account on a client chart of accounts (the import picks accounts from these, Q37).",
+        "required": [
+          "id",
+          "client_id",
+          "account_number",
+          "account_name",
+          "category",
+          "normal_balance",
+          "is_active"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "account_number": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "assets",
+              "liabilities",
+              "equity",
+              "revenue",
+              "expenses"
+            ]
+          },
+          "normal_balance": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "subcategory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tax_line": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workpaper_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "TrialBalanceRow": {
         "type": "object",
         "description": "One account on the adjusted trial balance (view v_adjusted_trial_balance). Each stage is a debit/credit pair in cents.",
@@ -2418,6 +2483,87 @@
           },
           "400": {
             "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/chart-of-accounts": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listChartOfAccounts",
+        "tags": [
+          "chart-of-accounts"
+        ],
+        "summary": "Active accounts of a client, by account number",
+        "responses": {
+          "200": {
+            "description": "Accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChartAccount"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
             "content": {
               "application/json": {
                 "schema": {

@@ -48,6 +48,7 @@ for (const [pathKey, file] of [
   ['/api/v1/health', 'health.json'],
   ['/api/v1/clients', 'clients.json'],
   ['/api/v1/clients/{clientId}/periods', 'periods.json'],
+  ['/api/v1/clients/{clientId}/chart-of-accounts', 'chart-of-accounts.json'],
   ['/api/v1/periods/{periodId}/trial-balance', 'trial-balance.json'],
   ['/api/v1/desktop/periods/{periodId}/trial-balance/totals', 'trial-balance-totals.json'],
   ['/api/v1/periods/{periodId}/journal-entries', 'journal-entries.json'],

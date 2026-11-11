@@ -183,6 +183,23 @@ const schemas: Record<string, Schema> = {
       folderYear: nullable('string', { maxLength: 20 }),
     },
   },
+  ChartAccount: {
+    type: 'object',
+    description: 'One account on a client chart of accounts (the import picks accounts from these, Q37).',
+    required: ['id', 'client_id', 'account_number', 'account_name', 'category', 'normal_balance', 'is_active'],
+    properties: {
+      id: { type: 'integer' },
+      client_id: { type: 'integer' },
+      account_number: { type: 'string' },
+      account_name: { type: 'string' },
+      category: { type: 'string', enum: ['assets', 'liabilities', 'equity', 'revenue', 'expenses'] },
+      normal_balance: { type: 'string', enum: ['debit', 'credit'] },
+      is_active: { type: 'boolean' },
+      subcategory: nullable('string'),
+      tax_line: nullable('string'),
+      workpaper_ref: nullable('string'),
+    },
+  },
   TrialBalanceRow: {
     type: 'object',
     description: 'One account on the adjusted trial balance (view v_adjusted_trial_balance). Each stage is a debit/credit pair in cents.',
@@ -619,6 +636,14 @@ export function buildOpenApiSpec(): Schema {
           operationId: 'createPeriod', tags: ['periods'],
           requestBody: jsonBody(ref('PeriodCreate')),
           responses: { '201': ok('Created', ref('Period')), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/chart-of-accounts': {
+        parameters: [idParam('clientId', 'Client id')],
+        get: {
+          operationId: 'listChartOfAccounts', tags: ['chart-of-accounts'],
+          summary: 'Active accounts of a client, by account number',
+          responses: { '200': ok('Accounts', { type: 'array', items: ref('ChartAccount') }, true), '400': errorResponse('Invalid id'), ...commonErrors },
         },
       },
       '/api/v1/periods/{id}': {
