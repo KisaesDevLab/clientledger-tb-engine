@@ -10,6 +10,7 @@
 
 import { Router } from 'express';
 import { desktopBackupRouter } from './backupRoutes';
+import { desktopTbRouter } from './tbTotals';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -333,6 +334,193 @@ const schemas: Record<string, Schema> = {
       filesNotPlaced: { type: 'integer' },
     },
   },
+  TbTotals: {
+    type: 'object',
+    description: 'Column totals of GET /periods/{periodId}/trial-balance, summed by PostgreSQL over the same rows.',
+    required: ['period_id', 'account_count', 'stages', 'unadjusted_in_balance', 'book_in_balance', 'tax_in_balance'],
+    properties: {
+      period_id: { type: 'integer' },
+      account_count: { type: 'integer', minimum: 0 },
+      stages: {
+        type: 'object',
+        required: ['unadjusted', 'trans_adj', 'book_adj', 'tax_adj', 'book_adjusted', 'tax_adjusted', 'prior_year'],
+        additionalProperties: false,
+        properties: Object.fromEntries(
+          ['unadjusted', 'trans_adj', 'book_adj', 'tax_adj', 'book_adjusted', 'tax_adjusted', 'prior_year'].map((s) => [
+            s,
+            { type: 'object', required: ['debit', 'credit'], properties: { debit: cents('Total debits'), credit: cents('Total credits') } },
+          ]),
+        ),
+      },
+      unadjusted_in_balance: { type: 'boolean' },
+      book_in_balance: { type: 'boolean' },
+      tax_in_balance: { type: 'boolean' },
+    },
+  },
+  TbCellSave: {
+    type: 'object',
+    required: ['unadjustedDebit', 'unadjustedCredit'],
+    additionalProperties: false,
+    properties: {
+      unadjustedDebit: { type: 'integer', minimum: 0, description: 'cents' },
+      unadjustedCredit: { type: 'integer', minimum: 0, description: 'cents' },
+      expectedUpdatedAt: { ...dateTime, description: 'row_updated_at as read; 409 STALE_WRITE when the row changed since' },
+    },
+  },
+  TbCellSaved: {
+    type: 'object',
+    required: ['periodId', 'accountId', 'unadjustedDebit', 'unadjustedCredit', 'updatedAt'],
+    properties: {
+      periodId: { type: 'integer' },
+      accountId: { type: 'integer' },
+      unadjustedDebit: cents('Unadjusted debit'),
+      unadjustedCredit: cents('Unadjusted credit'),
+      updatedAt: dateTime,
+    },
+  },
+  JournalEntryLine: {
+    type: 'object',
+    required: ['id', 'journal_entry_id', 'account_id', 'debit', 'credit', 'account_number', 'account_name'],
+    properties: {
+      id: { type: 'integer' },
+      journal_entry_id: { type: 'integer' },
+      account_id: { type: 'integer' },
+      debit: cents('Debit'),
+      credit: cents('Credit'),
+      account_number: { type: 'string' },
+      account_name: { type: 'string' },
+    },
+  },
+  JournalEntry: {
+    type: 'object',
+    required: ['id', 'period_id', 'entry_number', 'entry_type', 'entry_date', 'lines'],
+    properties: {
+      id: { type: 'integer' },
+      period_id: { type: 'integer' },
+      entry_number: { type: 'integer' },
+      entry_type: { type: 'string', enum: ['book', 'tax', 'trans'] },
+      entry_date: dateTime,
+      description: nullable('string'),
+      workpaper_ref: nullable('string'),
+      is_recurring: { type: 'boolean' },
+      source_tag: nullable('string'),
+      created_at: dateTime,
+      updated_at: dateTime,
+      lines: { type: 'array', items: ref('JournalEntryLine') },
+    },
+  },
+  VarianceNote: {
+    type: 'object',
+    required: ['id', 'account_id', 'period_id', 'compare_period_id', 'note'],
+    properties: {
+      id: { type: 'integer' },
+      account_id: { type: 'integer' },
+      period_id: { type: 'integer' },
+      compare_period_id: { type: 'integer' },
+      note: { type: 'string' },
+      created_by: nullable('integer'),
+      created_at: dateTime,
+    },
+  },
+  VarianceNoteSave: {
+    type: 'object',
+    required: ['note'],
+    additionalProperties: false,
+    properties: { note: { type: 'string', maxLength: 2000, description: 'Empty deletes the note' } },
+  },
+  CsvColumns: {
+    type: 'object',
+    required: ['accountNumber', 'accountName', 'debit', 'credit', 'amount'],
+    properties: Object.fromEntries(
+      ['accountNumber', 'accountName', 'debit', 'credit', 'amount', 'pnl', 'qboAccountName', 'qboAccountId'].map((k) => [k, nullable('integer', { minimum: 0 })]),
+    ),
+  },
+  CsvColumnMapping: {
+    type: 'object',
+    description: 'A mapping the user chose (lib/csvColumnMapping.ts); replaces the guess.',
+    required: ['delimiter', 'hasHeaders', 'headerRow', 'dataStartRow', 'amountFormat', 'columns'],
+    additionalProperties: false,
+    properties: {
+      delimiter: { type: 'string', enum: [',', ';', '\t', '|'] },
+      hasHeaders: { type: 'boolean' },
+      headerRow: { type: 'integer', minimum: 0 },
+      dataStartRow: { type: 'integer', minimum: 0 },
+      amountFormat: { type: 'string', enum: ['separate_dr_cr', 'single_signed', 'single_parentheses'] },
+      columns: {
+        type: 'object',
+        required: ['accountNumber', 'accountName', 'debit', 'credit', 'amount'],
+        additionalProperties: false,
+        properties: Object.fromEntries(['accountNumber', 'accountName', 'debit', 'credit', 'amount'].map((k) => [k, nullable('integer', { minimum: 0 })])),
+      },
+      rowsToSkip: { type: 'array', items: { type: 'integer', minimum: 0 } },
+    },
+  },
+  CsvMatchRow: {
+    type: 'object',
+    required: ['csvRow', 'csvAccountNumber', 'csvAccountName', 'matchedAccountId', 'matchType', 'action', 'debitCents', 'creditCents', 'confidence'],
+    properties: {
+      csvRow: { type: 'integer', description: 'Line index in the file, from 0' },
+      csvAccountNumber: nullable('string'),
+      csvAccountName: nullable('string'),
+      csvDebit: nullable('string'),
+      csvCredit: nullable('string'),
+      matchedAccountId: nullable('integer'),
+      matchedAccountNumber: nullable('string'),
+      matchedAccountName: nullable('string'),
+      confidence: { type: 'number' },
+      matchType: { type: 'string', enum: ['exact', 'qbo_id', 'exact_name', 'fuzzy', 'alias', 'none'] },
+      action: { type: 'string', enum: ['match', 'create_new', 'skip'] },
+      debitCents: cents('Debit'),
+      creditCents: cents('Credit'),
+      newCategory: { type: 'string', enum: ['assets', 'liabilities', 'equity', 'revenue', 'expenses'] },
+      newNormalBalance: { type: 'string', enum: ['debit', 'credit'] },
+      pnl: {},
+      qboAccountId: nullable('string'),
+      qboAccountName: nullable('string'),
+    },
+  },
+  CsvAnalysis: {
+    type: 'object',
+    required: ['delimiter', 'hasHeaders', 'headerRow', 'dataStartRow', 'amountFormat', 'columns', 'rowsToSkip', 'matches', 'fallbackMode', 'totalRows'],
+    properties: {
+      delimiter: { type: 'string' },
+      hasHeaders: { type: 'boolean' },
+      headerRow: { type: 'integer' },
+      dataStartRow: { type: 'integer' },
+      amountFormat: { type: 'string', enum: ['separate_dr_cr', 'single_signed', 'single_parentheses'] },
+      columns: ref('CsvColumns'),
+      rowsToSkip: { type: 'array', items: { type: 'integer' } },
+      matches: { type: 'array', items: ref('CsvMatchRow') },
+      detectedFormat: nullable('string'),
+      fallbackMode: { type: 'boolean', description: 'The columns were guessed without AI' },
+      totalRows: { type: 'integer' },
+      rawPreview: {},
+    },
+  },
+  CsvConfirmRequest: {
+    type: 'object',
+    required: ['periodId', 'clientId', 'matches'],
+    properties: {
+      periodId: { type: 'integer' },
+      clientId: { type: 'integer' },
+      matches: { type: 'array', items: ref('CsvMatchRow') },
+      aiExtraction: {},
+    },
+  },
+  CsvConfirmResult: {
+    type: 'object',
+    required: ['accountsMatched', 'accountsCreated', 'rowsImported', 'rowsSkipped'],
+    properties: {
+      accountsMatched: { type: 'integer' },
+      accountsCreated: { type: 'integer' },
+      rowsImported: { type: 'integer' },
+      rowsSkipped: { type: 'integer' },
+      qboIdsLinked: { type: 'integer' },
+      accountsWithoutTaxCodes: { type: 'integer' },
+      total: { type: 'integer' },
+      qboWarnings: { type: 'array', items: { type: 'string' } },
+    },
+  },
 };
 
 const json = 'application/json';
@@ -482,12 +670,112 @@ export function buildOpenApiSpec(): Schema {
           responses: { '200': ok('Placed', ref('PlacedFiles')), '400': errorResponse('Damaged, not a client backup, or invalid'), '404': errorResponse('Client not found'), ...commonErrors },
         },
       },
+      '/api/v1/desktop/periods/{periodId}/trial-balance/totals': {
+        parameters: [idParam('periodId', 'Period id')],
+        get: {
+          operationId: 'getTrialBalanceTotals', tags: ['trial-balance'],
+          summary: 'Column totals of the trial balance, summed by the database (the grid checks its own against these)',
+          responses: { '200': ok('Totals', ref('TbTotals')), '400': errorResponse('Invalid id'), '404': errorResponse('Period not found'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/trial-balance/{accountId}': {
+        parameters: [idParam('periodId', 'Period id'), idParam('accountId', 'Account id')],
+        put: {
+          operationId: 'saveTrialBalanceCell', tags: ['trial-balance'],
+          summary: 'Save the unadjusted debit and credit of one account (both sides, cents)',
+          requestBody: jsonBody(ref('TbCellSave')),
+          responses: {
+            '200': ok('Saved', ref('TbCellSaved')),
+            '400': errorResponse('Validation error'),
+            '409': errorResponse('PERIOD_LOCKED, or STALE_WRITE when the row changed since it was read'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/periods/{periodId}/journal-entries': {
+        parameters: [
+          idParam('periodId', 'Period id'),
+          { name: 'type', in: 'query', required: false, schema: { type: 'string', enum: ['book', 'tax', 'trans'] } },
+          { name: 'accountId', in: 'query', required: false, schema: { type: 'integer', minimum: 1 }, description: 'Only entries with a line on this account (every line of each entry is returned)' },
+        ],
+        get: {
+          operationId: 'listJournalEntries', tags: ['journal-entries'],
+          summary: 'Adjusting entries of a period, by type then number, with their lines',
+          responses: { '200': ok('Entries', { type: 'array', items: ref('JournalEntry') }, true), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/variance-notes': {
+        parameters: [idParam('periodId', 'Period id')],
+        get: {
+          operationId: 'listVarianceNotes', tags: ['variance-notes'],
+          summary: 'Variance notes of a period, for every comparison period',
+          responses: { '200': ok('Notes', { type: 'array', items: ref('VarianceNote') }), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/compare/{comparePeriodId}/variance-notes/{accountId}': {
+        parameters: [idParam('periodId', 'Period id'), idParam('comparePeriodId', 'Comparison (prior-year) period id'), idParam('accountId', 'Account id')],
+        put: {
+          operationId: 'saveVarianceNote', tags: ['variance-notes'],
+          summary: 'Save, or with an empty note delete, the variance note of an account against a comparison period',
+          requestBody: jsonBody(ref('VarianceNoteSave')),
+          responses: {
+            '200': ok('Saved, or deleted', { anyOf: [ref('VarianceNote'), { type: 'object', required: ['deleted'], properties: { deleted: { const: true } } }] }),
+            '400': errorResponse('Validation error'),
+            '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/import/csv/analyze': {
+        post: {
+          operationId: 'analyzeCsvImport', tags: ['import'],
+          summary: 'Read a trial balance CSV or Excel file: the column mapping (guessed, or columnMapping) and every row matched to an account',
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['file', 'periodId', 'clientId'],
+                  properties: {
+                    file: { type: 'string', format: 'binary' },
+                    periodId: { type: 'integer' },
+                    clientId: { type: 'integer' },
+                    columnMapping: { type: 'string', description: 'JSON CsvColumnMapping; replaces the guess' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': ok('Analysis', ref('CsvAnalysis')),
+            '400': errorResponse('NO_FILE, INVALID_PARAMS or INVALID_COLUMN_MAPPING'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/import/csv/confirm': {
+        post: {
+          operationId: 'confirmCsvImport', tags: ['import'],
+          summary: 'Write the reviewed rows as unadjusted balances (create_new rows add accounts)',
+          requestBody: jsonBody(ref('CsvConfirmRequest')),
+          responses: {
+            '200': ok('Imported', ref('CsvConfirmResult')),
+            '400': errorResponse('Missing fields'),
+            '404': errorResponse('Period not found for this client'),
+            '409': errorResponse('PERIOD_LOCKED'),
+            '422': errorResponse('INVALID_ACCOUNT_ID or DUPLICATE_ACCOUNT_NUMBER'),
+            ...commonErrors,
+          },
+        },
+      },
     },
   };
 }
 
 export const desktopRouter = Router();
 desktopRouter.use(desktopBackupRouter);
+desktopRouter.use(desktopTbRouter);
 desktopRouter.get('/openapi.json', (_req, res) => {
   res.json(buildOpenApiSpec());
 });

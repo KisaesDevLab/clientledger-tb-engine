@@ -49,6 +49,9 @@ for (const [pathKey, file] of [
   ['/api/v1/clients', 'clients.json'],
   ['/api/v1/clients/{clientId}/periods', 'periods.json'],
   ['/api/v1/periods/{periodId}/trial-balance', 'trial-balance.json'],
+  ['/api/v1/desktop/periods/{periodId}/trial-balance/totals', 'trial-balance-totals.json'],
+  ['/api/v1/periods/{periodId}/journal-entries', 'journal-entries.json'],
+  ['/api/v1/periods/{periodId}/variance-notes', 'variance-notes.json'],
 ] as const) {
   test(`recorded ${file} matches GET ${pathKey}`, () => {
     const validate = responseValidator(pathKey, 'get', '200');
@@ -56,6 +59,11 @@ for (const [pathKey, file] of [
     assert.ok(ok, JSON.stringify(validate.errors, null, 2));
   });
 }
+
+test('recorded csv-analyze.json matches POST /api/v1/import/csv/analyze', () => {
+  const validate = responseValidator('/api/v1/import/csv/analyze', 'post', '200');
+  assert.ok(validate(fixture('csv-analyze.json')), JSON.stringify(validate.errors, null, 2));
+});
 
 test('committed openapi.desktop.json is up to date (npm run desktop:openapi)', () => {
   const committed = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../openapi.desktop.json'), 'utf8'));
