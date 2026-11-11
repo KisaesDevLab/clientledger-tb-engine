@@ -542,6 +542,12 @@
               "null"
             ]
           },
+          "tax_code_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "workpaper_ref": {
             "type": [
               "string",

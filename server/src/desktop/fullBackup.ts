@@ -86,7 +86,7 @@ export function redactRow(table: string, row: Record<string, unknown>): Record<s
 const BYTEA_TAG = '$bytea';
 const INSERT_BATCH = 500;
 
-interface Column {
+export interface Column {
   name: string;
   dataType: string;
   generated: boolean;
@@ -100,7 +100,7 @@ export async function listTables(db: Knex | Knex.Transaction): Promise<string[]>
   return rows.map((r) => r.table_name).filter((t) => !EXCLUDED_TABLES.has(t));
 }
 
-async function columnsOf(db: Knex | Knex.Transaction, table: string): Promise<Column[]> {
+export async function columnsOf(db: Knex | Knex.Transaction, table: string): Promise<Column[]> {
   const rows = (await db('information_schema.columns')
     .where({ table_schema: 'public', table_name: table })
     .orderBy('ordinal_position')
@@ -275,6 +275,62 @@ export class FullRestoreError extends Error {
   }
 }
 
+/** Run migrations one at a time until `target` is the newest applied. */
+export async function migrateTo(db: Knex, target: string): Promise<void> {
+  const source = { migrationSource: staticSource(MIGRATIONS) };
+  for (;;) {
+    const applied = await appliedMigrations(db);
+    if (applied[applied.length - 1] === target) return;
+    const [, ran] = (await db.migrate.up(source)) as [number, string[]];
+    if (ran.length === 0) throw new FullRestoreError('The database could not be prepared.', 'MIGRATE_FAILED');
+  }
+}
+
+/**
+ * Run `fn` in one transaction with every foreign key deferred to commit, so
+ * rows can go in table by table in any order. Only for a database that is
+ * ours and new: the keys are made deferrable first and put back afterwards.
+ */
+export async function withDeferredForeignKeys<T>(db: Knex, fn: (trx: Knex.Transaction) => Promise<T>): Promise<T> {
+  const fks = (await db.raw(`
+    SELECT cl.relname AS tbl, c.conname AS name
+    FROM pg_constraint c
+    JOIN pg_namespace n ON n.oid = c.connamespace
+    JOIN pg_class cl ON cl.oid = c.conrelid
+    WHERE c.contype = 'f' AND n.nspname = 'public' AND NOT c.condeferrable`)).rows as Array<{ tbl: string; name: string }>;
+  const alterAll = async (clause: string) => {
+    await db.transaction(async (trx) => {
+      for (const fk of fks) await trx.raw(`ALTER TABLE ?? ALTER CONSTRAINT ?? ${clause}`, [fk.tbl, fk.name]);
+    });
+  };
+  await alterAll('DEFERRABLE INITIALLY DEFERRED');
+  try {
+    return await db.transaction(async (trx) => {
+      await trx.raw('SET CONSTRAINTS ALL DEFERRED');
+      return fn(trx);
+    });
+  } finally {
+    await alterAll('NOT DEFERRABLE');
+  }
+}
+
+/** Identity and serial columns continue after the ids now in each table. */
+export async function resetSequences(trx: Knex.Transaction): Promise<void> {
+  const seqs = (await trx.raw(`
+    SELECT c.table_name AS tbl, c.column_name AS col,
+           pg_get_serial_sequence(quote_ident(c.table_name), c.column_name) AS seq
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+      AND pg_get_serial_sequence(quote_ident(c.table_name), c.column_name) IS NOT NULL`)).rows as Array<{
+    tbl: string;
+    col: string;
+    seq: string;
+  }>;
+  for (const s of seqs) {
+    await trx.raw(`SELECT setval(?, COALESCE((SELECT MAX(??) FROM ??), 0) + 1, false)`, [s.seq, s.col, s.tbl]);
+  }
+}
+
 /** A path inside the archive that is safe to unpack under a folder. */
 export function safeRelative(entryPath: string): string | null {
   if (!entryPath.startsWith('files/')) return null;
@@ -344,81 +400,40 @@ export async function restoreFullBackup(db: Knex, archivePath: string, uploadsRo
       'BACKUP_SCHEMA_UNKNOWN',
     );
   }
-  const source = { migrationSource: staticSource(MIGRATIONS) };
-  for (;;) {
-    const applied = await appliedMigrations(db);
-    if (applied[applied.length - 1] === target) break;
-    const [, ran] = (await db.migrate.up(source)) as [number, string[]];
-    if (ran.length === 0) throw new FullRestoreError('The database could not be prepared.', 'MIGRATE_FAILED');
-  }
+  await migrateTo(db, target);
 
-  // 2. Load every table. Foreign keys are made deferrable first (the database
-  // is ours and new), so rows can go in table by table in any order and are
-  // checked once at commit; afterwards they are put back as they were.
-  const fks = (await db.raw(`
-    SELECT cl.relname AS tbl, c.conname AS name
-    FROM pg_constraint c
-    JOIN pg_namespace n ON n.oid = c.connamespace
-    JOIN pg_class cl ON cl.oid = c.conrelid
-    WHERE c.contype = 'f' AND n.nspname = 'public' AND NOT c.condeferrable`)).rows as Array<{ tbl: string; name: string }>;
-  const alterAll = async (clause: string) => {
-    await db.transaction(async (trx) => {
-      for (const fk of fks) await trx.raw(`ALTER TABLE ?? ALTER CONSTRAINT ?? ${clause}`, [fk.tbl, fk.name]);
-    });
-  };
-  await alterAll('DEFERRABLE INITIALLY DEFERRED');
+  // 2. Load every table, foreign keys checked once at commit.
   const tablesHere = await listTables(db);
   const recordCounts: Record<string, number> = {};
-  try {
-    await db.transaction(async (trx) => {
-      await trx.raw('SET CONSTRAINTS ALL DEFERRED');
-      // What the migrations seeded (tax codes, system users, settings) is
-      // replaced by the backup's own rows.
-      if (tablesHere.length > 0) {
-        await trx.raw(`TRUNCATE ${tablesHere.map(() => '??').join(', ')} RESTART IDENTITY`, tablesHere);
+  await withDeferredForeignKeys(db, async (trx) => {
+    // What the migrations seeded (tax codes, system users, settings) is
+    // replaced by the backup's own rows.
+    if (tablesHere.length > 0) {
+      await trx.raw(`TRUNCATE ${tablesHere.map(() => '??').join(', ')} RESTART IDENTITY`, tablesHere);
+    }
+    const byPath = new Map(dir.files.map((f) => [f.path, f]));
+    for (const table of tablesHere) {
+      const entry = byPath.get(`tables/${table}.json`);
+      if (!entry) continue; // a table the backup's version had empty or absent
+      const rows = JSON.parse((await entry.buffer()).toString('utf8')) as Array<Record<string, unknown>>;
+      const cols = await columnsOf(trx, table);
+      const prepared = rows.map((r) => decodeRow(r, cols));
+      for (let i = 0; i < prepared.length; i += INSERT_BATCH) {
+        await trx(table).insert(prepared.slice(i, i + INSERT_BATCH));
       }
-      const byPath = new Map(dir.files.map((f) => [f.path, f]));
-      for (const table of tablesHere) {
-        const entry = byPath.get(`tables/${table}.json`);
-        if (!entry) continue; // a table the backup's version had empty or absent
-        const rows = JSON.parse((await entry.buffer()).toString('utf8')) as Array<Record<string, unknown>>;
-        const cols = await columnsOf(trx, table);
-        const prepared = rows.map((r) => decodeRow(r, cols));
-        for (let i = 0; i < prepared.length; i += INSERT_BATCH) {
-          await trx(table).insert(prepared.slice(i, i + INSERT_BATCH));
-        }
-        recordCounts[table] = rows.length;
+      recordCounts[table] = rows.length;
+    }
+    for (const f of dir.files) {
+      const m = /^tables\/(.+)\.json$/.exec(f.path);
+      if (m && !tablesHere.includes(m[1])) {
+        throw new FullRestoreError(`The backup has a table this version does not: ${m[1]}.`, 'BACKUP_SCHEMA_UNKNOWN');
       }
-      for (const f of dir.files) {
-        const m = /^tables\/(.+)\.json$/.exec(f.path);
-        if (m && !tablesHere.includes(m[1])) {
-          throw new FullRestoreError(`The backup has a table this version does not: ${m[1]}.`, 'BACKUP_SCHEMA_UNKNOWN');
-        }
-      }
-      // Identity and serial columns continue after the restored ids.
-      const seqs = (await trx.raw(`
-        SELECT c.table_name AS tbl, c.column_name AS col,
-               pg_get_serial_sequence(quote_ident(c.table_name), c.column_name) AS seq
-        FROM information_schema.columns c
-        WHERE c.table_schema = 'public'
-          AND pg_get_serial_sequence(quote_ident(c.table_name), c.column_name) IS NOT NULL`)).rows as Array<{
-        tbl: string;
-        col: string;
-        seq: string;
-      }>;
-      for (const s of seqs) {
-        await trx.raw(
-          `SELECT setval(?, COALESCE((SELECT MAX(??) FROM ??), 0) + 1, false)`,
-          [s.seq, s.col, s.tbl],
-        );
-      }
-    });
-  } finally {
-    await alterAll('NOT DEFERRABLE');
-  }
+    }
+    await resetSequences(trx);
+  });
 
   // 3. Up to this version's schema.
-  const [, after] = (await db.migrate.latest(source)) as [number, string[]];
+  const [, after] = (await db.migrate.latest({ migrationSource: staticSource(MIGRATIONS) })) as [number, string[]];
 
   // 4. Documents.
   let fileCount = 0;

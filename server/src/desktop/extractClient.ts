@@ -120,7 +120,7 @@ function refuseBinary(tables: Tables): void {
   for (const [t, rows] of Object.entries(tables)) {
     for (const r of rows) {
       for (const v of Object.values(r)) {
-        if (v && typeof v === 'object' && !Array.isArray(v) && '$bytea' in (v as object)) {
+        if (Buffer.isBuffer(v) || (v && typeof v === 'object' && !Array.isArray(v) && '$bytea' in (v as object))) {
           throw new ExtractError(`The table ${t} holds binary data a client backup cannot carry.`, 'UNSUPPORTED_VALUE');
         }
       }
@@ -171,37 +171,55 @@ export async function extractClient(fullPath: string, clientId: number, dest: st
   const selected = selectClientTables(tables, clientId);
   const client = selected.clients[0];
   if (!client) throw new ExtractError('That client is not in this backup.', 'CLIENT_NOT_IN_BACKUP');
-  refuseBinary(selected);
 
   const fileEntries = new Map(dir.files.map((f) => [f.path, f]));
+  const clientName = (client.name as string | null) ?? null;
+  const written = await writeClientArchive(
+    dest,
+    {
+      version: '1.0',
+      formatVersion: FORMAT_VERSION,
+      source: 'desktop',
+      appVersion,
+      // The rows are the full backup's, so its schema, not this engine's.
+      schemaVersion: (manifest.schemaVersion as string | null) ?? null,
+      backupType: 'client',
+      backupLevel: 'client',
+      createdAt: new Date().toISOString(),
+      createdBy: 'desktop',
+      clientId,
+      clientName,
+      periodId: null,
+      periodName: null,
+    },
+    selected,
+    (doc) => {
+      const from = fullEntryOf(doc);
+      const entry = from ? fileEntries.get(from) : undefined;
+      return entry ? () => entry.buffer() : null;
+    },
+  );
+  return { path: dest, size: written.size, sha256: written.sha256, clientName, fileCount: written.fileCount, missingFiles: written.missingFiles };
+}
+
+/**
+ * Write a client .tbak at `dest` (via `dest.partial` and a rename): the
+ * tables, each document's file as files/<documentId> when `fileOf` has one,
+ * and `manifest` completed with the counts, file list and checksums.
+ */
+export async function writeClientArchive(
+  dest: string,
+  manifest: Record<string, unknown>,
+  tables: Tables,
+  fileOf: (doc: Row) => (() => Promise<Buffer>) | null,
+): Promise<{ size: number; sha256: string; fileCount: number; missingFiles: number[] }> {
+  refuseBinary(tables);
   const recordCounts: Record<string, number> = {};
-  for (const [t, rows] of Object.entries(selected)) recordCounts[t] = rows.length;
+  for (const [t, rows] of Object.entries(tables)) recordCounts[t] = rows.length;
   const entries: ManifestEntries = {};
   const files: Array<{ documentId: number; path: string }> = [];
   const missingFiles: number[] = [];
-  const clientName = (client.name as string | null) ?? null;
-  const out = {
-    version: '1.0',
-    formatVersion: FORMAT_VERSION,
-    source: 'desktop',
-    appVersion,
-    // The rows are the full backup's, so its schema, not this engine's.
-    schemaVersion: (manifest.schemaVersion as string | null) ?? null,
-    backupType: 'client',
-    backupLevel: 'client',
-    createdAt: new Date().toISOString(),
-    createdBy: 'desktop',
-    clientId,
-    clientName,
-    periodId: null,
-    periodName: null,
-    recordCounts,
-    includesFiles: true,
-    files,
-    missingFiles,
-    entries,
-    checksum: '',
-  };
+  const out = { ...manifest, recordCounts, includesFiles: true, files, missingFiles, entries, checksum: '' };
 
   const partial = `${dest}.partial`;
   fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -214,20 +232,19 @@ export async function extractClient(fullPath: string, clientId: number, dest: st
       zip.on('error', reject);
       zip.pipe(output);
       const build = async () => {
-        for (const [t, rows] of Object.entries(selected)) {
+        for (const [t, rows] of Object.entries(tables)) {
           const name = `tables/${t}.json`;
           const text = JSON.stringify(rows, null, 2);
           entries[name] = entryFor(text);
           zip.append(text, { name });
         }
-        for (const doc of selected.client_documents ?? []) {
-          const from = fullEntryOf(doc);
-          const entry = from ? fileEntries.get(from) : undefined;
-          if (!entry) {
+        for (const doc of tables.client_documents ?? []) {
+          const read = fileOf(doc);
+          if (!read) {
             missingFiles.push(doc.id as number);
             continue;
           }
-          const body = await entry.buffer();
+          const body = await read();
           const name = documentFilePath(doc.id as number);
           entries[name] = { sha256: sha256Hex(body), size: body.length };
           files.push({ documentId: doc.id as number, path: name });
@@ -242,7 +259,7 @@ export async function extractClient(fullPath: string, clientId: number, dest: st
     for await (const c of fs.createReadStream(partial)) hash.update(c as Buffer);
     const size = fs.statSync(partial).size;
     fs.renameSync(partial, dest);
-    return { path: dest, size, sha256: hash.digest('hex'), clientName, fileCount: files.length, missingFiles };
+    return { size, sha256: hash.digest('hex'), fileCount: files.length, missingFiles };
   } catch (err) {
     fs.rmSync(partial, { force: true });
     throw err;

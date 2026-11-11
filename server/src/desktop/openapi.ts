@@ -197,6 +197,7 @@ const schemas: Record<string, Schema> = {
       is_active: { type: 'boolean' },
       subcategory: nullable('string'),
       tax_line: nullable('string'),
+      tax_code_id: nullable('integer'),
       workpaper_ref: nullable('string'),
     },
   },
