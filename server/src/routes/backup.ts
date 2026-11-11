@@ -32,6 +32,21 @@ import {
   deleteFsClientData, dumpFsClientTables, dumpFsLibrary, restoreFsClientTables, restoreFsLibrary, FS_USER_FK_COLUMNS,
 } from '../lib/fs/fsBackup';
 import { sendServerError } from '../lib/safeError';
+import {
+  BackupRefusal,
+  FORMAT_VERSION,
+  MANIFEST_PATH,
+  appliedMigrations,
+  backupSource,
+  checkArchive,
+  documentFilePath,
+  entryFor,
+  sha256Hex,
+  type ManifestEntries,
+} from '../lib/backupManifest';
+import { openDocument, type DocumentRow } from '../lib/documentStore';
+import { getStorageDriverFor } from '../lib/storage';
+import { Readable } from 'stream';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Restore upload session cache
@@ -92,6 +107,11 @@ interface BackupOptions {
   clientId?: number;
   periodId?: number;
   triggerType?: 'manual' | 'scheduled' | 'pre_restore';
+  /**
+   * Carry the client's document bytes under files/ (client and period levels
+   * only). Off by default: an archive carries rows, not bytes.
+   */
+  includeFiles?: boolean;
 }
 
 interface BackupHistoryRow {
@@ -118,12 +138,36 @@ interface BackupHistoryRow {
 // Backup service
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Same source as the health route's version. */
+const APP_VERSION: string = process.env.npm_package_version ?? 'unknown';
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const c of stream) chunks.push(Buffer.from(c as Buffer));
+  return Buffer.concat(chunks);
+}
+
+/** Append one entry and wait until archiver has written it. */
+function appendAndWait(archive: archiver.Archiver, body: Buffer, name: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onEntry = (entry: { name: string }) => {
+      if (entry.name !== name) return;
+      archive.off('entry', onEntry);
+      resolve();
+    };
+    archive.on('entry', onEntry);
+    archive.once('error', reject);
+    archive.append(body, { name });
+  });
+}
+
 async function createBackup(
   level: BackupLevel,
   options: BackupOptions,
   userId: number | null,
 ): Promise<BackupHistoryRow> {
   const { clientId, periodId, triggerType = 'manual' } = options;
+  const includeFiles = options.includeFiles === true && (level === 'client' || level === 'period');
 
   // Collect table data inside a REPEATABLE READ transaction so that every
   // SELECT sees the same snapshot — otherwise a user committing a JE or TB
@@ -328,9 +372,18 @@ async function createBackup(
   const filename = `backup_${level}${suffix}_${ts}.tbak`;
   const filePath = path.join(BACKUP_DIR, filename);
 
-  // Build manifest (no checksum yet)
+  // Build manifest (no checksum yet). Format 2 adds fields only; see
+  // lib/backupManifest.ts. It is written LAST, once every entry is hashed.
+  const applied = await appliedMigrations(db);
+  const entries: ManifestEntries = {};
+  const files: Array<{ documentId: number; path: string }> = [];
+  const missingFiles: number[] = [];
   const manifest = {
     version: '1.0',
+    formatVersion: FORMAT_VERSION,
+    source: backupSource(),
+    appVersion: APP_VERSION,
+    schemaVersion: applied[applied.length - 1] ?? null,
     backupType: level,
     backupLevel: level,
     createdAt: new Date().toISOString(),
@@ -340,6 +393,10 @@ async function createBackup(
     periodId: periodId ?? null,
     periodName: resolvedPeriodName,
     recordCounts,
+    includesFiles: includeFiles,
+    files,
+    missingFiles,
+    entries,
     checksum: '',
   };
 
@@ -352,15 +409,40 @@ async function createBackup(
     archive.on('error', reject);
     archive.pipe(output);
 
-    // Add manifest
-    archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
+    const build = async () => {
+      // Add table files
+      for (const [tableName, rows] of Object.entries(tableData)) {
+        const name = `tables/${tableName}.json`;
+        const text = JSON.stringify(rows, null, 2);
+        entries[name] = entryFor(text);
+        archive.append(text, { name });
+      }
 
-    // Add table files
-    for (const [tableName, rows] of Object.entries(tableData)) {
-      archive.append(JSON.stringify(rows, null, 2), { name: `tables/${tableName}.json` });
-    }
+      // Document bytes, one at a time: archiver queues what it is given, so
+      // appending every document at once would hold them all in memory.
+      if (includeFiles) {
+        for (const doc of (tableData['client_documents'] ?? []) as DocumentRow[]) {
+          let body: Buffer;
+          try {
+            const { body: stream } = await openDocument(doc);
+            body = await streamToBuffer(stream);
+          } catch {
+            // Listed, not fatal: the row restores and says its file is missing,
+            // exactly as a rows-only archive does.
+            missingFiles.push(doc.id);
+            continue;
+          }
+          const name = documentFilePath(doc.id);
+          entries[name] = { sha256: sha256Hex(body), size: body.length };
+          files.push({ documentId: doc.id, path: name });
+          await appendAndWait(archive, body, name);
+        }
+      }
 
-    archive.finalize();
+      archive.append(JSON.stringify(manifest, null, 2), { name: MANIFEST_PATH });
+      await archive.finalize();
+    };
+    build().catch(reject);
   });
 
   // Compute checksum via streaming hash — avoids pulling the whole .tbak into
@@ -453,6 +535,61 @@ async function readZipContents(filePath: string): Promise<Record<string, unknown
     tables[tableName] = JSON.parse(content.toString('utf8')) as unknown[];
   }
   return tables;
+}
+
+function archivedFileCount(manifest: Record<string, unknown>): number {
+  return Array.isArray(manifest.files) ? manifest.files.length : 0;
+}
+
+/**
+ * Put archived document bytes back for a replace into the same client, after
+ * the data transaction committed (the rows already hold their keys). An
+ * object that is missing or whose bytes differ is written; one that already
+ * matches is left alone. Legacy rows (no object_key) and rows of another
+ * client are counted as not placed.
+ */
+async function placeArchivedFiles(
+  filePath: string,
+  manifest: Record<string, unknown>,
+  tables: Record<string, unknown[]>,
+  targetClientId: number,
+): Promise<{ placed: number; notPlaced: number }> {
+  const listed = (Array.isArray(manifest.files) ? manifest.files : []) as Array<{ documentId: number; path: string }>;
+  if (listed.length === 0) return { placed: 0, notPlaced: 0 };
+  const clients = (tables['clients'] ?? []) as Array<{ id: number }>;
+  if (clients[0]?.id !== targetClientId) return { placed: 0, notPlaced: listed.length };
+
+  const rows = new Map(
+    ((tables['client_documents'] ?? []) as DocumentRow[]).map((r) => [r.id, r]),
+  );
+  const dir = await unzipper.Open.file(filePath);
+  const entries = new Map(dir.files.map((f) => [f.path, f]));
+  let placed = 0;
+  let notPlaced = 0;
+  for (const { documentId, path: entryPath } of listed) {
+    const row = rows.get(documentId);
+    const entry = entries.get(entryPath);
+    if (!row || !row.object_key || !entry) {
+      notPlaced += 1;
+      continue;
+    }
+    try {
+      const body = await entry.buffer();
+      const driver = await getStorageDriverFor(row.storage_backend);
+      let current: Buffer | null = null;
+      if (await driver.head(row.object_key)) {
+        current = await streamToBuffer((await driver.get(row.object_key)).body);
+      }
+      if (!current || sha256Hex(current) !== sha256Hex(body)) {
+        await driver.put(row.object_key, body, { contentType: row.file_type ?? undefined });
+      }
+      placed += 1;
+    } catch (err) {
+      console.warn(`[restore] document ${documentId} could not be placed:`, err instanceof Error ? err.message : err);
+      notPlaced += 1;
+    }
+  }
+  return { placed, notPlaced };
 }
 
 async function readManifest(filePath: string): Promise<Record<string, unknown>> {
@@ -1579,6 +1716,12 @@ function requireAdmin(req: AuthRequest, res: Response): boolean {
   return true;
 }
 
+/** `?includeFiles=1` or `{ "includeFiles": true }`: carry document bytes. */
+function wantsFiles(req: AuthRequest): boolean {
+  const body = (req.body ?? {}) as { includeFiles?: unknown };
+  return req.query.includeFiles === '1' || req.query.includeFiles === 'true' || body.includeFiles === true;
+}
+
 // POST /api/v1/backup/full
 backupRouter.post('/full', async (req: AuthRequest, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
@@ -1610,7 +1753,11 @@ backupRouter.post('/client/:clientId', async (req: AuthRequest, res: Response): 
       res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid clientId' } });
       return;
     }
-    const record = await createBackup('client', { clientId, triggerType: 'manual' }, req.user!.userId);
+    const record = await createBackup(
+      'client',
+      { clientId, triggerType: 'manual', includeFiles: wantsFiles(req) },
+      req.user!.userId,
+    );
     res.json({ data: record, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'backup');
@@ -1626,7 +1773,11 @@ backupRouter.post('/period/:periodId', async (req: AuthRequest, res: Response): 
       res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid periodId' } });
       return;
     }
-    const record = await createBackup('period', { periodId, triggerType: 'manual' }, req.user!.userId);
+    const record = await createBackup(
+      'period',
+      { periodId, triggerType: 'manual', includeFiles: wantsFiles(req) },
+      req.user!.userId,
+    );
     res.json({ data: record, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'backup');
@@ -1756,6 +1907,17 @@ restoreRouter.post(
       // Read manifest
       const manifest = await readManifest(tbakPath);
 
+      // A format-2 archive is checked entry by entry, and one from a newer
+      // schema is refused, before anyone is offered a restore.
+      try {
+        await checkArchive(tbakPath, manifest, db);
+      } catch (refusal) {
+        if (!(refusal instanceof BackupRefusal)) throw refusal;
+        await fs.promises.unlink(tbakPath).catch(() => undefined);
+        res.status(400).json({ data: null, error: { code: refusal.code, message: refusal.message } });
+        return;
+      }
+
       // Bind this staged file to the uploading admin + a one-time nonce. /restore/execute
       // verifies both before touching the file. Ad-hoc filenames are no longer enough.
       const tempBase = path.basename(tbakPath);
@@ -1844,6 +2006,16 @@ restoreRouter.post('/execute', async (req: AuthRequest, res: Response): Promise<
       }
     }
 
+    // Same checks as the upload: entries against the manifest, then the schema.
+    const manifest = await readManifest(filePath);
+    try {
+      await checkArchive(filePath, manifest, db);
+    } catch (refusal) {
+      if (!(refusal instanceof BackupRefusal)) throw refusal;
+      res.status(400).json({ data: null, error: { code: refusal.code, message: refusal.message } });
+      return;
+    }
+
     const tables = await readZipContents(filePath);
 
     // Validate essential data structure
@@ -1929,6 +2101,17 @@ restoreRouter.post('/execute', async (req: AuthRequest, res: Response): Promise<
       }
     });
 
+    // Document bytes go back only where the restored row kept its storage
+    // pointer: a replace into the SAME client. Everywhere else the row comes
+    // back without one (see restoreAsNew / restoreReplace), so its bytes are
+    // reported as not placed rather than written somewhere new.
+    let files = { placed: 0, notPlaced: 0 };
+    if (manifest.includesFiles === true) {
+      files = mode === 'replace' && targetClientId
+        ? await placeArchivedFiles(filePath, manifest, tables, targetClientId)
+        : { placed: 0, notPlaced: archivedFileCount(manifest) };
+    }
+
     // Clean up the uploaded restore temp file now that we've used it. Backups
     // loaded by backupId are kept (they live in backups/ not backups/temp).
     if (tempFile) {
@@ -1954,6 +2137,8 @@ restoreRouter.post('/execute', async (req: AuthRequest, res: Response): Promise<
         idMappings,
         settingsReport,
         droppedLinks,
+        filesPlaced: files.placed,
+        filesNotPlaced: files.notPlaced,
       },
       error: null,
     });

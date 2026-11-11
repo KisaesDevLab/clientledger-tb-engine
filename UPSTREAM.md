@@ -17,3 +17,4 @@ This repo is the desktop fork of the Vibe Trial Balance engine, bundled in Clien
 | Date | Upstream tag / commit | Result |
 |---|---|---|
 | 2026-11-08 | v0.1.56 `d84af737` | Fork created from this tag. |
+| 2026-11-10 | v0.1.56 `d84af737` | End-of-P03 check: upstream `main` unchanged, no new tags or migrations; nothing to merge. Only open upstream work is PR #13 (`.tbak` format 2, ours, Q17). |

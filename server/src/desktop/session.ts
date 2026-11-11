@@ -14,8 +14,10 @@ import crypto from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { signFullToken } from '../lib/sessionTokens';
 import { SESSION_HEADER, isDesktopMode, launchToken } from './env';
+import { ensureClientLinks } from './clientLinks';
 
 const OPEN_PATHS = new Set(['/api/v1/ping', '/api/v1/health']);
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const REMINT_MS = 60 * 60 * 1000; // well inside the JWT's own expiry
 
 interface DesktopUser { id: number; username: string; role: string }
@@ -64,5 +66,13 @@ export function desktopSessionMiddleware(req: Request, res: Response, next: Next
     return;
   }
   req.headers.authorization = `Bearer ${bearerFor(desktopUser)}`;
+  // Before anything that writes, every client has a documents folder (see
+  // clientLinks.ts). A failure is logged there and never blocks the request.
+  if (WRITE_METHODS.has(req.method)) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { db } = require('../db') as typeof import('../db');
+    ensureClientLinks(db).then(() => next(), () => next());
+    return;
+  }
   next();
 }

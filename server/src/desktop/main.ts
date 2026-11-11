@@ -7,6 +7,9 @@
 //   clientledger-tb-engine [serve]   migrate, seed a new database, start the API
 //   clientledger-tb-engine migrate   apply pending migrations and exit
 //   clientledger-tb-engine version   print the engine version and exit
+//   clientledger-tb-engine restore-full <file>
+//                                    load a desktop full backup into a NEW,
+//                                    empty database and documents folder
 //
 // Env from the launcher: DATABASE_URL, PORT, JWT_SECRET, ENCRYPTION_KEY,
 // CLTB_SESSION_TOKEN, UPLOADS_DIR, BACKUPS_DIR. Optional: KNOWLEDGE_DIR,
@@ -47,6 +50,8 @@ function applyDesktopEnv(): void {
   // SEED_DEMO_DATA=false for a clean one. Seeds only ever run on a new database.
   process.env.SEED_DEMO_DATA ??= 'true';
   process.env.npm_package_version = pkg.version;
+  // Archives say where they were made (lib/backupManifest.ts).
+  process.env.VIBE_BACKUP_SOURCE = 'desktop';
 }
 
 async function withDb<T>(fn: (db: Knex) => Promise<T>): Promise<T> {
@@ -64,6 +69,29 @@ async function migrate(): Promise<void> {
   });
 }
 
+async function restoreFull(): Promise<void> {
+  requireEnv(['DATABASE_URL', 'JWT_SECRET', 'ENCRYPTION_KEY', 'UPLOADS_DIR']);
+  const archive = process.argv[3];
+  if (!archive) fatal('restore-full needs the backup file');
+  const { restoreFullBackup, FullRestoreError } = require('./fullBackup') as typeof import('./fullBackup');
+  await withDb(async (db) => {
+    try {
+      const r = await restoreFullBackup(db, archive, process.env.UPLOADS_DIR!);
+      const rows = Object.values(r.recordCounts).reduce((a, b) => a + b, 0);
+      // One line the launcher reads; no client data in it.
+      console.log(`RESTORED schema=${r.schemaVersion} rows=${rows} files=${r.fileCount} migrated=${r.migratedAfter}`);
+    } catch (err) {
+      if (err instanceof FullRestoreError) {
+        console.error(`REFUSED ${err.code}: ${err.message}`);
+        await db.destroy();
+        process.exit(3);
+      }
+      throw err;
+    }
+    await db.destroy();
+  });
+}
+
 async function serve(): Promise<void> {
   requireEnv(['DATABASE_URL', 'PORT', 'JWT_SECRET', 'ENCRYPTION_KEY', 'CLTB_SESSION_TOKEN', 'UPLOADS_DIR', 'BACKUPS_DIR']);
   const desktopDb = require('./database') as typeof import('./database');
@@ -74,6 +102,9 @@ async function serve(): Promise<void> {
     console.log(`[desktop] migrations applied: ${applied.length}`);
     if (await desktopDb.seedIfEmpty(db)) console.log('[desktop] new database seeded');
     setDesktopUser(await desktopDb.bootstrapDesktopUser(db));
+    const { ensureClientLinks } = require('./clientLinks') as typeof import('./clientLinks');
+    const linked = await ensureClientLinks(db);
+    if (linked > 0) console.log(`[desktop] documents folders linked: ${linked}`);
   });
 
   require('../app');
@@ -92,8 +123,12 @@ async function main(): Promise<void> {
     case 'serve':
       await serve();
       return;
+    case 'restore-full':
+      await restoreFull();
+      process.exit(0);
+      return;
     default:
-      fatal(`unknown command "${command}" (expected serve, migrate or version)`);
+      fatal(`unknown command "${command}" (expected serve, migrate, restore-full or version)`);
   }
 }
 
