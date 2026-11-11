@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "UNBALANCED",
+    "message": "Journal entry must balance. Debit: 125000, Credit: 100000"
+  }
+}

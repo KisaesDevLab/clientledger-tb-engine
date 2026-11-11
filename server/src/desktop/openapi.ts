@@ -445,6 +445,65 @@ const schemas: Record<string, Schema> = {
       lines: { type: 'array', items: ref('JournalEntryLine') },
     },
   },
+  JournalEntryLineInput: {
+    type: 'object',
+    required: ['accountId', 'debit', 'credit'],
+    description: 'One line: a debit or a credit, never both, never zero',
+    properties: {
+      accountId: { type: 'integer', minimum: 1 },
+      debit: { ...cents('Debit'), minimum: 0 },
+      credit: { ...cents('Credit'), minimum: 0 },
+    },
+  },
+  JournalEntryCreate: {
+    type: 'object',
+    required: ['periodId', 'entryType', 'entryDate', 'lines'],
+    properties: {
+      periodId: { type: 'integer', minimum: 1 },
+      entryType: { type: 'string', enum: ['book', 'tax'] },
+      entryDate: { type: 'string', format: 'date', description: 'YYYY-MM-DD' },
+      description: { type: 'string' },
+      workpaperRef: { type: 'string', maxLength: 20 },
+      isRecurring: { type: 'boolean', description: 'Copied into the next period at roll-forward' },
+      lines: { type: 'array', minItems: 2, items: ref('JournalEntryLineInput') },
+    },
+  },
+  JournalEntryUpdate: {
+    type: 'object',
+    description: 'Header fields and, when given, all lines (replaced in one transaction). Changing entryType keeps the entry number, which can collide with an entry of the other type (the desktop does not offer it).',
+    properties: {
+      entryType: { type: 'string', enum: ['book', 'tax'] },
+      entryDate: { type: 'string', format: 'date', description: 'YYYY-MM-DD' },
+      description: nullable('string'),
+      workpaperRef: nullable('string', { maxLength: 20 }),
+      lines: { type: 'array', minItems: 2, items: ref('JournalEntryLineInput') },
+    },
+  },
+  JournalEntryHeader: {
+    type: 'object',
+    required: ['id', 'period_id', 'entry_number', 'entry_type', 'entry_date'],
+    properties: {
+      id: { type: 'integer' },
+      period_id: { type: 'integer' },
+      entry_number: { type: 'integer' },
+      entry_type: { type: 'string', enum: ['book', 'tax', 'trans'] },
+      entry_date: dateTime,
+      description: nullable('string'),
+      workpaper_ref: nullable('string'),
+      is_recurring: { type: 'boolean' },
+      source_tag: nullable('string'),
+      created_by: nullable('integer'),
+      created_at: dateTime,
+      updated_at: dateTime,
+    },
+  },
+  JournalEntryCreated: {
+    description: 'The new entry; its lines echo the request (no account number or name)',
+    allOf: [
+      ref('JournalEntryHeader'),
+      { type: 'object', required: ['lines'], properties: { lines: { type: 'array', items: ref('JournalEntryLineInput') } } },
+    ],
+  },
   VarianceNote: {
     type: 'object',
     required: ['id', 'account_id', 'period_id', 'compare_period_id', 'note'],
@@ -753,6 +812,58 @@ export function buildOpenApiSpec(): Schema {
           operationId: 'listJournalEntries', tags: ['journal-entries'],
           summary: 'Adjusting entries of a period, by type then number, with their lines',
           responses: { '200': ok('Entries', { type: 'array', items: ref('JournalEntry') }, true), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/journal-entries': {
+        post: {
+          operationId: 'createJournalEntry', tags: ['journal-entries'],
+          summary: 'Post a book or tax adjusting entry; numbered next within its type',
+          requestBody: jsonBody(ref('JournalEntryCreate')),
+          responses: {
+            '201': ok('Posted', ref('JournalEntryCreated')),
+            '400': errorResponse('VALIDATION_ERROR, or UNBALANCED when debits and credits differ'),
+            '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/journal-entries/{id}': {
+        parameters: [idParam('id', 'Journal entry id')],
+        patch: {
+          operationId: 'updateJournalEntry', tags: ['journal-entries'],
+          summary: 'Change an entry; lines, when given, replace all of its lines. A bank-transaction (trans) entry also rewrites its bank transaction.',
+          requestBody: jsonBody(ref('JournalEntryUpdate')),
+          responses: {
+            '200': ok('Changed (header only)', ref('JournalEntryHeader')),
+            '400': errorResponse('VALIDATION_ERROR, or UNBALANCED'),
+            '404': errorResponse('Not found'),
+            '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+        delete: {
+          operationId: 'deleteJournalEntry', tags: ['journal-entries'],
+          summary: 'Delete an entry and its lines (a bank transaction keeps its row, unlinked)',
+          responses: {
+            '200': ok('Deleted', { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }),
+            '404': errorResponse('Not found'),
+            '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/reports/periods/{periodId}/aje-listing': {
+        parameters: [
+          idParam('periodId', 'Period id'),
+          { name: 'preview', in: 'query', required: false, schema: { type: 'string', enum: ['1'] }, description: 'inline instead of attachment' },
+        ],
+        get: {
+          operationId: 'getAjeListingPdf', tags: ['reports'],
+          summary: 'AJE listing (book then tax entries with their lines) as a PDF',
+          responses: {
+            '200': { description: 'The PDF; Content-Disposition names it <period>_<client>_aje-listing.pdf', content: { 'application/pdf': { schema: { type: 'string', format: 'binary' } } } },
+            ...commonErrors,
+          },
         },
       },
       '/api/v1/periods/{periodId}/variance-notes': {

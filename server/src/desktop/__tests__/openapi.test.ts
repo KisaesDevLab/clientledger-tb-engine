@@ -67,6 +67,18 @@ test('recorded csv-analyze.json matches POST /api/v1/import/csv/analyze', () => 
   assert.ok(validate(fixture('csv-analyze.json')), JSON.stringify(validate.errors, null, 2));
 });
 
+for (const [pathKey, method, status, file] of [
+  ['/api/v1/journal-entries', 'post', '201', 'journal-entry-created.json'],
+  ['/api/v1/journal-entries/{id}', 'patch', '200', 'journal-entry-updated.json'],
+  ['/api/v1/journal-entries/{id}', 'delete', '200', 'journal-entry-deleted.json'],
+  ['/api/v1/journal-entries', 'post', '400', 'journal-entry-unbalanced.json'],
+] as const) {
+  test(`recorded ${file} matches ${method.toUpperCase()} ${pathKey} ${status}`, () => {
+    const validate = responseValidator(pathKey, method, status);
+    assert.ok(validate(fixture(file)), JSON.stringify(validate.errors, null, 2));
+  });
+}
+
 test('committed openapi.desktop.json is up to date (npm run desktop:openapi)', () => {
   const committed = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../openapi.desktop.json'), 'utf8'));
   assert.deepEqual(committed, JSON.parse(JSON.stringify(buildOpenApiSpec())));
