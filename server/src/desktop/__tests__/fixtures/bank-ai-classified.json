@@ -1,0 +1,20 @@
+{
+    "data": {
+        "classified": 2,
+        "results": [
+            {
+                "id": 47,
+                "accountId": 12,
+                "confidence": 0.91,
+                "reasoning": "Fuel for the delivery van"
+            },
+            {
+                "id": 48,
+                "accountId": 16,
+                "confidence": 0.62,
+                "reasoning": "Streaming service"
+            }
+        ]
+    },
+    "error": null
+}

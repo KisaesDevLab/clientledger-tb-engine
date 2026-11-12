@@ -1,0 +1,64 @@
+{
+    "data": {
+        "documentType": "trial_balance",
+        "detectedPeriod": "FY 2024",
+        "matches": [
+            {
+                "pdfAccountName": "Cash - Operating",
+                "pdfAccountNumber": "1000",
+                "pdfAmount": "15,000.00",
+                "isDebit": true,
+                "debitCents": 1500000,
+                "creditCents": 0,
+                "matchedAccountId": 1,
+                "matchedAccountNumber": "1000",
+                "matchedAccountName": "Cash - Operating",
+                "confidence": 0.97,
+                "matchType": "exact",
+                "action": "match",
+                "category": "assets",
+                "newCategory": "assets",
+                "newNormalBalance": "debit"
+            },
+            {
+                "pdfAccountName": "Consulting Revenue",
+                "pdfAccountNumber": "4050",
+                "pdfAmount": "(15,000.00)",
+                "isDebit": false,
+                "debitCents": 0,
+                "creditCents": 1500000,
+                "matchedAccountId": null,
+                "matchedAccountNumber": null,
+                "matchedAccountName": null,
+                "confidence": 0.4,
+                "matchType": "none",
+                "action": "create_new",
+                "category": "revenue",
+                "newCategory": "revenue",
+                "newNormalBalance": "credit"
+            },
+            {
+                "pdfAccountName": "Total",
+                "pdfAccountNumber": null,
+                "pdfAmount": "0.00",
+                "isDebit": true,
+                "debitCents": 0,
+                "creditCents": 0,
+                "matchedAccountId": null,
+                "matchedAccountNumber": null,
+                "matchedAccountName": null,
+                "confidence": 0.9,
+                "matchType": "none",
+                "action": "skip",
+                "category": "assets",
+                "newCategory": "assets",
+                "newNormalBalance": "debit"
+            }
+        ],
+        "warnings": [],
+        "extractedTextLength": 0,
+        "visionMode": true,
+        "ocrMode": false
+    },
+    "error": null
+}

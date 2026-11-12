@@ -1,0 +1,19 @@
+{
+  "data": {
+    "bankName": "First Prairie Bank",
+    "accountNumberLast4": "4417",
+    "statementPeriod": { "start": "2025-10-01", "end": "2025-10-31" },
+    "openingBalance": 1250000,
+    "closingBalance": 1316860,
+    "transactions": [
+      { "date": "2025-10-03", "description": "DEPOSIT", "amount": 98000, "checkNumber": null, "payeeName": null, "category": null },
+      { "date": "2025-10-07", "description": "CHECK 1042", "amount": -12540, "checkNumber": "1042", "payeeName": "Harlan Coop Feed", "category": null },
+      { "date": "2025-10-31", "description": "SERVICE CHARGE", "amount": -1200, "checkNumber": null, "payeeName": null, "category": "Bank fees" }
+    ],
+    "warnings": [],
+    "visionMode": true,
+    "ocrMode": false,
+    "extractedTextLength": 0
+  },
+  "error": null
+}

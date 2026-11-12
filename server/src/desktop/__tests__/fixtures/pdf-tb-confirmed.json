@@ -1,0 +1,11 @@
+{
+    "data": {
+        "accountsMatched": 1,
+        "accountsCreated": 1,
+        "rowsImported": 2,
+        "rowsSkipped": 1,
+        "accountsWithoutTaxCodes": 1,
+        "total": 3
+    },
+    "error": null
+}

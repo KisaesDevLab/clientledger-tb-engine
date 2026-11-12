@@ -1,0 +1,12 @@
+{
+    "data": {
+        "ai": true,
+        "passwordResetEnabled": false,
+        "mailEnabled": false,
+        "quickbooks": false,
+        "passkeys": false,
+        "totp": true,
+        "requireTwoFactor": false
+    },
+    "error": null
+}

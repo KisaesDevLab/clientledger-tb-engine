@@ -1,0 +1,7 @@
+{
+    "data": null,
+    "error": {
+        "code": "RECONCILIATION_OUT_OF_BALANCE",
+        "message": "Reconciliation is out of balance by 40.00. Beginning 0.00 + cleared 1250.00 = 1250.00, but statement is 1210.00. Resolve or pass force=true."
+    }
+}

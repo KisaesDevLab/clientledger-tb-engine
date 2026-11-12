@@ -1,0 +1,22 @@
+{
+    "data": {
+        "id": 43,
+        "client_id": 1,
+        "period_id": 1,
+        "transaction_date": "2026-11-01T00:00:00.000Z",
+        "description": "GROCERY OUTLET",
+        "amount": "-4200",
+        "check_number": null,
+        "account_id": null,
+        "ai_suggested_account_id": null,
+        "ai_confidence": null,
+        "classification_status": "unclassified",
+        "classified_by": null,
+        "imported_at": "2026-11-12T14:34:05.242Z",
+        "source_account_id": 1,
+        "journal_entry_id": null,
+        "import_hash": "6c6e950805f8ee232fe11a89cc94914e1ec250ee04eaa326e8a358b19e00006d",
+        "entry_source": "import"
+    },
+    "error": null
+}

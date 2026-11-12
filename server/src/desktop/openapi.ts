@@ -686,6 +686,207 @@ const schemas: Record<string, Schema> = {
       },
     },
   },
+  BankTransaction: {
+    type: 'object',
+    description: 'One bank transaction. amount is cents, positive = money into the bank account. A row is posted (an entry_type trans journal entry) when it has an account, a source account and a period.',
+    required: ['id', 'client_id', 'transaction_date', 'amount', 'classification_status'],
+    properties: {
+      id: { type: 'integer' },
+      client_id: { type: 'integer' },
+      period_id: nullable('integer'),
+      transaction_date: dateTime,
+      description: nullable('string'),
+      amount: { anyOf: [{ type: 'integer' }, { type: 'string', pattern: '^-?\\d+$' }], description: 'cents (a string in the PATCH answer: the row as written)' },
+      check_number: nullable('string'),
+      account_id: nullable('integer'),
+      ai_suggested_account_id: nullable('integer'),
+      ai_confidence: { anyOf: [{ type: 'number' }, { type: 'string' }, { type: 'null' }] },
+      classification_status: { type: 'string', enum: ['unclassified', 'ai_suggested', 'confirmed', 'manual'] },
+      source_account_id: nullable('integer'),
+      journal_entry_id: nullable('integer'),
+      entry_source: nullable('string'),
+      account_name: nullable('string'),
+      account_number: nullable('string'),
+      ai_suggested_account_name: nullable('string'),
+      ai_suggested_account_number: nullable('string'),
+      source_account_name: nullable('string'),
+      source_account_number: nullable('string'),
+    },
+  },
+  BankTransactionUpdate: {
+    type: 'object',
+    description: 'Only the fields sent change. A null accountId or periodId unposts the row.',
+    properties: {
+      accountId: nullable('integer'),
+      periodId: nullable('integer'),
+      classificationStatus: { type: 'string', enum: ['unclassified', 'ai_suggested', 'confirmed', 'manual'] },
+      description: nullable('string', { maxLength: 500 }),
+      transactionDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+      amount: { type: 'integer', not: { const: 0 } },
+      sourceAccountId: nullable('integer'),
+      checkNumber: nullable('string'),
+    },
+  },
+  BankRowsImport: {
+    type: 'object',
+    description: 'Bank rows parsed by the desktop (OFX, QFX, QIF, CSV) or read from a PDF statement. Duplicates are keyed as the engine\'s own file import keys them (date, description, amount, check number, source account, occurrence in this request). Rows with no date, no description or a zero amount are left out and not counted.',
+    required: ['clientId', 'sourceAccountId', 'transactions'],
+    properties: {
+      clientId: { type: 'integer' },
+      periodId: nullable('integer'),
+      sourceAccountId: { type: 'integer' },
+      transactions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['date', 'description', 'amount'],
+          properties: {
+            date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+            description: { type: 'string' },
+            amount: { type: 'integer', description: 'cents, positive = money in' },
+            checkNumber: nullable('string'),
+          },
+        },
+      },
+    },
+  },
+  BankStatementAnalysis: {
+    type: 'object',
+    description: 'What the AI read from a bank statement PDF; nothing is written. Amounts are cents, positive = money in. Opening and closing balances are as the AI wrote them (cents, not rounded) and may be missing.',
+    required: ['transactions', 'warnings', 'visionMode'],
+    properties: {
+      bankName: nullable('string'),
+      accountNumberLast4: nullable('string'),
+      statementPeriod: nullable('object', { properties: { start: nullable('string'), end: nullable('string') } }),
+      openingBalance: { type: ['number', 'null'] },
+      closingBalance: { type: ['number', 'null'] },
+      transactions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['date', 'description', 'amount'],
+          properties: {
+            date: { type: 'string', description: 'As the AI wrote it (asked for YYYY-MM-DD)' },
+            description: { type: 'string' },
+            amount: { type: 'integer', description: 'cents, positive = money in' },
+            checkNumber: nullable('string'),
+            payeeName: nullable('string'),
+            category: nullable('string'),
+          },
+        },
+      },
+      warnings: { type: 'array', items: { type: 'string' } },
+      visionMode: { type: 'boolean', description: 'The pages were read as images' },
+      ocrMode: { type: 'boolean' },
+      extractedTextLength: { type: 'integer' },
+    },
+  },
+  Reconciliation: {
+    type: 'object',
+    required: ['id', 'client_id', 'source_account_id', 'statement_date', 'statement_ending_balance', 'beginning_book_balance', 'status'],
+    properties: {
+      id: { type: 'integer' },
+      client_id: { type: 'integer' },
+      source_account_id: { type: 'integer' },
+      period_id: nullable('integer'),
+      statement_date: dateTime,
+      statement_ending_balance: cents('Statement ending balance'),
+      beginning_book_balance: cents('Beginning book balance'),
+      status: { type: 'string', enum: ['open', 'completed'] },
+      notes: nullable('string'),
+      completed_at: { anyOf: [dateTime, { type: 'null' }] },
+      account_number: { type: 'string' },
+      account_name: { type: 'string' },
+      completed_by_name: nullable('string'),
+    },
+  },
+  ReconciliationCreate: {
+    type: 'object',
+    required: ['sourceAccountId', 'statementDate', 'statementEndingBalance'],
+    properties: {
+      sourceAccountId: { type: 'integer' },
+      periodId: nullable('integer'),
+      statementDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+      statementEndingBalance: { type: 'integer' },
+      beginningBookBalance: { type: 'integer' },
+      notes: nullable('string'),
+    },
+  },
+  ReconciliationDetail: {
+    type: 'object',
+    required: ['reconciliation', 'transactions'],
+    properties: {
+      reconciliation: ref('Reconciliation'),
+      transactions: {
+        type: 'array',
+        description: 'The account\'s bank rows dated on or before the statement date, less those cleared in an earlier completed reconciliation',
+        items: {
+          type: 'object',
+          required: ['id', 'transaction_date', 'amount', 'is_cleared'],
+          properties: {
+            id: { type: 'integer' },
+            transaction_date: dateTime,
+            description: nullable('string'),
+            amount: cents('Amount'),
+            check_number: nullable('string'),
+            classification_status: { type: 'string' },
+            is_cleared: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  },
+  PdfMatchRow: {
+    type: 'object',
+    required: ['pdfAccountName', 'debitCents', 'creditCents', 'action'],
+    properties: {
+      pdfAccountName: { type: 'string' },
+      pdfAccountNumber: nullable('string'),
+      pdfAmount: { type: 'string' },
+      isDebit: { type: 'boolean' },
+      debitCents: { type: 'integer' },
+      creditCents: { type: 'integer' },
+      matchedAccountId: nullable('integer'),
+      matchedAccountNumber: nullable('string'),
+      matchedAccountName: nullable('string'),
+      confidence: { type: 'number' },
+      matchType: { type: 'string', enum: ['exact', 'exact_name', 'fuzzy', 'alias', 'none'] },
+      action: { type: 'string', enum: ['match', 'create_new', 'skip'] },
+      category: { type: 'string' },
+      newCategory: { type: 'string', enum: ['assets', 'liabilities', 'equity', 'revenue', 'expenses'] },
+      newNormalBalance: { type: 'string', enum: ['debit', 'credit'] },
+      newAccountNumber: { type: 'string' },
+    },
+  },
+  PdfAnalysis: {
+    type: 'object',
+    required: ['documentType', 'matches', 'warnings', 'visionMode'],
+    properties: {
+      documentType: { type: 'string', enum: ['trial_balance', 'pl', 'balance_sheet'] },
+      detectedPeriod: nullable('string'),
+      matches: { type: 'array', items: ref('PdfMatchRow') },
+      warnings: { type: 'array', items: { type: 'string' } },
+      extractedTextLength: { type: 'integer' },
+      visionMode: { type: 'boolean', description: 'The pages were read as images (a scanned PDF)' },
+      ocrMode: { type: 'boolean' },
+    },
+  },
+  LlmProvider: {
+    type: 'object',
+    description: 'AI settings. The desktop uses provider claude (key from the OS keychain, handed to the engine as ANTHROPIC_API_KEY, never stored here), ollama, or openai-compat (a local server; no key).',
+    required: ['provider'],
+    properties: {
+      provider: { type: 'string', enum: ['claude', 'ollama', 'openai', 'openai-compat'] },
+      ollamaBaseUrl: { type: 'string' },
+      ollamaVisionModel: { type: 'string' },
+      ollamaReasoningModel: { type: 'string' },
+      openaiCompatBaseUrl: { type: 'string' },
+      openaiCompatModel: { type: 'string' },
+      openaiCompatFastModel: { type: 'string' },
+      openaiCompatVisionOverride: { type: 'string', enum: ['', 'true', 'false'] },
+      timeoutMs: { type: 'integer' },
+    },
+  },
   LeadSheet: {
     type: 'object',
     required: ['id', 'client_id', 'code', 'name', 'sort_order', 'account_count'],
@@ -1049,6 +1250,256 @@ export function buildOpenApiSpec(): Schema {
             '201': ok('Added', { type: 'object', required: ['seeded', 'created'], properties: { seeded: { type: 'boolean' }, created: { type: 'integer' } } }),
             ...commonErrors,
           },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions': {
+        parameters: [
+          idParam('clientId', 'Client id'),
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer', minimum: 1 } },
+          { name: 'pageSize', in: 'query', required: false, schema: { type: 'integer', minimum: 10, maximum: 500 } },
+          { name: 'sourceAccountId', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'periodId', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['unclassified', 'ai_suggested', 'confirmed', 'manual'] } },
+        ],
+        get: {
+          operationId: 'listBankTransactions', tags: ['bank'],
+          summary: 'Bank transactions, newest first; meta counts every status over the filters other than status',
+          responses: {
+            '200': {
+              description: 'Rows',
+              content: {
+                [json]: {
+                  schema: {
+                    type: 'object', required: ['data', 'error', 'meta'],
+                    properties: {
+                      data: { type: 'array', items: ref('BankTransaction') },
+                      error: { type: 'null' },
+                      meta: {
+                        type: 'object', required: ['total', 'page', 'pageSize', 'pages', 'statusCounts'],
+                        properties: {
+                          total: { type: 'integer' }, page: { type: 'integer' }, pageSize: { type: 'integer' }, pages: { type: 'integer' },
+                          statusCounts: { type: 'object', additionalProperties: { type: 'integer' } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions/{id}': {
+        parameters: [idParam('clientId', 'Client id'), idParam('id', 'Bank transaction id')],
+        patch: {
+          operationId: 'updateBankTransaction', tags: ['bank'],
+          summary: 'Classify, move, edit or unpost a row; posts or re-posts its trans journal entry when it has an account, source account and period',
+          requestBody: jsonBody(ref('BankTransactionUpdate')),
+          responses: { '200': ok('The row as written', ref('BankTransaction')), '400': errorResponse('Validation error'), '404': errorResponse('Not found'), ...commonErrors },
+        },
+        delete: {
+          operationId: 'deleteBankTransaction', tags: ['bank'],
+          summary: 'Delete a row and its journal entry',
+          responses: { '200': ok('Deleted', { type: 'object', required: ['deleted'], properties: { deleted: { type: 'integer' } } }), '404': errorResponse('Not found'), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions/batch-classify': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'classifyBankTransactions', tags: ['bank'],
+          summary: 'Give rows one account (status manual); posts those that can be posted and remembers the payee',
+          requestBody: jsonBody({ type: 'object', required: ['ids', 'accountId'], properties: { ids: { type: 'array', items: { type: 'integer' } }, accountId: { type: 'integer' } } }),
+          responses: { '200': ok('Changed', { type: 'object', required: ['updated'], properties: { updated: { type: 'integer' } } }), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions/batch-confirm-ai': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'confirmAiSuggestions', tags: ['bank'],
+          summary: 'Take the AI\'s suggested account on rows (status confirmed); posts those that can be posted',
+          requestBody: jsonBody({ type: 'object', required: ['ids'], properties: { ids: { type: 'array', items: { type: 'integer' } } } }),
+          responses: { '200': ok('Confirmed', { type: 'object', required: ['confirmed'], properties: { confirmed: { type: 'integer' } } }), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions/batch-delete': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'deleteBankTransactions', tags: ['bank'],
+          summary: 'Delete rows and their journal entries',
+          requestBody: jsonBody({ type: 'object', required: ['ids'], properties: { ids: { type: 'array', items: { type: 'integer' } } } }),
+          responses: { '200': ok('Deleted', { type: 'object', required: ['deleted'], properties: { deleted: { type: 'integer' } } }), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions/ai-classify': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'aiClassifyBankTransactions', tags: ['bank'],
+          summary: 'Ask the AI for an account for up to 100 rows (status ai_suggested; nothing posts). Confirmed and manual rows are left alone. Sends descriptions, dates, amounts and the chart of accounts to the AI provider.',
+          requestBody: jsonBody({ type: 'object', required: ['ids'], properties: { ids: { type: 'array', minItems: 1, maxItems: 100, items: { type: 'integer' } } } }),
+          responses: {
+            '200': ok('Suggested', {
+              type: 'object', required: ['classified', 'results'],
+              properties: {
+                classified: { type: 'integer' },
+                results: { type: 'array', items: { type: 'object', required: ['id', 'accountId'], properties: { id: { type: 'integer' }, accountId: { type: 'integer' }, confidence: { type: 'number' }, reasoning: { type: 'string' } } } },
+              },
+            }),
+            '500': errorResponse('AI_PARSE_ERROR, or no AI set up (a bare server error)'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/import/bank-statement-pdf/analyze': {
+        post: {
+          operationId: 'analyzeBankStatementPdf', tags: ['bank'],
+          summary: 'Read a bank statement PDF with the AI (a scanned one as page images, rendered by the pdftoppm stand-in); nothing is written. The reviewed rows go in through the confirm route. A 500 with code AI_ERROR means the AI answer could not be read.',
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object', required: ['file', 'clientId'],
+                  properties: { file: { type: 'string', format: 'binary' }, clientId: { type: 'integer' }, useOcr: { type: 'string', enum: ['true', 'false'] } },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': ok('What the AI read', ref('BankStatementAnalysis')),
+            '400': errorResponse('NO_FILE or INVALID_PARAMS'),
+            '422': errorResponse('SCANNED_PDF (no vision-capable AI)'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/import/bank-statement-pdf/confirm': {
+        post: {
+          operationId: 'importBankRows', tags: ['bank'],
+          summary: 'Add bank rows (parsed by the desktop, or read from a PDF statement) as unclassified, leaving out duplicates',
+          requestBody: jsonBody(ref('BankRowsImport')),
+          responses: {
+            '200': ok('Added', { type: 'object', required: ['imported', 'duplicates'], properties: { imported: { type: 'integer' }, duplicates: { type: 'integer' }, total: { type: 'integer' } } }),
+            '400': errorResponse('INVALID_PARAMS or INVALID_ACCOUNT'),
+            '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/clients/{clientId}/reconciliations': {
+        parameters: [idParam('clientId', 'Client id')],
+        get: {
+          operationId: 'listReconciliations', tags: ['reconciliation'],
+          responses: { '200': ok('Reconciliations', { type: 'array', items: ref('Reconciliation') }, true), ...commonErrors },
+        },
+        post: {
+          operationId: 'createReconciliation', tags: ['reconciliation'],
+          requestBody: jsonBody(ref('ReconciliationCreate')),
+          responses: { '201': ok('Started', ref('Reconciliation')), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/reconciliations/{id}': {
+        parameters: [idParam('id', 'Reconciliation id')],
+        get: {
+          operationId: 'getReconciliation', tags: ['reconciliation'],
+          responses: { '200': ok('The reconciliation and its rows', ref('ReconciliationDetail')), '404': errorResponse('Not found'), ...commonErrors },
+        },
+        patch: {
+          operationId: 'updateReconciliation', tags: ['reconciliation'],
+          requestBody: jsonBody({ type: 'object', properties: { statementDate: { type: 'string' }, statementEndingBalance: { type: 'integer' }, beginningBookBalance: { type: 'integer' }, notes: nullable('string') } }),
+          responses: { '200': ok('Changed', ref('Reconciliation')), '409': errorResponse('Completed'), ...commonErrors },
+        },
+        delete: {
+          operationId: 'deleteReconciliation', tags: ['reconciliation'],
+          responses: { '200': ok('Deleted', { type: 'object' }), '409': errorResponse('Completed'), ...commonErrors },
+        },
+      },
+      '/api/v1/reconciliations/{id}/toggle-item': {
+        parameters: [idParam('id', 'Reconciliation id')],
+        post: {
+          operationId: 'toggleReconciliationItem', tags: ['reconciliation'],
+          requestBody: jsonBody({ type: 'object', required: ['transactionId'], properties: { transactionId: { type: 'integer' } } }),
+          responses: {
+            '200': ok('Cleared or uncleared', { type: 'object', required: ['cleared', 'transactionId'], properties: { cleared: { type: 'boolean' }, transactionId: { type: 'integer' } } }),
+            '409': errorResponse('PERIOD_LOCKED or LOCKED (completed)'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/reconciliations/{id}/complete': {
+        parameters: [idParam('id', 'Reconciliation id')],
+        post: {
+          operationId: 'completeReconciliation', tags: ['reconciliation'],
+          summary: 'Finish when beginning balance + cleared rows = the statement\'s ending balance (the desktop never sends force)',
+          requestBody: jsonBody({ type: 'object', properties: { force: { type: 'boolean' } } }),
+          responses: { '200': ok('Completed', ref('Reconciliation')), '409': errorResponse('RECONCILIATION_OUT_OF_BALANCE or PERIOD_LOCKED'), ...commonErrors },
+        },
+      },
+      '/api/v1/reconciliations/{id}/reopen': {
+        parameters: [idParam('id', 'Reconciliation id')],
+        post: {
+          operationId: 'reopenReconciliation', tags: ['reconciliation'],
+          responses: { '200': ok('Reopened', ref('Reconciliation')), ...commonErrors },
+        },
+      },
+      '/api/v1/import/pdf/analyze': {
+        post: {
+          operationId: 'analyzePdfTrialBalance', tags: ['import'],
+          summary: 'Read a trial balance PDF with the AI (a scanned one as page images, rendered by the pdftoppm stand-in, Q45); nothing is written',
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object', required: ['file', 'clientId', 'periodId'],
+                  properties: { file: { type: 'string', format: 'binary' }, clientId: { type: 'integer' }, periodId: { type: 'integer' }, useOcr: { type: 'string', enum: ['true', 'false'] } },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': ok('What the AI read', ref('PdfAnalysis')),
+            '400': errorResponse('PDF_PARSE_ERROR'),
+            '422': errorResponse('SCANNED_PDF (no vision-capable AI)'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/import/pdf/confirm': {
+        post: {
+          operationId: 'confirmPdfTrialBalance', tags: ['import'],
+          summary: 'Write the reviewed lines as unadjusted balances, creating accounts for create_new lines',
+          requestBody: jsonBody({ type: 'object', required: ['periodId', 'clientId', 'matches'], properties: { periodId: { type: 'integer' }, clientId: { type: 'integer' }, matches: { type: 'array', items: ref('PdfMatchRow') }, aiExtraction: {} } }),
+          responses: {
+            '200': ok('Imported', ref('CsvConfirmResult')),
+            '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/features': {
+        get: {
+          operationId: 'getFeatures', tags: ['system'],
+          summary: 'What this engine can do now; ai is true when an AI provider is set up',
+          responses: { '200': ok('Features', { type: 'object', required: ['ai'], properties: { ai: { type: 'boolean' } } }), ...commonErrors },
+        },
+      },
+      '/api/v1/settings/llm-provider': {
+        get: {
+          operationId: 'getLlmProvider', tags: ['settings'],
+          responses: { '200': ok('AI settings', ref('LlmProvider')), ...commonErrors },
+        },
+        put: {
+          operationId: 'saveLlmProvider', tags: ['settings'],
+          requestBody: jsonBody(ref('LlmProvider')),
+          responses: { '200': ok('Saved', { type: 'object', required: ['saved'], properties: { saved: { type: 'boolean' } } }), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/settings/test-llm': {
+        post: {
+          operationId: 'testLlm', tags: ['settings'],
+          summary: 'Try the AI provider as set up',
+          responses: { '200': ok('Result', { type: 'object', required: ['valid'], properties: { valid: { type: 'boolean' }, provider: { type: 'string' }, error: { type: 'string' } } }), ...commonErrors },
         },
       },
       '/api/v1/import/csv/analyze': {

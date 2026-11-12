@@ -56,7 +56,7 @@ What blocks or complicates an SEA build. Paths are relative to `server/`.
 ### Native modules and external programs
 - **bcrypt** (native prebuilds) — `src/routes/auth.ts`, `users.ts`, `settings.ts`, `passwordReset.ts`, `src/lib/stepUp.ts`, `src/lib/vibeAuthUsers.ts`, `src/mcp/auth.ts`, `seeds/001_default_admin.js`. Done: bundler alias to `bcryptjs`.
 - **puppeteer-core** — Statement Writer PDFs only, lazy (`src/lib/fs/pdfBrowser.ts`); missing browser = 503, rest works. The probe list includes Edge, present on Windows 10/11.
-- **pdftoppm** (poppler) — `src/lib/pdfVision.ts`, used by PDF, bank-statement and scanned-sheet vision import; missing binary is handled. Plan (P06): the desktop app rasterizes with pdfium (`cltb-pdf`) and sends page images; the engine needs an image-input variant.
+- **pdftoppm** (poppler) — `src/lib/pdfVision.ts`, used by PDF, bank-statement and scanned-sheet vision import; missing binary is handled. Desktop (P06, shell Q45): the shell ships a `pdftoppm` stand-in built on PDFium (`cltb-pdf`) in `tools/` beside the engine, and the launcher puts that folder first on the engine's PATH, so these routes run unchanged. It answers `-png`, `-jpeg -jpegopt quality=N`, `-r`, `-f`, `-l` with poppler's file names and refuses other options; a new option here needs it there too.
 - **pdf-parse 1.1.4** — dynamic `require(\`./pdf.js/${version}/build/pdf.js\`)`; bundler must alias it to the concrete path.
 - **pdfmake / pdfkit** — vfs fonts are fine; pdfkit reads `__dirname/data/*.afm` only for standard fonts.
 
