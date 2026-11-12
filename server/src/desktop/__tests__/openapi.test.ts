@@ -57,6 +57,11 @@ for (const [pathKey, file] of [
   ['/api/v1/clients/{clientId}/tickmarks', 'tickmarks.json'],
   ['/api/v1/periods/{periodId}/tb-tickmarks', 'tb-tickmarks.json'],
   ['/api/v1/clients/{clientId}/lead-sheets', 'lead-sheets.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions', 'bank-transactions.json'],
+  ['/api/v1/clients/{clientId}/reconciliations', 'reconciliations.json'],
+  ['/api/v1/reconciliations/{id}', 'reconciliation.json'],
+  ['/api/v1/features', 'features.json'],
+  ['/api/v1/settings/llm-provider', 'llm-provider.json'],
 ] as const) {
   test(`recorded ${file} matches GET ${pathKey}`, () => {
     const validate = responseValidator(pathKey, 'get', '200');
@@ -80,6 +85,20 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/system-tickmarks/apply/{clientId}', 'post', '200', 'tickmarks-applied.json'],
   ['/api/v1/periods/{periodId}/tb-tickmarks/toggle', 'post', '200', 'tb-tickmark-toggled.json'],
   ['/api/v1/clients/{clientId}/lead-sheets/seed', 'post', '201', 'lead-sheets-seeded.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/{id}', 'patch', '200', 'bank-transaction-updated.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/batch-classify', 'post', '200', 'bank-batch-classified.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/batch-confirm-ai', 'post', '200', 'bank-ai-confirmed.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/batch-delete', 'post', '200', 'bank-batch-deleted.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/ai-classify', 'post', '200', 'bank-ai-classified.json'],
+  ['/api/v1/import/bank-statement-pdf/confirm', 'post', '200', 'bank-rows-imported.json'],
+  ['/api/v1/clients/{clientId}/reconciliations', 'post', '201', 'reconciliation-created.json'],
+  ['/api/v1/reconciliations/{id}/toggle-item', 'post', '200', 'reconciliation-toggled.json'],
+  ['/api/v1/reconciliations/{id}/complete', 'post', '409', 'reconciliation-out-of-balance.json'],
+  ['/api/v1/reconciliations/{id}/complete', 'post', '200', 'reconciliation-completed.json'],
+  ['/api/v1/reconciliations/{id}/reopen', 'post', '200', 'reconciliation-reopened.json'],
+  ['/api/v1/import/pdf/analyze', 'post', '200', 'pdf-tb-analyzed.json'],
+  ['/api/v1/import/pdf/confirm', 'post', '200', 'pdf-tb-confirmed.json'],
+  ['/api/v1/settings/test-llm', 'post', '200', 'llm-tested.json'],
 ] as const) {
   test(`recorded ${file} matches ${method.toUpperCase()} ${pathKey} ${status}`, () => {
     const validate = responseValidator(pathKey, method, status);
