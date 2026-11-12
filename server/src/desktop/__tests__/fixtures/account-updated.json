@@ -1,0 +1,29 @@
+{
+    "data": {
+        "id": 17,
+        "client_id": 2,
+        "account_number": "1000",
+        "account_name": "Cash - Operating Checking",
+        "category": "assets",
+        "subcategory": "cash",
+        "normal_balance": "debit",
+        "tax_line": null,
+        "workpaper_ref": "A-1",
+        "preparer_notes": "Agreed to the December bank statement.",
+        "reviewer_notes": "Bank rec reviewed, no exceptions.",
+        "is_active": true,
+        "created_at": "2026-11-11T17:42:33.614Z",
+        "updated_at": "2026-11-12T04:05:35.014Z",
+        "cash_flow_category": "cash",
+        "tax_code_id": null,
+        "tax_line_source": null,
+        "tax_line_confidence": null,
+        "unit": null,
+        "import_aliases": [],
+        "lead_sheet_id": 1,
+        "lead_sheet_source": "manual",
+        "qbo_account_id": null,
+        "qbo_account_name": null
+    },
+    "error": null
+}

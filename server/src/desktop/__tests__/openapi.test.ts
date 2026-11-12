@@ -54,6 +54,9 @@ for (const [pathKey, file] of [
   ['/api/v1/periods/{periodId}/journal-entries', 'journal-entries.json'],
   ['/api/v1/periods/{periodId}/variance-notes', 'variance-notes.json'],
   ['/api/v1/desktop/clients/summary', 'clients-summary.json'],
+  ['/api/v1/clients/{clientId}/tickmarks', 'tickmarks.json'],
+  ['/api/v1/periods/{periodId}/tb-tickmarks', 'tb-tickmarks.json'],
+  ['/api/v1/clients/{clientId}/lead-sheets', 'lead-sheets.json'],
 ] as const) {
   test(`recorded ${file} matches GET ${pathKey}`, () => {
     const validate = responseValidator(pathKey, 'get', '200');
@@ -66,6 +69,23 @@ test('recorded csv-analyze.json matches POST /api/v1/import/csv/analyze', () => 
   const validate = responseValidator('/api/v1/import/csv/analyze', 'post', '200');
   assert.ok(validate(fixture('csv-analyze.json')), JSON.stringify(validate.errors, null, 2));
 });
+
+for (const [pathKey, method, status, file] of [
+  ['/api/v1/journal-entries', 'post', '201', 'journal-entry-created.json'],
+  ['/api/v1/journal-entries/{id}', 'patch', '200', 'journal-entry-updated.json'],
+  ['/api/v1/journal-entries/{id}', 'delete', '200', 'journal-entry-deleted.json'],
+  ['/api/v1/journal-entries', 'post', '400', 'journal-entry-unbalanced.json'],
+  ['/api/v1/chart-of-accounts/{id}', 'patch', '200', 'account-updated.json'],
+  ['/api/v1/clients/{clientId}/tickmarks', 'post', '201', 'tickmark-created.json'],
+  ['/api/v1/system-tickmarks/apply/{clientId}', 'post', '200', 'tickmarks-applied.json'],
+  ['/api/v1/periods/{periodId}/tb-tickmarks/toggle', 'post', '200', 'tb-tickmark-toggled.json'],
+  ['/api/v1/clients/{clientId}/lead-sheets/seed', 'post', '201', 'lead-sheets-seeded.json'],
+] as const) {
+  test(`recorded ${file} matches ${method.toUpperCase()} ${pathKey} ${status}`, () => {
+    const validate = responseValidator(pathKey, method, status);
+    assert.ok(validate(fixture(file)), JSON.stringify(validate.errors, null, 2));
+  });
+}
 
 test('committed openapi.desktop.json is up to date (npm run desktop:openapi)', () => {
   const committed = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../openapi.desktop.json'), 'utf8'));

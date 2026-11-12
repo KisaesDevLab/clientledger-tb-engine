@@ -1,0 +1,19 @@
+{
+    "data": {
+        "17": [
+            {
+                "id": 13,
+                "symbol": "R",
+                "description": "Reviewed by preparer",
+                "color": "purple"
+            },
+            {
+                "id": 14,
+                "symbol": "T",
+                "description": "Traced to supporting schedule",
+                "color": "purple"
+            }
+        ]
+    },
+    "error": null
+}

@@ -1,0 +1,13 @@
+{
+    "data": {
+        "id": 25,
+        "client_id": 2,
+        "symbol": "W",
+        "description": "Agreed to W-2s",
+        "color": "blue",
+        "sort_order": 0,
+        "created_by": 2,
+        "created_at": "2026-11-12T04:05:37.570Z"
+    },
+    "error": null
+}
