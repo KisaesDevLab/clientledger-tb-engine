@@ -1,0 +1,174 @@
+{
+    "data": [
+        {
+            "id": 1,
+            "client_id": 2,
+            "code": "A",
+            "name": "Cash",
+            "sort_order": 0,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 1
+        },
+        {
+            "id": 2,
+            "client_id": 2,
+            "code": "B",
+            "name": "Accounts Receivable",
+            "sort_order": 10,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 3,
+            "client_id": 2,
+            "code": "C",
+            "name": "Inventory",
+            "sort_order": 20,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 4,
+            "client_id": 2,
+            "code": "D",
+            "name": "Fixed Assets",
+            "sort_order": 30,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 5,
+            "client_id": 2,
+            "code": "E",
+            "name": "Other Assets",
+            "sort_order": 40,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 6,
+            "client_id": 2,
+            "code": "F",
+            "name": "Accounts Payable",
+            "sort_order": 50,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 7,
+            "client_id": 2,
+            "code": "G",
+            "name": "Accrued Liabilities",
+            "sort_order": 60,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 8,
+            "client_id": 2,
+            "code": "H",
+            "name": "Debt",
+            "sort_order": 70,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 9,
+            "client_id": 2,
+            "code": "I",
+            "name": "Other Liabilities",
+            "sort_order": 80,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 10,
+            "client_id": 2,
+            "code": "J",
+            "name": "Equity",
+            "sort_order": 90,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 11,
+            "client_id": 2,
+            "code": "K",
+            "name": "Revenue",
+            "sort_order": 100,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 12,
+            "client_id": 2,
+            "code": "L",
+            "name": "Cost of Goods Sold",
+            "sort_order": 110,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 13,
+            "client_id": 2,
+            "code": "M",
+            "name": "Operating Expenses",
+            "sort_order": 120,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 14,
+            "client_id": 2,
+            "code": "N",
+            "name": "Other Income",
+            "sort_order": 130,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        },
+        {
+            "id": 15,
+            "client_id": 2,
+            "code": "O",
+            "name": "Other Expenses",
+            "sort_order": 140,
+            "created_by": 2,
+            "created_at": "2026-11-12T04:05:19.884Z",
+            "updated_at": "2026-11-12T04:05:19.884Z",
+            "account_count": 0
+        }
+    ],
+    "error": null,
+    "meta": {
+        "count": 15,
+        "unassignedCount": 58
+    }
+}

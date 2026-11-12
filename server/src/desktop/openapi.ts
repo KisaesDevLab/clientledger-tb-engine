@@ -616,6 +616,88 @@ const schemas: Record<string, Schema> = {
       qboWarnings: { type: 'array', items: { type: 'string' } },
     },
   },
+  AccountUpdate: {
+    type: 'object',
+    description: 'Fields to change on an account (only those sent). W/P ref, notes and lead sheet belong to the account, so they show in every period. An empty string clears a text field.',
+    properties: {
+      accountNumber: { type: 'string', minLength: 1, maxLength: 20 },
+      accountName: { type: 'string', minLength: 1, maxLength: 255 },
+      category: { type: 'string', enum: ['assets', 'liabilities', 'equity', 'revenue', 'expenses'] },
+      workpaperRef: { type: 'string', maxLength: 50 },
+      preparerNotes: { type: 'string' },
+      reviewerNotes: { type: 'string' },
+      leadSheetId: nullable('integer', { minimum: 1, description: 'One of the client\'s lead sheets; null clears it' }),
+    },
+  },
+  UpdatedAccount: {
+    type: 'object',
+    required: ['id', 'client_id', 'account_number', 'account_name', 'category', 'normal_balance'],
+    properties: {
+      id: { type: 'integer' },
+      client_id: { type: 'integer' },
+      account_number: { type: 'string' },
+      account_name: { type: 'string' },
+      category: { type: 'string', enum: ['assets', 'liabilities', 'equity', 'revenue', 'expenses'] },
+      normal_balance: { type: 'string', enum: ['debit', 'credit'] },
+      workpaper_ref: nullable('string'),
+      preparer_notes: nullable('string'),
+      reviewer_notes: nullable('string'),
+      lead_sheet_id: nullable('integer'),
+      updated_at: dateTime,
+    },
+  },
+  Tickmark: {
+    type: 'object',
+    description: 'One mark in a client\'s tickmark library',
+    required: ['id', 'client_id', 'symbol', 'description', 'color', 'sort_order'],
+    properties: {
+      id: { type: 'integer' },
+      client_id: { type: 'integer' },
+      symbol: { type: 'string', maxLength: 10 },
+      description: { type: 'string' },
+      color: { type: 'string', enum: ['gray', 'blue', 'green', 'red', 'purple', 'amber'] },
+      sort_order: { type: 'integer' },
+    },
+  },
+  TickmarkCreate: {
+    type: 'object',
+    required: ['symbol', 'description'],
+    properties: {
+      symbol: { type: 'string', minLength: 1, maxLength: 10 },
+      description: { type: 'string', minLength: 1, maxLength: 500 },
+      color: { type: 'string', enum: ['gray', 'blue', 'green', 'red', 'purple', 'amber'] },
+      sortOrder: { type: 'integer' },
+    },
+  },
+  AccountTickmarks: {
+    type: 'object',
+    description: 'Marks on each account for a period, keyed by account id',
+    additionalProperties: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'symbol', 'description', 'color'],
+        properties: {
+          id: { type: 'integer', description: 'Tickmark (library) id' },
+          symbol: { type: 'string' },
+          description: { type: 'string' },
+          color: { type: 'string', enum: ['gray', 'blue', 'green', 'red', 'purple', 'amber'] },
+        },
+      },
+    },
+  },
+  LeadSheet: {
+    type: 'object',
+    required: ['id', 'client_id', 'code', 'name', 'sort_order', 'account_count'],
+    properties: {
+      id: { type: 'integer' },
+      client_id: { type: 'integer' },
+      code: { type: 'string' },
+      name: { type: 'string' },
+      sort_order: { type: 'integer' },
+      account_count: { type: 'integer', description: 'Active accounts on it' },
+    },
+  },
 };
 
 const json = 'application/json';
@@ -884,6 +966,87 @@ export function buildOpenApiSpec(): Schema {
             '200': ok('Saved, or deleted', { anyOf: [ref('VarianceNote'), { type: 'object', required: ['deleted'], properties: { deleted: { const: true } } }] }),
             '400': errorResponse('Validation error'),
             '409': errorResponse('PERIOD_LOCKED'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/chart-of-accounts/{id}': {
+        parameters: [idParam('id', 'Account id')],
+        patch: {
+          operationId: 'updateAccount', tags: ['chart-of-accounts'],
+          summary: 'Change an account: number, name, category, W/P ref, preparer and reviewer notes, lead sheet. A number already on the chart fails as a server error (unique constraint), so check first.',
+          requestBody: jsonBody(ref('AccountUpdate')),
+          responses: {
+            '200': ok('Changed', ref('UpdatedAccount')),
+            '400': errorResponse('Validation error'),
+            '403': errorResponse('The lead sheet belongs to another client'),
+            '404': errorResponse('Not found'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/clients/{clientId}/tickmarks': {
+        parameters: [idParam('clientId', 'Client id')],
+        get: {
+          operationId: 'listTickmarks', tags: ['tickmarks'],
+          summary: 'The client\'s tickmark library, in order',
+          responses: { '200': ok('Library', { type: 'array', items: ref('Tickmark') }), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+        post: {
+          operationId: 'createTickmark', tags: ['tickmarks'],
+          requestBody: jsonBody(ref('TickmarkCreate')),
+          responses: { '201': ok('Added', ref('Tickmark')), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/system-tickmarks/apply/{clientId}': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'applyStandardTickmarks', tags: ['tickmarks'],
+          summary: 'Copy the standard tickmarks into the client\'s library (symbols it already has are skipped)',
+          responses: {
+            '200': ok('Copied', { type: 'object', required: ['applied', 'skipped'], properties: { applied: { type: 'integer' }, skipped: { type: 'integer' } } }),
+            '404': errorResponse('Client not found'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/periods/{periodId}/tb-tickmarks': {
+        parameters: [idParam('periodId', 'Period id')],
+        get: {
+          operationId: 'listAccountTickmarks', tags: ['tickmarks'],
+          summary: 'The marks on each account of the trial balance for this period',
+          responses: { '200': ok('Marks by account id', ref('AccountTickmarks')), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/tb-tickmarks/toggle': {
+        parameters: [idParam('periodId', 'Period id')],
+        post: {
+          operationId: 'toggleAccountTickmark', tags: ['tickmarks'],
+          summary: 'Put a mark on an account for this period, or take it off if it is there',
+          requestBody: jsonBody({ type: 'object', required: ['accountId', 'tickmarkId'], properties: { accountId: { type: 'integer' }, tickmarkId: { type: 'integer' } } }),
+          responses: {
+            '200': ok('Done', { type: 'object', required: ['action'], properties: { action: { type: 'string', enum: ['assigned', 'removed'] } } }),
+            '400': errorResponse('Validation error'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/clients/{clientId}/lead-sheets': {
+        parameters: [idParam('clientId', 'Client id')],
+        get: {
+          operationId: 'listLeadSheets', tags: ['lead-sheets'],
+          summary: 'The client\'s lead sheets, in order, with how many accounts are on each',
+          responses: { '200': ok('Lead sheets', { type: 'array', items: ref('LeadSheet') }, true), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/lead-sheets/seed': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'seedLeadSheets', tags: ['lead-sheets'],
+          summary: 'Give a client with no lead sheets the standard set (does nothing when it has some)',
+          responses: {
+            '200': ok('Already had lead sheets', { type: 'object', required: ['seeded', 'created'], properties: { seeded: { type: 'boolean' }, created: { type: 'integer' } } }),
+            '201': ok('Added', { type: 'object', required: ['seeded', 'created'], properties: { seeded: { type: 'boolean' }, created: { type: 'integer' } } }),
             ...commonErrors,
           },
         },
