@@ -2630,6 +2630,119 @@
           }
         }
       },
+      "BankStatementAnalysis": {
+        "type": "object",
+        "description": "What the AI read from a bank statement PDF; nothing is written. Amounts are cents, positive = money in. Opening and closing balances are as the AI wrote them (cents, not rounded) and may be missing.",
+        "required": [
+          "transactions",
+          "warnings",
+          "visionMode"
+        ],
+        "properties": {
+          "bankName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "accountNumberLast4": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statementPeriod": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "start": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "end": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "openingBalance": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "closingBalance": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "date",
+                "description",
+                "amount"
+              ],
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "description": "As the AI wrote it (asked for YYYY-MM-DD)"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "integer",
+                  "description": "cents, positive = money in"
+                },
+                "checkNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "payeeName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "category": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visionMode": {
+            "type": "boolean",
+            "description": "The pages were read as images"
+          },
+          "ocrMode": {
+            "type": "boolean"
+          },
+          "extractedTextLength": {
+            "type": "integer"
+          }
+        }
+      },
       "Reconciliation": {
         "type": "object",
         "required": [
@@ -6682,6 +6795,109 @@
           },
           "401": {
             "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/import/bank-statement-pdf/analyze": {
+      "post": {
+        "operationId": "analyzeBankStatementPdf",
+        "tags": [
+          "bank"
+        ],
+        "summary": "Read a bank statement PDF with the AI (a scanned one as page images, rendered by the pdftoppm stand-in); nothing is written. The reviewed rows go in through the confirm route. A 500 with code AI_ERROR means the AI answer could not be read.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "clientId"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "clientId": {
+                    "type": "integer"
+                  },
+                  "useOcr": {
+                    "type": "string",
+                    "enum": [
+                      "true",
+                      "false"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the AI read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BankStatementAnalysis"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "NO_FILE or INVALID_PARAMS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SCANNED_PDF (no vision-capable AI)",
             "content": {
               "application/json": {
                 "schema": {

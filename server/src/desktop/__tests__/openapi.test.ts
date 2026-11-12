@@ -96,6 +96,7 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/reconciliations/{id}/complete', 'post', '409', 'reconciliation-out-of-balance.json'],
   ['/api/v1/reconciliations/{id}/complete', 'post', '200', 'reconciliation-completed.json'],
   ['/api/v1/reconciliations/{id}/reopen', 'post', '200', 'reconciliation-reopened.json'],
+  ['/api/v1/import/bank-statement-pdf/analyze', 'post', '200', 'bank-statement-analyzed.json'],
   ['/api/v1/import/pdf/analyze', 'post', '200', 'pdf-tb-analyzed.json'],
   ['/api/v1/import/pdf/confirm', 'post', '200', 'pdf-tb-confirmed.json'],
   ['/api/v1/settings/test-llm', 'post', '200', 'llm-tested.json'],

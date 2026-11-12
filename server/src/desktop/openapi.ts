@@ -750,6 +750,37 @@ const schemas: Record<string, Schema> = {
       },
     },
   },
+  BankStatementAnalysis: {
+    type: 'object',
+    description: 'What the AI read from a bank statement PDF; nothing is written. Amounts are cents, positive = money in. Opening and closing balances are as the AI wrote them (cents, not rounded) and may be missing.',
+    required: ['transactions', 'warnings', 'visionMode'],
+    properties: {
+      bankName: nullable('string'),
+      accountNumberLast4: nullable('string'),
+      statementPeriod: nullable('object', { properties: { start: nullable('string'), end: nullable('string') } }),
+      openingBalance: { type: ['number', 'null'] },
+      closingBalance: { type: ['number', 'null'] },
+      transactions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['date', 'description', 'amount'],
+          properties: {
+            date: { type: 'string', description: 'As the AI wrote it (asked for YYYY-MM-DD)' },
+            description: { type: 'string' },
+            amount: { type: 'integer', description: 'cents, positive = money in' },
+            checkNumber: nullable('string'),
+            payeeName: nullable('string'),
+            category: nullable('string'),
+          },
+        },
+      },
+      warnings: { type: 'array', items: { type: 'string' } },
+      visionMode: { type: 'boolean', description: 'The pages were read as images' },
+      ocrMode: { type: 'boolean' },
+      extractedTextLength: { type: 'integer' },
+    },
+  },
   Reconciliation: {
     type: 'object',
     required: ['id', 'client_id', 'source_account_id', 'statement_date', 'statement_ending_balance', 'beginning_book_balance', 'status'],
@@ -1315,6 +1346,29 @@ export function buildOpenApiSpec(): Schema {
               },
             }),
             '500': errorResponse('AI_PARSE_ERROR, or no AI set up (a bare server error)'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/import/bank-statement-pdf/analyze': {
+        post: {
+          operationId: 'analyzeBankStatementPdf', tags: ['bank'],
+          summary: 'Read a bank statement PDF with the AI (a scanned one as page images, rendered by the pdftoppm stand-in); nothing is written. The reviewed rows go in through the confirm route. A 500 with code AI_ERROR means the AI answer could not be read.',
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object', required: ['file', 'clientId'],
+                  properties: { file: { type: 'string', format: 'binary' }, clientId: { type: 'integer' }, useOcr: { type: 'string', enum: ['true', 'false'] } },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': ok('What the AI read', ref('BankStatementAnalysis')),
+            '400': errorResponse('NO_FILE or INVALID_PARAMS'),
+            '422': errorResponse('SCANNED_PDF (no vision-capable AI)'),
             ...commonErrors,
           },
         },
