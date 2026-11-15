@@ -887,14 +887,14 @@ const schemas: Record<string, Schema> = {
   },
   LlmProvider: {
     type: 'object',
-    description: 'AI settings. The desktop uses provider claude (key from the OS keychain, handed to the engine as ANTHROPIC_API_KEY, never stored here), ollama, or openai-compat (a local server; no key).',
-    required: ['provider'],
+    description: 'AI settings. The desktop uses provider claude (key from the OS keychain, handed to the engine as ANTHROPIC_API_KEY, never stored here), ollama, or openai-compat (a local server with no key, or DigitalOcean serverless inference at https://inference.do-ai.run with a model access key in openaiCompatApiKey). On a PUT only the fields sent change; a PUT without provider leaves the provider in use as it is and is not checked for a model.',
     properties: {
       provider: { type: 'string', enum: ['claude', 'ollama', 'openai', 'openai-compat'] },
       ollamaBaseUrl: { type: 'string' },
       ollamaVisionModel: { type: 'string' },
       ollamaReasoningModel: { type: 'string' },
-      openaiCompatBaseUrl: { type: 'string' },
+      openaiCompatBaseUrl: { type: 'string', description: 'Without /v1: the engine adds it' },
+      openaiCompatApiKey: { type: 'string', description: 'GET: masked (dots and the last four characters) or empty. PUT: the key; an empty string removes it. Kept encrypted in the settings table (so in the database and full backups).' },
       openaiCompatModel: { type: 'string' },
       openaiCompatFastModel: { type: 'string' },
       openaiCompatVisionOverride: { type: 'string', enum: ['', 'true', 'false'] },
@@ -1747,6 +1747,14 @@ export function buildOpenApiSpec(): Schema {
           operationId: 'saveLlmProvider', tags: ['settings'],
           requestBody: jsonBody(ref('LlmProvider')),
           responses: { '200': ok('Saved', { type: 'object', required: ['saved'], properties: { saved: { type: 'boolean' } } }), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/settings/provider-models': {
+        post: {
+          operationId: 'listProviderModels', tags: ['settings'],
+          summary: 'The models a provider offers, asked with the address and key saved for it (not necessarily the provider in use). A provider that does not answer gives an empty list.',
+          requestBody: jsonBody({ type: 'object', required: ['provider'], properties: { provider: { type: 'string', enum: ['claude', 'openai', 'ollama', 'openai-compat'] } } }),
+          responses: { '200': ok('Models, by id', { type: 'array', items: { type: 'object', required: ['id'], properties: { id: { type: 'string' }, displayName: { type: 'string' } } } }), '400': errorResponse('Validation error'), ...commonErrors },
         },
       },
       '/api/v1/settings/test-llm': {

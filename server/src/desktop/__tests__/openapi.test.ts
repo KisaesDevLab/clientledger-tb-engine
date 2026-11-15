@@ -102,6 +102,7 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/import/pdf/analyze', 'post', '200', 'pdf-tb-analyzed.json'],
   ['/api/v1/import/pdf/confirm', 'post', '200', 'pdf-tb-confirmed.json'],
   ['/api/v1/settings/test-llm', 'post', '200', 'llm-tested.json'],
+  ['/api/v1/settings/provider-models', 'post', '200', 'provider-models.json'],
   // P07: tax codes, their assignment to accounts, exports.
   ['/api/v1/tax-codes', 'get', '200', 'tax-codes.json'],
   ['/api/v1/tax-codes/available', 'get', '200', 'tax-codes-available.json'],
