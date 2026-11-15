@@ -1528,6 +1528,45 @@ export function buildOpenApiSpec(): Schema {
           responses: { '200': ok('Changed', { type: 'object', required: ['updated'], properties: { updated: { type: 'integer' } } }), '400': errorResponse('Validation error'), ...commonErrors },
         },
       },
+      '/api/v1/clients/{clientId}/bank-transactions/batch-update-source': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'setBankTransactionsSource', tags: ['bank'],
+          summary: 'Say which bank account (a chart of accounts account) rows belong to; rows that already have an account are posted or re-posted. `updated` is the number of ids sent, not of rows found. An unknown account or a locked period comes back as a bare 500.',
+          requestBody: jsonBody({ type: 'object', required: ['ids', 'sourceAccountId'], properties: { ids: { type: 'array', minItems: 1, items: { type: 'integer' } }, sourceAccountId: nullable('integer') } }),
+          responses: { '200': ok('Changed', { type: 'object', required: ['updated'], properties: { updated: { type: 'integer' } } }), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
+      '/api/v1/clients/{clientId}/bank-transactions/manual': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'addManualBankTransactions', tags: ['bank'],
+          summary: 'Add transactions keyed by hand (status manual, entry_source manual), all or none; each posts when it has a bank account and a period. A payee rule is written or overwritten per line unless createRule is false. The period lock and the dates are not checked: a locked period or an unknown account comes back as a bare 500.',
+          requestBody: jsonBody({
+            type: 'object', required: ['transactions'],
+            properties: {
+              periodId: { type: 'integer' },
+              sourceAccountId: { type: 'integer', description: 'The bank account for lines that name none' },
+              transactions: {
+                type: 'array', minItems: 1,
+                items: {
+                  type: 'object', required: ['transactionDate', 'description', 'amount', 'accountId'],
+                  properties: {
+                    transactionDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+                    description: { type: 'string', minLength: 1, maxLength: 500 },
+                    amount: { type: 'integer', not: { const: 0 }, description: 'Cents; positive is money in' },
+                    checkNumber: { type: 'string', maxLength: 20 },
+                    accountId: { type: 'integer' },
+                    sourceAccountId: { type: 'integer' },
+                    createRule: { type: 'boolean', description: 'Default true' },
+                  },
+                },
+              },
+            },
+          }),
+          responses: { '201': ok('Added', { type: 'object', required: ['created', 'ids', 'rulesUpdated'], properties: { created: { type: 'integer' }, ids: { type: 'array', items: { type: 'integer' } }, rulesUpdated: { type: 'integer' } } }), '400': errorResponse('Validation error'), ...commonErrors },
+        },
+      },
       '/api/v1/clients/{clientId}/bank-transactions/batch-confirm-ai': {
         parameters: [idParam('clientId', 'Client id')],
         post: {

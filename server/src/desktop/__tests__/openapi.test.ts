@@ -88,6 +88,8 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/clients/{clientId}/bank-transactions/{id}', 'patch', '200', 'bank-transaction-updated.json'],
   ['/api/v1/clients/{clientId}/bank-transactions/batch-classify', 'post', '200', 'bank-batch-classified.json'],
   ['/api/v1/clients/{clientId}/bank-transactions/batch-confirm-ai', 'post', '200', 'bank-ai-confirmed.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/batch-update-source', 'post', '200', 'bank-source-updated.json'],
+  ['/api/v1/clients/{clientId}/bank-transactions/manual', 'post', '201', 'bank-manual-created.json'],
   ['/api/v1/clients/{clientId}/bank-transactions/batch-delete', 'post', '200', 'bank-batch-deleted.json'],
   ['/api/v1/clients/{clientId}/bank-transactions/ai-classify', 'post', '200', 'bank-ai-classified.json'],
   ['/api/v1/import/bank-statement-pdf/confirm', 'post', '200', 'bank-rows-imported.json'],
