@@ -1,0 +1,10 @@
+{
+  "data": null,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Cannot deactivate: 2 chart of accounts row(s) reference this tax code",
+    "meta": {
+      "referenceCount": 2
+    }
+  }
+}

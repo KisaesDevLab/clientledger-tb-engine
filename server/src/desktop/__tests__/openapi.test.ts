@@ -100,6 +100,24 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/import/pdf/analyze', 'post', '200', 'pdf-tb-analyzed.json'],
   ['/api/v1/import/pdf/confirm', 'post', '200', 'pdf-tb-confirmed.json'],
   ['/api/v1/settings/test-llm', 'post', '200', 'llm-tested.json'],
+  // P07: tax codes, their assignment to accounts, exports.
+  ['/api/v1/tax-codes', 'get', '200', 'tax-codes.json'],
+  ['/api/v1/tax-codes/available', 'get', '200', 'tax-codes-available.json'],
+  ['/api/v1/tax-codes/{id}', 'get', '200', 'tax-code.json'],
+  ['/api/v1/tax-codes', 'post', '201', 'tax-code-created.json'],
+  ['/api/v1/tax-codes/{id}', 'put', '200', 'tax-code-updated.json'],
+  ['/api/v1/tax-codes/{id}', 'delete', '200', 'tax-code-deactivated.json'],
+  ['/api/v1/tax-codes/{id}', 'delete', '409', 'tax-code-in-use.json'],
+  ['/api/v1/tax-codes/import/preview', 'post', '200', 'tax-codes-import-preview.json'],
+  ['/api/v1/tax-codes/import', 'post', '200', 'tax-codes-imported.json'],
+  ['/api/v1/tax-lines/auto-assign', 'post', '200', 'tax-lines-suggested.json'],
+  ['/api/v1/tax-lines/bulk-confirm', 'put', '200', 'tax-lines-confirmed.json'],
+  ['/api/v1/clients/{clientId}/chart-of-accounts', 'get', '200', 'chart-of-accounts-tax.json'],
+  ['/api/v1/chart-of-accounts/{id}', 'patch', '200', 'account-tax-code-set.json'],
+  ['/api/v1/periods/{periodId}/exports/validate', 'get', '200', 'export-validate-ultratax.json'],
+  ['/api/v1/periods/{periodId}/exports/consolidation-settings', 'get', '200', 'export-consolidation.json'],
+  ['/api/v1/periods/{periodId}/exports/consolidation-settings', 'put', '200', 'export-consolidation-saved.json'],
+  ['/api/v1/periods/{periodId}/exports/{software}', 'get', '409', 'export-duplicate-account.json'],
 ] as const) {
   test(`recorded ${file} matches ${method.toUpperCase()} ${pathKey} ${status}`, () => {
     const validate = responseValidator(pathKey, method, status);

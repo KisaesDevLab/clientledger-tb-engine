@@ -1,0 +1,29 @@
+{
+  "data": {
+    "account_name": "Cash - Operating",
+    "account_number": "1000",
+    "cash_flow_category": "cash",
+    "category": "assets",
+    "client_id": 1,
+    "created_at": "2026-11-15T04:52:36.616Z",
+    "id": 1,
+    "import_aliases": [],
+    "is_active": true,
+    "lead_sheet_id": null,
+    "lead_sheet_source": null,
+    "normal_balance": "debit",
+    "preparer_notes": null,
+    "qbo_account_id": null,
+    "qbo_account_name": null,
+    "reviewer_notes": null,
+    "subcategory": null,
+    "tax_code_id": 2,
+    "tax_line": "101",
+    "tax_line_confidence": "0.62",
+    "tax_line_source": "manual",
+    "unit": null,
+    "updated_at": "2026-11-15T04:52:37.840Z",
+    "workpaper_ref": null
+  },
+  "error": null
+}

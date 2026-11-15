@@ -1,0 +1,50 @@
+{
+  "data": [
+    {
+      "activity_type": "business",
+      "description": "Firm - Meals, 50%",
+      "is_m1_adjustment": true,
+      "maps": [
+        {
+          "software_code": "90020",
+          "tax_software": "ultratax"
+        },
+        {
+          "software_code": "C-20",
+          "tax_software": "cch"
+        }
+      ],
+      "notes": "From a file",
+      "return_form": "1065",
+      "sort_order": 90020,
+      "tax_code": "90020"
+    },
+    {
+      "activity_type": "business",
+      "description": "Owner draws suspense (from file)",
+      "is_m1_adjustment": false,
+      "maps": [
+        {
+          "software_code": "90012",
+          "tax_software": "ultratax"
+        }
+      ],
+      "return_form": "1065",
+      "sort_order": 90010,
+      "tax_code": "90010"
+    },
+    {
+      "activity_type": "business",
+      "description": "Not numeric",
+      "is_m1_adjustment": false,
+      "maps": [],
+      "return_form": "1065",
+      "sort_order": 1,
+      "tax_code": "ABC"
+    }
+  ],
+  "error": null,
+  "meta": {
+    "count": 3
+  }
+}

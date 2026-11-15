@@ -1,0 +1,43 @@
+{
+  "data": {
+    "activity_type": "business",
+    "created_at": "2026-11-15T04:52:37.678Z",
+    "description": "1065; Firm - Owner draws suspense (edited)",
+    "id": 2303,
+    "is_active": true,
+    "is_m1_adjustment": true,
+    "is_system": false,
+    "maps": [
+      {
+        "created_at": "2026-11-15T04:52:37.685Z",
+        "export_account_number": null,
+        "export_description": null,
+        "id": 8639,
+        "is_active": true,
+        "notes": null,
+        "software_code": "X-90010",
+        "software_description": null,
+        "tax_code_id": 2303,
+        "tax_software": "cch"
+      },
+      {
+        "created_at": "2026-11-15T04:52:37.682Z",
+        "export_account_number": null,
+        "export_description": null,
+        "id": 8638,
+        "is_active": true,
+        "notes": null,
+        "software_code": "90011",
+        "software_description": null,
+        "tax_code_id": 2303,
+        "tax_software": "ultratax"
+      }
+    ],
+    "notes": null,
+    "return_form": "1065",
+    "sort_order": 90010,
+    "tax_code": "90010",
+    "updated_at": "2026-11-15T04:52:37.697Z"
+  },
+  "error": null
+}

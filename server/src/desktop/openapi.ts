@@ -54,6 +54,16 @@ const jsonBody = (schema: Schema): Schema => ({
 const entityType: Schema = { type: 'string', enum: ['1065', '1120', '1120S', '1040_C'] };
 const taxSoftware: Schema = { type: 'string', enum: ['ultratax', 'cch', 'lacerte', 'gosystem'] };
 const activityType: Schema = { type: 'string', enum: ['business', 'rental', 'farm', 'farm_rental'] };
+// Tax codes and exports (P07): the code list also has rows for every activity of a form
+// ("common"), and the exports a layout that is no tax program's ("generic").
+const returnForm: Schema = { type: 'string', enum: ['1040', '1065', '1120', '1120S', 'common'] };
+const codeActivity: Schema = { type: 'string', enum: ['business', 'rental', 'farm', 'farm_rental', 'common'] };
+const exportSoftware: Schema = { type: 'string', enum: ['ultratax', 'cch', 'lacerte', 'gosystem', 'generic'] };
+const xlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const xlsxFile = (description: string): Schema => ({
+  description, content: { [xlsx]: { schema: { type: 'string', format: 'binary' } } },
+});
+const dollars = (description: string): Schema => ({ type: 'number', description: `${description} (dollars, debits positive; not cents)` });
 
 const schemas: Record<string, Schema> = {
   ErrorEnvelope: {
@@ -198,6 +208,8 @@ const schemas: Record<string, Schema> = {
       subcategory: nullable('string'),
       tax_line: nullable('string'),
       tax_code_id: nullable('integer'),
+      tax_line_source: nullable('string', { description: 'Who chose the tax code: manual, ai, import, rule, cross_client, firm_history' }),
+      tax_line_confidence: { type: ['string', 'number', 'null'], description: 'How sure the AI was, 0 to 1 (a decimal column: "0.62")' },
       workpaper_ref: nullable('string'),
     },
   },
@@ -627,6 +639,8 @@ const schemas: Record<string, Schema> = {
       preparerNotes: { type: 'string' },
       reviewerNotes: { type: 'string' },
       leadSheetId: nullable('integer', { minimum: 1, description: 'One of the client\'s lead sheets; null clears it' }),
+      taxCodeId: nullable('integer', { minimum: 1, description: 'A tax code; null clears it. The source and confidence stay as they were unless taxLineSource is sent (the desktop assigns through /tax-lines/bulk-confirm, which sets both).' }),
+      taxLineSource: { type: 'string', enum: ['manual', 'ai', 'import', 'rule'] },
     },
   },
   UpdatedAccount: {
@@ -897,6 +911,207 @@ const schemas: Record<string, Schema> = {
       name: { type: 'string' },
       sort_order: { type: 'integer' },
       account_count: { type: 'integer', description: 'Active accounts on it' },
+    },
+  },
+  TaxCodeMap: {
+    type: 'object',
+    description: 'What one tax program calls a tax code, and the account a combined export row gets.',
+    required: ['id', 'tax_code_id', 'tax_software'],
+    properties: {
+      id: { type: 'integer' },
+      tax_code_id: { type: 'integer' },
+      tax_software: exportSoftware,
+      software_code: nullable('string'),
+      software_description: nullable('string'),
+      notes: nullable('string'),
+      is_active: { type: 'boolean' },
+      created_at: dateTime,
+      export_account_number: nullable('string'),
+      export_description: nullable('string'),
+    },
+  },
+  TaxCode: {
+    type: 'object',
+    required: ['id', 'return_form', 'activity_type', 'tax_code', 'description', 'sort_order', 'is_system', 'is_active', 'is_m1_adjustment'],
+    properties: {
+      id: { type: 'integer' },
+      return_form: returnForm,
+      activity_type: codeActivity,
+      tax_code: { type: 'string', description: 'Digits only' },
+      description: { type: 'string' },
+      sort_order: { type: 'integer' },
+      is_system: { type: 'boolean', description: 'Shipped with the program (false: added by the firm)' },
+      is_active: { type: 'boolean' },
+      is_m1_adjustment: { type: 'boolean' },
+      notes: nullable('string'),
+      created_at: dateTime,
+      updated_at: dateTime,
+      software_code: nullable('string', { description: 'Present when a tax program was asked for' }),
+      maps: { type: 'array', items: ref('TaxCodeMap'), description: 'Present on one code read, created or saved' },
+    },
+  },
+  TaxCodeInput: {
+    type: 'object',
+    description: 'A tax code as saved. PUT replaces the whole row: a field left out goes back to its default (isSystem false, isActive true, sortOrder 0, notes empty), so the desktop sends every field. notes is a string or left out, never null. maps names the tax programs to save; a program left out keeps its row, and a field left out of a named program is cleared.',
+    required: ['returnForm', 'activityType', 'taxCode', 'description'],
+    properties: {
+      returnForm,
+      activityType: codeActivity,
+      taxCode: { type: 'string', pattern: '^[0-9]+$', maxLength: 50 },
+      description: { type: 'string', minLength: 1 },
+      sortOrder: { type: 'integer' },
+      isSystem: { type: 'boolean' },
+      isActive: { type: 'boolean' },
+      isM1Adjustment: { type: 'boolean' },
+      notes: { type: 'string' },
+      maps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['taxSoftware'],
+          properties: {
+            taxSoftware: exportSoftware,
+            softwareCode: { type: 'string', maxLength: 100 },
+            softwareDescription: { type: 'string', maxLength: 255 },
+            exportAccountNumber: { type: 'string', maxLength: 100 },
+            exportDescription: { type: 'string', maxLength: 255 },
+            notes: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
+  TaxCodeImportRow: {
+    type: 'object',
+    description: 'One line of a tax code CSV as read; nothing is checked against the codes already there.',
+    required: ['return_form', 'activity_type', 'tax_code', 'description', 'is_m1_adjustment', 'maps'],
+    properties: {
+      return_form: { type: 'string' },
+      activity_type: { type: 'string' },
+      tax_code: { type: 'string' },
+      description: { type: 'string' },
+      sort_order: { type: 'integer' },
+      is_m1_adjustment: { type: 'boolean' },
+      notes: { type: 'string' },
+      maps: {
+        type: 'array',
+        items: { type: 'object', required: ['tax_software', 'software_code'], properties: { tax_software: { type: 'string' }, software_code: { type: 'string' } } },
+      },
+    },
+  },
+  TaxSuggestion: {
+    type: 'object',
+    required: ['accountId', 'accountNumber', 'accountName', 'category', 'confidence', 'source', 'reasoning'],
+    properties: {
+      accountId: { type: 'integer' },
+      accountNumber: { type: 'string' },
+      accountName: { type: 'string' },
+      category: { type: 'string' },
+      suggestedTaxCodeId: nullable('integer'),
+      suggestedTaxCode: nullable('string'),
+      suggestedDescription: nullable('string'),
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+      source: { type: 'string', enum: ['existing', 'prior_period', 'cross_client', 'firm_history', 'ai', 'unmappable'] },
+      reasoning: { type: 'string', description: 'Starts "AI error:" when the AI could not be asked (none set up, or it failed)' },
+    },
+  },
+  TaxSuggestions: {
+    type: 'object',
+    description: 'Suggested tax codes. Nothing is written: the caller confirms through bulk-confirm.',
+    required: ['suggestions', 'totalProcessed'],
+    properties: {
+      suggestions: { type: 'array', items: ref('TaxSuggestion') },
+      totalProcessed: { type: 'integer' },
+      bySource: { type: 'object', additionalProperties: { type: 'integer' }, description: 'Left out when no account was looked at' },
+    },
+  },
+  TaxAssignments: {
+    type: 'object',
+    required: ['clientId', 'assignments'],
+    properties: {
+      clientId: { type: 'integer' },
+      assignments: {
+        type: 'array', minItems: 1,
+        items: {
+          type: 'object',
+          required: ['accountId', 'taxCodeId', 'source', 'confidence'],
+          properties: {
+            accountId: { type: 'integer' },
+            taxCodeId: nullable('integer', { description: 'null clears the account\'s tax code' }),
+            source: { type: 'string', maxLength: 20 },
+            confidence: { type: ['number', 'null'], minimum: 0, maximum: 1 },
+          },
+        },
+      },
+    },
+  },
+  TaxAssignmentsResult: {
+    type: 'object',
+    required: ['results', 'updated', 'failed'],
+    properties: {
+      results: {
+        type: 'array',
+        items: { type: 'object', required: ['accountId', 'success'], properties: { accountId: { type: 'integer' }, success: { type: 'boolean' }, error: { type: 'string' } } },
+      },
+      updated: { type: 'integer' },
+      failed: { type: 'integer' },
+    },
+  },
+  ExportValidation: {
+    type: 'object',
+    description: 'What to look at before exporting. Advisory: the export routes never refuse.',
+    required: ['isBalanced', 'unmappedAccounts', 'missingMappings', 'canExport', 'warnings', 'software', 'totalDebit', 'totalCredit', 'taxCodesInUse'],
+    properties: {
+      isBalanced: { type: 'boolean', description: 'Unadjusted, book-adjusted and tax-adjusted all balance' },
+      unmappedAccounts: {
+        type: 'array',
+        items: { type: 'object', required: ['account_id', 'account_number', 'account_name'], properties: { account_id: { type: 'integer' }, account_number: { type: 'string' }, account_name: { type: 'string' } } },
+      },
+      missingMappings: {
+        type: 'array',
+        items: { type: 'object', required: ['account_id', 'account_number', 'account_name'], properties: { account_id: { type: 'integer' }, account_number: { type: 'string' }, account_name: { type: 'string' }, tax_code: nullable('string') } },
+      },
+      canExport: { type: 'boolean' },
+      warnings: { type: 'array', items: { type: 'string' } },
+      software: { type: 'string' },
+      totalDebit: cents('Unadjusted debits'),
+      totalCredit: cents('Unadjusted credits'),
+      taxCodesInUse: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['tax_code_id', 'tax_code', 'description', 'account_count', 'totalBookAmt', 'totalTaxAmt', 'accounts'],
+          properties: {
+            tax_code_id: { type: 'integer' },
+            tax_code: { type: 'string' },
+            description: { type: 'string' },
+            software_code: nullable('string'),
+            software_description: nullable('string'),
+            export_account_number: nullable('string'),
+            export_description: nullable('string'),
+            account_count: { type: 'integer' },
+            totalBookAmt: dollars('Book-adjusted total'),
+            totalTaxAmt: dollars('Tax-adjusted total'),
+            accounts: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['account_number', 'account_name', 'bookAmt', 'taxAmt'],
+                properties: { account_number: { type: 'string' }, account_name: { type: 'string' }, bookAmt: dollars('Book-adjusted'), taxAmt: dollars('Tax-adjusted') },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  ExportConsolidation: {
+    type: 'object',
+    description: 'The tax codes whose accounts are combined into one export row, by tax code id, for one client and tax program. The export routes do not read this: the caller sends consolidate and overrides with each download.',
+    additionalProperties: {
+      type: 'object',
+      required: ['acctNum', 'acctName'],
+      properties: { acctNum: { type: 'string' }, acctName: { type: 'string' } },
     },
   },
 };
@@ -1500,6 +1715,165 @@ export function buildOpenApiSpec(): Schema {
           operationId: 'testLlm', tags: ['settings'],
           summary: 'Try the AI provider as set up',
           responses: { '200': ok('Result', { type: 'object', required: ['valid'], properties: { valid: { type: 'boolean' }, provider: { type: 'string' }, error: { type: 'string' } } }), ...commonErrors },
+        },
+      },
+      '/api/v1/tax-codes': {
+        get: {
+          operationId: 'listTaxCodes', tags: ['tax-codes'],
+          summary: 'The tax code list, by sort order',
+          parameters: [
+            { name: 'returnForm', in: 'query', required: false, schema: returnForm },
+            { name: 'activityType', in: 'query', required: false, schema: codeActivity },
+            { name: 'taxSoftware', in: 'query', required: false, schema: exportSoftware, description: 'Adds software_code for this tax program to each row' },
+            { name: 'search', in: 'query', required: false, schema: { type: 'string' }, description: 'In the code or the description' },
+            { name: 'includeInactive', in: 'query', required: false, schema: { type: 'string', enum: ['true'] } },
+          ],
+          responses: { '200': ok('Tax codes', { type: 'array', items: ref('TaxCode') }, true), ...commonErrors },
+        },
+        post: {
+          operationId: 'createTaxCode', tags: ['tax-codes'],
+          summary: 'Add a tax code (a code already there for the form and activity is a bare 500: check first)',
+          requestBody: jsonBody(ref('TaxCodeInput')),
+          responses: { '201': ok('Created', ref('TaxCode')), '400': errorResponse('VALIDATION_ERROR'), ...commonErrors },
+        },
+      },
+      '/api/v1/tax-codes/available': {
+        get: {
+          operationId: 'listAvailableTaxCodes', tags: ['tax-codes'],
+          summary: 'The active tax codes a client\'s accounts can be given: its return type and activity, with what its tax program calls each',
+          parameters: [{ name: 'clientId', in: 'query', required: true, schema: { type: 'integer', minimum: 1 } }],
+          responses: { '200': ok('Tax codes', { type: 'array', items: ref('TaxCode') }, true), '400': errorResponse('clientId is required'), '404': errorResponse('Client not found'), ...commonErrors },
+        },
+      },
+      '/api/v1/tax-codes/export': {
+        get: {
+          operationId: 'exportTaxCodes', tags: ['tax-codes'],
+          summary: 'The tax code list as an Excel workbook (the columns the CSV import reads)',
+          parameters: [
+            { name: 'returnForm', in: 'query', required: false, schema: returnForm },
+            { name: 'activityType', in: 'query', required: false, schema: codeActivity },
+            { name: 'search', in: 'query', required: false, schema: { type: 'string' } },
+            { name: 'includeInactive', in: 'query', required: false, schema: { type: 'string', enum: ['true'] } },
+          ],
+          responses: { '200': xlsxFile('tax-codes.xlsx'), ...commonErrors },
+        },
+      },
+      '/api/v1/tax-codes/import/preview': {
+        post: {
+          operationId: 'previewTaxCodeImport', tags: ['tax-codes'],
+          summary: 'Read a tax code CSV (sent as text); nothing is written',
+          requestBody: jsonBody({ type: 'object', required: ['csv'], properties: { csv: { type: 'string' } } }),
+          responses: { '200': ok('Lines read', { type: 'array', items: ref('TaxCodeImportRow') }, true), '400': errorResponse('VALIDATION_ERROR'), ...commonErrors },
+        },
+      },
+      '/api/v1/tax-codes/import': {
+        post: {
+          operationId: 'importTaxCodes', tags: ['tax-codes'],
+          summary: 'Add or update tax codes from a CSV: matched on form, activity and code; a code that is not digits is skipped',
+          requestBody: jsonBody({ type: 'object', required: ['csv'], properties: { csv: { type: 'string' } } }),
+          responses: {
+            '200': ok('Counts', { type: 'object', required: ['inserted', 'updated', 'skippedNonNumeric'], properties: { inserted: { type: 'integer' }, updated: { type: 'integer' }, skippedNonNumeric: { type: 'integer' } } }),
+            '400': errorResponse('VALIDATION_ERROR'), ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/tax-codes/{id}': {
+        parameters: [idParam('id', 'Tax code id')],
+        get: {
+          operationId: 'getTaxCode', tags: ['tax-codes'],
+          summary: 'One tax code with what each tax program calls it',
+          responses: { '200': ok('Tax code', ref('TaxCode')), '404': errorResponse('Not found'), ...commonErrors },
+        },
+        put: {
+          operationId: 'saveTaxCode', tags: ['tax-codes'],
+          summary: 'Save a tax code (the whole row); accounts that carry it get the new code text',
+          requestBody: jsonBody(ref('TaxCodeInput')),
+          responses: { '200': ok('Saved', ref('TaxCode')), '400': errorResponse('VALIDATION_ERROR'), '404': errorResponse('Not found'), ...commonErrors },
+        },
+        delete: {
+          operationId: 'deactivateTaxCode', tags: ['tax-codes'],
+          summary: 'Stop offering a tax code (it is kept, inactive); refused while accounts carry it',
+          responses: {
+            '200': ok('Deactivated', { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }),
+            '404': errorResponse('Not found'),
+            '409': errorResponse('CONFLICT: accounts carry the code (error.meta.referenceCount)'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/tax-lines/auto-assign': {
+        post: {
+          operationId: 'suggestTaxCodes', tags: ['tax-codes'],
+          summary: 'Suggest tax codes for a client\'s accounts: what the firm chose for the same account name elsewhere, then the AI. Nothing is written. Without an AI the answer is still 200, with those accounts unmappable.',
+          requestBody: jsonBody({
+            type: 'object', required: ['clientId'],
+            properties: {
+              clientId: { type: 'integer' },
+              accountIds: { type: 'array', items: { type: 'integer' }, description: 'These accounts; left out: the ones with no tax code' },
+              includeAll: { type: 'boolean', description: 'Every active account' },
+            },
+          }),
+          responses: { '200': ok('Suggestions', ref('TaxSuggestions')), '400': errorResponse('VALIDATION_ERROR'), '404': errorResponse('Client not found'), ...commonErrors },
+        },
+      },
+      '/api/v1/tax-lines/bulk-confirm': {
+        put: {
+          operationId: 'assignTaxCodes', tags: ['tax-codes'],
+          summary: 'Give accounts their tax codes (or clear them), with who chose and how sure; a bad row is reported and the rest are saved',
+          requestBody: jsonBody(ref('TaxAssignments')),
+          responses: { '200': ok('Result', ref('TaxAssignmentsResult')), '400': errorResponse('VALIDATION_ERROR'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/exports/validate': {
+        parameters: [idParam('periodId', 'Period id')],
+        get: {
+          operationId: 'validateExport', tags: ['exports'],
+          summary: 'What to look at before exporting a period to a tax program',
+          parameters: [{ name: 'software', in: 'query', required: false, schema: exportSoftware }],
+          responses: { '200': ok('Validation', ref('ExportValidation')), '404': errorResponse('Period not found'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/exports/consolidation-settings': {
+        parameters: [idParam('periodId', 'Period id (names the client)')],
+        get: {
+          operationId: 'getExportConsolidation', tags: ['exports'],
+          summary: 'The tax codes combined into one row for a client and tax program',
+          parameters: [{ name: 'software', in: 'query', required: false, schema: exportSoftware }],
+          responses: { '200': ok('Settings', ref('ExportConsolidation')), '404': errorResponse('Period not found'), ...commonErrors },
+        },
+        put: {
+          operationId: 'saveExportConsolidation', tags: ['exports'],
+          summary: 'Replace the combined tax codes of a client and tax program',
+          requestBody: jsonBody({ type: 'object', required: ['software', 'settings'], properties: { software: exportSoftware, settings: ref('ExportConsolidation') } }),
+          responses: { '200': ok('Saved', { type: 'object', required: ['saved'], properties: { saved: { type: 'integer' } } }), '400': errorResponse('VALIDATION_ERROR'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/exports/working-tb': {
+        parameters: [idParam('periodId', 'Period id')],
+        get: {
+          operationId: 'exportWorkingTrialBalance', tags: ['exports'],
+          summary: 'The working trial balance as an Excel workbook',
+          responses: { '200': xlsxFile('<period>_<client>_working-tb.xlsx'), '404': errorResponse('Period not found'), ...commonErrors },
+        },
+      },
+      '/api/v1/periods/{periodId}/exports/{software}': {
+        parameters: [
+          idParam('periodId', 'Period id'),
+          { name: 'software', in: 'path', required: true, schema: exportSoftware },
+          { name: 'consolidate', in: 'query', required: false, schema: { type: 'string' }, description: 'Tax code ids to combine into one row each, comma-separated' },
+          { name: 'overrides', in: 'query', required: false, schema: { type: 'string' }, description: 'JSON {"<tax code id>":{"n":"account number","d":"description"}} for the combined rows' },
+          { name: 'unit', in: 'query', required: false, schema: { type: 'string', pattern: '^[0-9]{1,9}$' } },
+          { name: 'unitMode', in: 'query', required: false, schema: { type: 'string', enum: ['column', 'prefix', 'suffix'] } },
+        ],
+        get: {
+          operationId: 'exportToTaxSoftware', tags: ['exports'],
+          summary: 'A period\'s adjusted balances in a tax program\'s import layout, as an Excel workbook: book and tax amounts in dollars, debits positive',
+          responses: {
+            '200': xlsxFile('<period>_<client>_<software>-export.xlsx'),
+            '404': errorResponse('Period not found'),
+            '409': errorResponse('DUPLICATE_ACCOUNT: a combined row\'s account number is another account\'s'),
+            ...commonErrors,
+          },
         },
       },
       '/api/v1/import/csv/analyze': {

@@ -1,0 +1,22 @@
+{
+  "data": {
+    "failed": 1,
+    "results": [
+      {
+        "accountId": 1,
+        "success": true
+      },
+      {
+        "accountId": 2,
+        "success": true
+      },
+      {
+        "accountId": 999999,
+        "error": "Account not found",
+        "success": false
+      }
+    ],
+    "updated": 2
+  },
+  "error": null
+}

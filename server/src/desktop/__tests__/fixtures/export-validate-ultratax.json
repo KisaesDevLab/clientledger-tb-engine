@@ -1,0 +1,791 @@
+{
+  "data": {
+    "canExport": true,
+    "isBalanced": true,
+    "missingMappings": [],
+    "software": "ultratax",
+    "taxCodesInUse": [
+      {
+        "account_count": 1,
+        "accounts": [
+          {
+            "account_name": "Cash - Business Savings",
+            "account_number": "1010",
+            "bookAmt": 25000,
+            "taxAmt": 25000
+          }
+        ],
+        "description": "1120S; L01a - Gross receipts",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "100",
+        "software_description": "1120S; L01a - Gross receipts",
+        "tax_code": "100",
+        "tax_code_id": 1,
+        "totalBookAmt": 25000,
+        "totalTaxAmt": 25000
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Petty Cash",
+            "account_number": "1020",
+            "bookAmt": 500,
+            "taxAmt": 500
+          },
+          {
+            "account_name": "Accounts Receivable",
+            "account_number": "1100",
+            "bookAmt": 61625,
+            "taxAmt": 61625
+          }
+        ],
+        "description": "1120S; L01b - Returns and allowances",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "101",
+        "software_description": "1120S; L01b - Returns and allowances",
+        "tax_code": "101",
+        "tax_code_id": 2,
+        "totalBookAmt": 62125,
+        "totalTaxAmt": 62125
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Employee Advances",
+            "account_number": "1200",
+            "bookAmt": 1500,
+            "taxAmt": 1500
+          },
+          {
+            "account_name": "Prepaid Insurance",
+            "account_number": "1300",
+            "bookAmt": 5500,
+            "taxAmt": 5500
+          }
+        ],
+        "description": "1120S; L05 - Other income",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "102",
+        "software_description": "1120S; L05 - Other income",
+        "tax_code": "102",
+        "tax_code_id": 3,
+        "totalBookAmt": 7000,
+        "totalTaxAmt": 7000
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Prepaid Rent",
+            "account_number": "1310",
+            "bookAmt": 3000,
+            "taxAmt": 3000
+          },
+          {
+            "account_name": "Furniture & Equipment",
+            "account_number": "1500",
+            "bookAmt": 45000,
+            "taxAmt": 45000
+          }
+        ],
+        "description": "1120S; L05 - State tax refunds",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "103",
+        "software_description": "1120S; L05 - State tax refunds",
+        "tax_code": "103",
+        "tax_code_id": 4,
+        "totalBookAmt": 48000,
+        "totalTaxAmt": 48000
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Computer Equipment",
+            "account_number": "1510",
+            "bookAmt": 32000,
+            "taxAmt": 32000
+          },
+          {
+            "account_name": "Vehicles",
+            "account_number": "1520",
+            "bookAmt": 38500,
+            "taxAmt": 38500
+          }
+        ],
+        "description": "Sch D; L13 - Capital gain distribution",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "104",
+        "software_description": "Sch D; L13 - Capital gain distribution",
+        "tax_code": "104",
+        "tax_code_id": 5,
+        "totalBookAmt": 70500,
+        "totalTaxAmt": 70500
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Accum Depr - Furniture & Equip",
+            "account_number": "1550",
+            "bookAmt": -22500,
+            "taxAmt": -22500
+          },
+          {
+            "account_name": "Accum Depr - Computers",
+            "account_number": "1560",
+            "bookAmt": -28800,
+            "taxAmt": -28800
+          }
+        ],
+        "description": "Sch D; L13 - Capital gain distribution 28%",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "105",
+        "software_description": "Sch D; L13 - Capital gain distribution 28%",
+        "tax_code": "105",
+        "tax_code_id": 6,
+        "totalBookAmt": -51300,
+        "totalTaxAmt": -51300
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Accum Depr - Vehicles",
+            "account_number": "1570",
+            "bookAmt": -19250,
+            "taxAmt": -19250
+          },
+          {
+            "account_name": "Security Deposits",
+            "account_number": "1600",
+            "bookAmt": 3000,
+            "taxAmt": 3000
+          }
+        ],
+        "description": "Sch K; L04 - Non-US interest income",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "150",
+        "software_description": "Sch K; L04 - Non-US interest income",
+        "tax_code": "150",
+        "tax_code_id": 7,
+        "totalBookAmt": -16250,
+        "totalTaxAmt": -16250
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Accounts Payable",
+            "account_number": "2000",
+            "bookAmt": -12875,
+            "taxAmt": -12875
+          },
+          {
+            "account_name": "Credit Card Payable",
+            "account_number": "2100",
+            "bookAmt": -8436.72,
+            "taxAmt": -8436.72
+          }
+        ],
+        "description": "Sch K; L04 - US interest income",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "151",
+        "software_description": "Sch K; L04 - US interest income",
+        "tax_code": "151",
+        "tax_code_id": 8,
+        "totalBookAmt": -21311.72,
+        "totalTaxAmt": -21311.72
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Accrued Wages",
+            "account_number": "2200",
+            "bookAmt": -14250,
+            "taxAmt": -14250
+          },
+          {
+            "account_name": "Accrued Payroll Taxes",
+            "account_number": "2210",
+            "bookAmt": -1425,
+            "taxAmt": -1425
+          }
+        ],
+        "description": "Sch K; L10 - Other Portfolio Income (Loss)",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "153",
+        "software_description": "Sch K; L10 - Other Portfolio Income (Loss)",
+        "tax_code": "153",
+        "tax_code_id": 9,
+        "totalBookAmt": -15675,
+        "totalTaxAmt": -15675
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Current Portion - LTD",
+            "account_number": "2400",
+            "bookAmt": -4800,
+            "taxAmt": -4800
+          },
+          {
+            "account_name": "Vehicle Loan",
+            "account_number": "2600",
+            "bookAmt": -21875,
+            "taxAmt": -21875
+          }
+        ],
+        "description": "Sch K; L10 - Other income",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "154",
+        "software_description": "Sch K; L10 - Other income",
+        "tax_code": "154",
+        "tax_code_id": 10,
+        "totalBookAmt": -26675,
+        "totalTaxAmt": -26675
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Common Stock",
+            "account_number": "3000",
+            "bookAmt": -1000,
+            "taxAmt": -1000
+          },
+          {
+            "account_name": "Additional Paid-In Capital",
+            "account_number": "3100",
+            "bookAmt": -50000,
+            "taxAmt": -50000
+          }
+        ],
+        "description": "Sch K; L10 - Mining exploration costs recap",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "155",
+        "software_description": "Sch K; L10 - Mining exploration costs recap",
+        "tax_code": "155",
+        "tax_code_id": 11,
+        "totalBookAmt": -51000,
+        "totalTaxAmt": -51000
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Retained Earnings",
+            "account_number": "3200",
+            "bookAmt": -155546.45,
+            "taxAmt": -155546.45
+          },
+          {
+            "account_name": "Shareholder Distributions",
+            "account_number": "3300",
+            "bookAmt": 120000,
+            "taxAmt": 120000
+          }
+        ],
+        "description": "Sch K; L05a - Ordinary dividends",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "156",
+        "software_description": "Sch K; L05a - Ordinary dividends",
+        "tax_code": "156",
+        "tax_code_id": 12,
+        "totalBookAmt": -35546.45000000001,
+        "totalTaxAmt": -35546.45000000001
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Consulting Revenue",
+            "account_number": "4000",
+            "bookAmt": -487500,
+            "taxAmt": -487500
+          },
+          {
+            "account_name": "Project Revenue",
+            "account_number": "4100",
+            "bookAmt": -198750,
+            "taxAmt": -198750
+          }
+        ],
+        "description": "1125-E; L01 - Compensation of officers",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "200",
+        "software_description": "1125-E; L01 - Compensation of officers",
+        "tax_code": "200",
+        "tax_code_id": 13,
+        "totalBookAmt": -686250,
+        "totalTaxAmt": -686250
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Retainer Revenue",
+            "account_number": "4200",
+            "bookAmt": -36000,
+            "taxAmt": -36000
+          },
+          {
+            "account_name": "Interest Income",
+            "account_number": "4500",
+            "bookAmt": -425,
+            "taxAmt": -425
+          }
+        ],
+        "description": "1120S; L08 - Salaries and wages",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "201",
+        "software_description": "1120S; L08 - Salaries and wages",
+        "tax_code": "201",
+        "tax_code_id": 14,
+        "totalBookAmt": -36425,
+        "totalTaxAmt": -36425
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Other Income",
+            "account_number": "4600",
+            "bookAmt": -1250,
+            "taxAmt": -1250
+          },
+          {
+            "account_name": "Contract Labor",
+            "account_number": "5000",
+            "bookAmt": 87500,
+            "taxAmt": 87500
+          }
+        ],
+        "description": "1120S; L09 - Repairs",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "202",
+        "software_description": "1120S; L09 - Repairs",
+        "tax_code": "202",
+        "tax_code_id": 15,
+        "totalBookAmt": 86250,
+        "totalTaxAmt": 86250
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Project Materials",
+            "account_number": "5100",
+            "bookAmt": 34250,
+            "taxAmt": 34250
+          },
+          {
+            "account_name": "Subcontractor Costs",
+            "account_number": "5200",
+            "bookAmt": 62500,
+            "taxAmt": 62500
+          }
+        ],
+        "description": "1120S; L10 - Bad debts",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "203",
+        "software_description": "1120S; L10 - Bad debts",
+        "tax_code": "203",
+        "tax_code_id": 16,
+        "totalBookAmt": 96750,
+        "totalTaxAmt": 96750
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Salaries & Wages",
+            "account_number": "6000",
+            "bookAmt": 299250,
+            "taxAmt": 299250
+          },
+          {
+            "account_name": "Payroll Taxes",
+            "account_number": "6010",
+            "bookAmt": 29925,
+            "taxAmt": 29925
+          }
+        ],
+        "description": "1120S; L11 - Rents",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "204",
+        "software_description": "1120S; L11 - Rents",
+        "tax_code": "204",
+        "tax_code_id": 17,
+        "totalBookAmt": 329175,
+        "totalTaxAmt": 329175
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Employee Benefits",
+            "account_number": "6020",
+            "bookAmt": 14250,
+            "taxAmt": 14250
+          },
+          {
+            "account_name": "Workers Compensation",
+            "account_number": "6030",
+            "bookAmt": 2850,
+            "taxAmt": 2850
+          }
+        ],
+        "description": "1120S; L12 - Taxes",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "205",
+        "software_description": "1120S; L12 - Taxes",
+        "tax_code": "205",
+        "tax_code_id": 18,
+        "totalBookAmt": 17100,
+        "totalTaxAmt": 17100
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Rent Expense",
+            "account_number": "6100",
+            "bookAmt": 36000,
+            "taxAmt": 36000
+          },
+          {
+            "account_name": "Utilities",
+            "account_number": "6110",
+            "bookAmt": 4850,
+            "taxAmt": 4850
+          }
+        ],
+        "description": "1120S; L13 - Interest",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "206",
+        "software_description": "1120S; L13 - Interest",
+        "tax_code": "206",
+        "tax_code_id": 19,
+        "totalBookAmt": 40850,
+        "totalTaxAmt": 40850
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Phone & Internet",
+            "account_number": "6120",
+            "bookAmt": 3840,
+            "taxAmt": 3840
+          },
+          {
+            "account_name": "Office Supplies",
+            "account_number": "6200",
+            "bookAmt": 2875,
+            "taxAmt": 2875
+          }
+        ],
+        "description": "Sch M-1; var - Book depr-other than COGS",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "207",
+        "software_description": "Sch M-1; var - Book depr-other than COGS",
+        "tax_code": "207",
+        "tax_code_id": 20,
+        "totalBookAmt": 6715,
+        "totalTaxAmt": 6715
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Computer & Software",
+            "account_number": "6210",
+            "bookAmt": 6120,
+            "taxAmt": 6120
+          },
+          {
+            "account_name": "Postage & Shipping",
+            "account_number": "6220",
+            "bookAmt": 420,
+            "taxAmt": 420
+          }
+        ],
+        "description": "1120S; L15 - Page 1 depletion - book",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "208",
+        "software_description": "1120S; L15 - Page 1 depletion - book",
+        "tax_code": "208",
+        "tax_code_id": 21,
+        "totalBookAmt": 6540,
+        "totalTaxAmt": 6540
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Insurance - General Liability",
+            "account_number": "6300",
+            "bookAmt": 7600,
+            "taxAmt": 7600
+          },
+          {
+            "account_name": "Insurance - Professional Liability",
+            "account_number": "6310",
+            "bookAmt": 3750,
+            "taxAmt": 3750
+          }
+        ],
+        "description": "1120S; L16 - Advertising",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "209",
+        "software_description": "1120S; L16 - Advertising",
+        "tax_code": "209",
+        "tax_code_id": 22,
+        "totalBookAmt": 11350,
+        "totalTaxAmt": 11350
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Advertising & Marketing",
+            "account_number": "6400",
+            "bookAmt": 2250,
+            "taxAmt": 2250
+          },
+          {
+            "account_name": "Website & Hosting",
+            "account_number": "6410",
+            "bookAmt": 1896,
+            "taxAmt": 1896
+          }
+        ],
+        "description": "1120S; L17 - Pension profit sharing",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "210",
+        "software_description": "1120S; L17 - Pension profit sharing",
+        "tax_code": "210",
+        "tax_code_id": 23,
+        "totalBookAmt": 4146,
+        "totalTaxAmt": 4146
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Travel",
+            "account_number": "6500",
+            "bookAmt": 4875,
+            "taxAmt": 4875
+          },
+          {
+            "account_name": "Meals & Entertainment",
+            "account_number": "6510",
+            "bookAmt": 3120,
+            "taxAmt": 3120
+          }
+        ],
+        "description": "1120S; L18 - Employee benefit programs",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "211",
+        "software_description": "1120S; L18 - Employee benefit programs",
+        "tax_code": "211",
+        "tax_code_id": 24,
+        "totalBookAmt": 7995,
+        "totalTaxAmt": 7995
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Vehicle Expense",
+            "account_number": "6520",
+            "bookAmt": 1950,
+            "taxAmt": 1950
+          },
+          {
+            "account_name": "Fuel",
+            "account_number": "6530",
+            "bookAmt": 2875,
+            "taxAmt": 2875
+          }
+        ],
+        "description": "1120S; L20 - Other deductions",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "212",
+        "software_description": "1120S; L20 - Other deductions",
+        "tax_code": "212",
+        "tax_code_id": 25,
+        "totalBookAmt": 4825,
+        "totalTaxAmt": 4825
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Professional Fees - Accounting",
+            "account_number": "6600",
+            "bookAmt": 3500,
+            "taxAmt": 3500
+          },
+          {
+            "account_name": "Professional Fees - Legal",
+            "account_number": "6610",
+            "bookAmt": 1250,
+            "taxAmt": 1250
+          }
+        ],
+        "description": "1120S; L20 - Total book amortization",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "214",
+        "software_description": "1120S; L20 - Total book amortization",
+        "tax_code": "214",
+        "tax_code_id": 26,
+        "totalBookAmt": 4750,
+        "totalTaxAmt": 4750
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Bank Service Charges",
+            "account_number": "6700",
+            "bookAmt": 480,
+            "taxAmt": 480
+          },
+          {
+            "account_name": "Interest Expense",
+            "account_number": "6710",
+            "bookAmt": 1875,
+            "taxAmt": 1875
+          }
+        ],
+        "description": "1120S; L20 - Meals (DOT)",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "215",
+        "software_description": "1120S; L20 - Meals (DOT)",
+        "tax_code": "215",
+        "tax_code_id": 27,
+        "totalBookAmt": 2355,
+        "totalTaxAmt": 2355
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Depreciation Expense",
+            "account_number": "6800",
+            "bookAmt": 18600,
+            "taxAmt": 18600
+          },
+          {
+            "account_name": "Licenses & Permits",
+            "account_number": "6900",
+            "bookAmt": 950,
+            "taxAmt": 950
+          }
+        ],
+        "description": "1120S; L20 - Meals subject to 50% limit",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "216",
+        "software_description": "1120S; L20 - Meals subject to 50% limit",
+        "tax_code": "216",
+        "tax_code_id": 28,
+        "totalBookAmt": 19550,
+        "totalTaxAmt": 19550
+      },
+      {
+        "account_count": 2,
+        "accounts": [
+          {
+            "account_name": "Continuing Education",
+            "account_number": "6910",
+            "bookAmt": 450,
+            "taxAmt": 450
+          },
+          {
+            "account_name": "Miscellaneous Expense",
+            "account_number": "7000",
+            "bookAmt": 325,
+            "taxAmt": 325
+          }
+        ],
+        "description": "Sch M-1; L03 - Org / start-up book expense",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "218",
+        "software_description": "Sch M-1; L03 - Org / start-up book expense",
+        "tax_code": "218",
+        "tax_code_id": 29,
+        "totalBookAmt": 775,
+        "totalTaxAmt": 775
+      },
+      {
+        "account_count": 1,
+        "accounts": [
+          {
+            "account_name": "Bad Debt Expense",
+            "account_number": "7100",
+            "bookAmt": 3250,
+            "taxAmt": 3250
+          }
+        ],
+        "description": "1120S; L17 - Pension profit-sharing accr",
+        "export_account_number": null,
+        "export_description": null,
+        "software_code": "219",
+        "software_description": "1120S; L17 - Pension profit-sharing accr",
+        "tax_code": "219",
+        "tax_code_id": 30,
+        "totalBookAmt": 3250,
+        "totalTaxAmt": 3250
+      }
+    ],
+    "totalCredit": 103040817,
+    "totalDebit": 103040817,
+    "unmappedAccounts": [
+      {
+        "account_id": 17,
+        "account_name": "Cash - Operating Checking",
+        "account_number": "1000"
+      }
+    ],
+    "warnings": [
+      "1 account(s) have no tax code assigned"
+    ]
+  },
+  "error": null
+}

@@ -1,0 +1,208 @@
+{
+  "data": {
+    "bySource": {
+      "ai": 0,
+      "cross_client": 0,
+      "existing": 0,
+      "firm_history": 0,
+      "prior_period": 0,
+      "unmappable": 16
+    },
+    "suggestions": [
+      {
+        "accountId": 1,
+        "accountName": "Cash - Operating",
+        "accountNumber": "1000",
+        "category": "assets",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 2,
+        "accountName": "Accounts Receivable",
+        "accountNumber": "1100",
+        "category": "assets",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 3,
+        "accountName": "Property & Equipment",
+        "accountNumber": "1500",
+        "category": "assets",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 4,
+        "accountName": "Accounts Payable",
+        "accountNumber": "2000",
+        "category": "liabilities",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 5,
+        "accountName": "Accrued Liabilities",
+        "accountNumber": "2100",
+        "category": "liabilities",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 6,
+        "accountName": "Notes Payable",
+        "accountNumber": "2500",
+        "category": "liabilities",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 7,
+        "accountName": "Common Stock",
+        "accountNumber": "3000",
+        "category": "equity",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 8,
+        "accountName": "Retained Earnings",
+        "accountNumber": "3100",
+        "category": "equity",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 9,
+        "accountName": "Service Revenue",
+        "accountNumber": "4000",
+        "category": "revenue",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 10,
+        "accountName": "Product Sales",
+        "accountNumber": "4100",
+        "category": "revenue",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 11,
+        "accountName": "Cost of Goods Sold",
+        "accountNumber": "5000",
+        "category": "expenses",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 12,
+        "accountName": "Salaries & Wages",
+        "accountNumber": "6000",
+        "category": "expenses",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 13,
+        "accountName": "Rent Expense",
+        "accountNumber": "6100",
+        "category": "expenses",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 14,
+        "accountName": "Depreciation Expense",
+        "accountNumber": "6200",
+        "category": "expenses",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 15,
+        "accountName": "Professional Fees",
+        "accountNumber": "6300",
+        "category": "expenses",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      },
+      {
+        "accountId": 16,
+        "accountName": "Utilities Expense",
+        "accountNumber": "6400",
+        "category": "expenses",
+        "confidence": 0,
+        "reasoning": "AI error: Claude API key not configured. Set it in Admin > Settings.",
+        "source": "unmappable",
+        "suggestedDescription": null,
+        "suggestedTaxCode": null,
+        "suggestedTaxCodeId": null
+      }
+    ],
+    "totalProcessed": 16
+  },
+  "error": null
+}

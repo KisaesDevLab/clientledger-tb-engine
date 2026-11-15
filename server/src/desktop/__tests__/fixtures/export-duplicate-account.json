@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "DUPLICATE_ACCOUNT",
+    "message": "Consolidated account number \"1000\" conflicts with an existing account in the export. Choose a different number."
+  }
+}

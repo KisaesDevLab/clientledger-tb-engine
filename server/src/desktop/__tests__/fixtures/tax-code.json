@@ -1,0 +1,67 @@
+{
+  "data": {
+    "activity_type": "business",
+    "created_at": "2026-11-15T04:52:34.301Z",
+    "description": "1065; L01a - Gross receipts or sales",
+    "id": 478,
+    "is_active": true,
+    "is_m1_adjustment": false,
+    "is_system": true,
+    "maps": [
+      {
+        "created_at": "2026-11-15T04:52:34.301Z",
+        "export_account_number": null,
+        "export_description": null,
+        "id": 1751,
+        "is_active": true,
+        "notes": null,
+        "software_code": "10200.0000",
+        "software_description": "Gross receipts or sales",
+        "tax_code_id": 478,
+        "tax_software": "cch"
+      },
+      {
+        "created_at": "2026-11-15T04:52:34.301Z",
+        "export_account_number": null,
+        "export_description": null,
+        "id": 1750,
+        "is_active": true,
+        "notes": null,
+        "software_code": "30-100",
+        "software_description": "Gross Receipts or Sales",
+        "tax_code_id": 478,
+        "tax_software": "gosystem"
+      },
+      {
+        "created_at": "2026-11-15T04:52:34.301Z",
+        "export_account_number": null,
+        "export_description": null,
+        "id": 1749,
+        "is_active": true,
+        "notes": null,
+        "software_code": "01A",
+        "software_description": "Gross receipts or sales",
+        "tax_code_id": 478,
+        "tax_software": "lacerte"
+      },
+      {
+        "created_at": "2026-11-15T04:52:34.301Z",
+        "export_account_number": null,
+        "export_description": null,
+        "id": 1748,
+        "is_active": true,
+        "notes": null,
+        "software_code": "100",
+        "software_description": "1065; L01a - Gross receipts or sales",
+        "tax_code_id": 478,
+        "tax_software": "ultratax"
+      }
+    ],
+    "notes": null,
+    "return_form": "1065",
+    "sort_order": 100,
+    "tax_code": "100",
+    "updated_at": "2026-11-15T04:52:34.301Z"
+  },
+  "error": null
+}
