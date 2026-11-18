@@ -1,0 +1,10 @@
+{
+  "data": null,
+  "error": {
+    "code": "FS_CONFLICT",
+    "details": {
+      "updatedAt": "2026-11-18T10:37:17.380Z"
+    },
+    "message": "This layout was changed by someone else. Reload to see their changes."
+  }
+}

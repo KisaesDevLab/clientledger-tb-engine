@@ -121,12 +121,74 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/periods/{periodId}/exports/consolidation-settings', 'get', '200', 'export-consolidation.json'],
   ['/api/v1/periods/{periodId}/exports/consolidation-settings', 'put', '200', 'export-consolidation-saved.json'],
   ['/api/v1/periods/{periodId}/exports/{software}', 'get', '409', 'export-duplicate-account.json'],
+  // P08b: the Statement Writer (record_p08b.rs on the demo seed).
+  ['/api/v1/fs/status', 'get', '200', 'fs-status.json'],
+  ['/api/v1/fs/pdf-engine', 'put', '200', 'fs-pdf-engine-missing.json'],
+  ['/api/v1/fs/pdf-engine', 'put', '200', 'fs-pdf-engine-auto.json'],
+  ['/api/v1/fs/pdf-engine/test', 'post', '503', 'fs-pdf-engine-test.json'],
+  ['/api/v1/fs/library', 'get', '200', 'fs-library.json'],
+  ['/api/v1/fs/library', 'get', '200', 'fs-library-after.json'],
+  ['/api/v1/fs/library/letterhead', 'put', '200', 'fs-letterhead-saved.json'],
+  ['/api/v1/fs/library/letters', 'post', '201', 'fs-letter-created.json'],
+  ['/api/v1/fs/library/letters/{letterId}', 'put', '200', 'fs-letter-updated.json'],
+  ['/api/v1/fs/library/letters/{letterId}', 'delete', '200', 'fs-letter-deleted.json'],
+  ['/api/v1/fs/library/presets', 'post', '201', 'fs-preset-created.json'],
+  ['/api/v1/fs/library/presets/{presetId}', 'put', '200', 'fs-preset-updated.json'],
+  ['/api/v1/fs/library/presets/{presetId}', 'delete', '200', 'fs-preset-deleted.json'],
+  ['/api/v1/fs/library/templates', 'post', '201', 'fs-template-created.json'],
+  ['/api/v1/fs/library/templates/{templateId}', 'put', '200', 'fs-template-updated.json'],
+  ['/api/v1/fs/library/templates/{templateId}', 'delete', '200', 'fs-template-deleted.json'],
+  ['/api/v1/fs/layouts/{layoutId}', 'get', '200', 'fs-layout-default.json'],
+  ['/api/v1/fs/layouts/{layoutId}', 'get', '200', 'fs-layout-full.json'],
+  ['/api/v1/fs/layouts/{layoutId}', 'patch', '200', 'fs-layout-saved.json'],
+  ['/api/v1/fs/layouts/{layoutId}', 'patch', '409', 'fs-layout-conflict.json'],
+  ['/api/v1/fs/layouts/{layoutId}/save-as-template', 'post', '201', 'fs-saved-as-template.json'],
+  ['/api/v1/fs/layouts/{layoutId}/save-as-template', 'post', '201', 'fs-saved-as-template-full.json'],
+  ['/api/v1/fs/reports/{reportId}', 'get', '200', 'fs-report-new.json'],
+  ['/api/v1/fs/reports/{reportId}', 'get', '200', 'fs-report.json'],
+  ['/api/v1/fs/reports/{reportId}', 'get', '200', 'fs-report-final.json'],
+  ['/api/v1/fs/reports/{reportId}', 'get', '404', 'fs-not-found.json'],
+  ['/api/v1/fs/reports/{reportId}', 'patch', '200', 'fs-report-updated.json'],
+  ['/api/v1/fs/reports/{reportId}', 'patch', '423', 'fs-report-final-locked.json'],
+  ['/api/v1/fs/reports/{reportId}', 'delete', '200', 'fs-archived.json'],
+  ['/api/v1/fs/reports/{reportId}/roll-forward', 'post', '201', 'fs-rolled-forward.json'],
+  ['/api/v1/fs/reports/{reportId}/compute', 'post', '200', 'fs-compute.json'],
+  ['/api/v1/fs/reports/{reportId}/preview.pdf', 'get', '503', 'fs-preview-unavailable.json'],
+  ['/api/v1/fs/reports/{reportId}/finalize', 'post', '422', 'fs-finalize-refused.json'],
+  ['/api/v1/fs/reports/{reportId}/finalize', 'post', '400', 'fs-finalize-no-reason.json'],
+  ['/api/v1/fs/reports/{reportId}/finalize', 'post', '200', 'fs-finalized.json'],
+  ['/api/v1/fs/reports/{reportId}/finalize', 'post', '423', 'fs-finalize-locked.json'],
+  ['/api/v1/fs/reports/{reportId}/reopen', 'post', '200', 'fs-reopened.json'],
+  ['/api/v1/fs/reports/{reportId}/reopen', 'post', '400', 'fs-reopen-refused.json'],
+  ['/api/v1/fs/reports/{reportId}/versions/{versionNo}', 'get', '200', 'fs-version.json'],
+  ['/api/v1/fs/reports/{reportId}/versions/{versionNo}/impact', 'get', '200', 'fs-impact.json'],
+  ['/api/v1/fs/reports/{reportId}/versions/{versionNo}/save-to-folder', 'post', '201', 'fs-saved-to-folder.json'],
+  ['/api/v1/clients/{clientId}/fs/reports', 'get', '200', 'fs-reports.json'],
+  ['/api/v1/clients/{clientId}/fs/reports', 'get', '200', 'fs-reports-final.json'],
+  ['/api/v1/clients/{clientId}/fs/layouts', 'get', '200', 'fs-layouts.json'],
+  ['/api/v1/clients/{clientId}/fs/bind-preview', 'get', '200', 'fs-bind-preview.json'],
+  ['/api/v1/clients/{clientId}/fs/bind-preview', 'get', '200', 'fs-bind-preview-template.json'],
+  ['/api/v1/clients/{clientId}/fs/accounts', 'get', '200', 'fs-accounts.json'],
+  ['/api/v1/clients/{clientId}/fs/cash-flow-overrides', 'get', '200', 'fs-cash-flow-overrides.json'],
+  ['/api/v1/clients/{clientId}/fs/cash-flow-overrides', 'put', '200', 'fs-cash-flow-overrides-saved.json'],
+  ['/api/v1/clients/{clientId}/fs/equity-roles', 'get', '200', 'fs-equity-roles.json'],
+  ['/api/v1/clients/{clientId}/fs/equity-roles', 'put', '200', 'fs-equity-roles-saved.json'],
+  ['/api/v1/periods/{periodId}/fs/reports', 'post', '201', 'fs-report-created.json'],
 ] as const) {
   test(`recorded ${file} matches ${method.toUpperCase()} ${pathKey} ${status}`, () => {
     const validate = responseValidator(pathKey, method, status);
     assert.ok(validate(fixture(file)), JSON.stringify(validate.errors, null, 2));
   });
 }
+
+test('the recorded layout save (every node type and optional field) matches the PATCH request schema', () => {
+  const spec = buildOpenApiSpec() as { paths: Record<string, Record<string, { requestBody: { content: Record<string, { schema: unknown }> } }>> };
+  const ajv = new Ajv2020({ strict: false, allErrors: true, validateFormats: false });
+  ajv.addSchema(spec, 'spec');
+  const schema = spec.paths['/api/v1/fs/layouts/{layoutId}'].patch.requestBody.content['application/json'].schema;
+  const validate = ajv.compile(JSON.parse(JSON.stringify(schema).replaceAll('"#/components/', '"spec#/components/')));
+  assert.ok(validate(fixture('fs-layout-saved.request.json')), JSON.stringify(validate.errors, null, 2));
+});
 
 test('committed openapi.desktop.json is up to date (npm run desktop:openapi)', () => {
   const committed = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../openapi.desktop.json'), 'utf8'));

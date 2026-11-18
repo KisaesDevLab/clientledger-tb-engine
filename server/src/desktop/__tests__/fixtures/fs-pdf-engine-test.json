@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "PDF_ENGINE_UNAVAILABLE",
+    "message": "Chromium at C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe could not be started (The browser is already running for C:\\Users\\example\\AppData\\Local\\ClientLedger TB\\engine-tmp\\puppeteer_dev_chrome_profile-NfvjdH. Use a different `userDataDir` or stop the running browser first.). Install Chromium on the server (Debian / Raspberry Pi OS: \"sudo apt install chromium\"; the official Docker image includes it), or set its path in Settings → PDF engine."
+  }
+}

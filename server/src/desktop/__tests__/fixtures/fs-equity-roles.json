@@ -1,0 +1,23 @@
+{
+  "data": {
+    "accounts": [
+      {
+        "defaultRole": "contributions",
+        "id": "7",
+        "isFold": false,
+        "name": "Common Stock",
+        "number": "3000",
+        "role": null
+      },
+      {
+        "defaultRole": "retained",
+        "id": "8",
+        "isFold": false,
+        "name": "Retained Earnings",
+        "number": "3100",
+        "role": null
+      }
+    ]
+  },
+  "error": null
+}

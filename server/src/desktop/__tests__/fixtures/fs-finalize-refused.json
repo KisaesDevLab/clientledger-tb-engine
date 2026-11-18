@@ -1,0 +1,47 @@
+{
+  "data": null,
+  "error": {
+    "code": "FS_VALIDATION",
+    "details": {
+      "checks": [
+        {
+          "amount": -40000,
+          "code": "TB_FS_BS_UNBALANCED",
+          "message": "The balance sheet (2024) is out of balance by -40,000.",
+          "severity": "error",
+          "statementId": "bs"
+        },
+        {
+          "amount": -46000,
+          "code": "TB_FS_BS_UNBALANCED",
+          "message": "The balance sheet (2023) is out of balance by -46,000.",
+          "severity": "error",
+          "statementId": "bs"
+        },
+        {
+          "amount": 280000,
+          "code": "TB_FS_NI_MISMATCH",
+          "message": "Net income on the statement differs from the ledger by 280,000; a revenue or expense leadsheet is missing or counted twice.",
+          "severity": "error",
+          "statementId": "is"
+        },
+        {
+          "amount": 235000,
+          "code": "TB_FS_NI_MISMATCH",
+          "message": "Net income on the statement differs from the ledger by 235,000; a revenue or expense leadsheet is missing or counted twice.",
+          "severity": "error",
+          "statementId": "is"
+        },
+        {
+          "accountIds": [],
+          "amount": 6000,
+          "code": "TB_FS_CF_UNRECONCILED",
+          "message": "Cash flows do not reconcile to the change in cash by 6,000. Check accounts marked \"excluded\" on the cash-flow classification panel.",
+          "severity": "error",
+          "statementId": "cf"
+        }
+      ]
+    },
+    "message": "Resolve the validation errors, or finalize with an override reason."
+  }
+}

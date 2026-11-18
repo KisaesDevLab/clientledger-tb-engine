@@ -1,0 +1,101 @@
+{
+  "data": {
+    "preset": {
+      "builtin": false,
+      "id": 3,
+      "isDefault": false,
+      "name": "Example style 2",
+      "style": {
+        "amountColumnWidthIn": 1.2,
+        "baseSizePt": 11,
+        "elements": {
+          "columnHeader": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 10
+          },
+          "companyName": {
+            "bold": true,
+            "caps": true,
+            "italic": false,
+            "sizePt": 13
+          },
+          "dateLine": {
+            "bold": false,
+            "italic": false,
+            "sizePt": 11
+          },
+          "detail": {
+            "bold": false,
+            "italic": false,
+            "sizePt": 11
+          },
+          "footer": {
+            "bold": false,
+            "italic": true,
+            "sizePt": 9
+          },
+          "sectionHeading": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 11
+          },
+          "statementTitle": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 12
+          },
+          "subtotal": {
+            "bold": false,
+            "italic": false,
+            "sizePt": 11
+          },
+          "text": {
+            "bold": false,
+            "italic": true,
+            "sizePt": 10
+          },
+          "total": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 11
+          }
+        },
+        "fontKey": "liberation_serif",
+        "footer": {
+          "onSchedules": true,
+          "onStatements": true,
+          "pageNumber": {
+            "format": "dash_n",
+            "position": "bottom_center"
+          },
+          "text": "See Accountant's Compilation Report."
+        },
+        "indentPt": 12,
+        "lineHeight": 1.25,
+        "number": {
+          "decimals": 0,
+          "dollarSigns": "first_and_totals",
+          "hideZeroLines": true,
+          "negative": "parens",
+          "zero": "dash"
+        },
+        "page": {
+          "margins": {
+            "bottom": 1,
+            "left": 1,
+            "right": 1,
+            "top": 1
+          },
+          "orientation": "portrait",
+          "paper": "letter"
+        },
+        "titleBlock": {
+          "align": "center"
+        }
+      },
+      "updatedAt": "2026-11-18T10:37:17.062Z"
+    }
+  },
+  "error": null
+}

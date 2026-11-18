@@ -1,0 +1,22 @@
+{
+  "data": {
+    "letterhead": {
+      "accountantSignature": "Example Accounting Group",
+      "addressLine1": "100 Main Street",
+      "addressLine2": "Suite 200",
+      "city": "Springfield",
+      "displayName": "Example Accounting Group",
+      "email": "office@example.com",
+      "letterheadAlign": "center",
+      "letterheadContent": "both",
+      "logoDataUri": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "logoSize": "small",
+      "phone": "(555) 010-0100",
+      "postalCode": "62701",
+      "state": "IL",
+      "updatedAt": "2026-11-18T10:37:16.983Z",
+      "website": "example.com"
+    }
+  },
+  "error": null
+}

@@ -1,0 +1,29 @@
+{
+  "data": {
+    "reports": [
+      {
+        "columns": {
+          "mode": "single",
+          "pctOfRevenue": false,
+          "varianceAmt": false,
+          "variancePct": false
+        },
+        "currentVersion": null,
+        "framework": "gaap",
+        "id": 1,
+        "name": "2024 Financial statements",
+        "periodEnd": "2024-12-31",
+        "periodId": 1,
+        "periodLocked": false,
+        "periodName": "FY 2024",
+        "periodStart": "2024-01-01",
+        "status": "draft",
+        "updatedAt": "2026-11-18T10:37:17.189Z"
+      }
+    ]
+  },
+  "error": null,
+  "meta": {
+    "count": 1
+  }
+}

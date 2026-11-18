@@ -1,0 +1,627 @@
+{
+  "data": {
+    "layout": {
+      "clientId": 1,
+      "id": 1,
+      "layout": {
+        "schedules": {
+          "dividerTitle": "Supplementary Information",
+          "enabled": true,
+          "numbering": "alpha"
+        },
+        "statements": [
+          {
+            "body": [
+              {
+                "anchor": true,
+                "breakBefore": false,
+                "caption": "ASSETS",
+                "children": [
+                  {
+                    "caption": "Current assets",
+                    "children": [
+                      {
+                        "anchor": true,
+                        "breakBefore": false,
+                        "caption": "Cash and cash equivalents",
+                        "display": "summary_with_schedule",
+                        "hideWhenZero": false,
+                        "id": "bs_cash",
+                        "polarity": "debit",
+                        "ref": {
+                          "groupingId": "1",
+                          "leadsheetCode": "A"
+                        },
+                        "revenueBase": false,
+                        "ruleAbove": "none",
+                        "ruleBelow": "single",
+                        "scheduleLines": [
+                          {
+                            "accountRefs": [
+                              {
+                                "accountId": "1"
+                              }
+                            ],
+                            "caption": "Operating account",
+                            "id": "x_sl0"
+                          }
+                        ],
+                        "scheduleTitle": "Schedule of cash",
+                        "style": {
+                          "bold": false,
+                          "caps": false,
+                          "indent": 1,
+                          "italic": false,
+                          "sizeDelta": 0
+                        },
+                        "type": "leadsheet"
+                      },
+                      {
+                        "caption": "Accounts receivable",
+                        "display": "single_line",
+                        "id": "bs_ar",
+                        "ref": {
+                          "groupingId": "2",
+                          "leadsheetCode": "B"
+                        },
+                        "type": "leadsheet"
+                      },
+                      {
+                        "caption": "Inventory",
+                        "display": "single_line",
+                        "id": "bs_inventory",
+                        "ref": {
+                          "groupingId": "3",
+                          "leadsheetCode": "C"
+                        },
+                        "type": "leadsheet"
+                      }
+                    ],
+                    "id": "bs_current_assets",
+                    "polarity": "debit",
+                    "showHeading": true,
+                    "showTotal": true,
+                    "totalCaption": "Total current assets",
+                    "totalRuleAbove": "single",
+                    "type": "section"
+                  },
+                  {
+                    "id": "bs_blank1",
+                    "type": "blank"
+                  },
+                  {
+                    "caption": "Property and equipment",
+                    "children": [
+                      {
+                        "caption": "Property and equipment",
+                        "display": "detail",
+                        "id": "bs_fixed",
+                        "ref": {
+                          "groupingId": "4",
+                          "leadsheetCode": "D"
+                        },
+                        "type": "leadsheet"
+                      }
+                    ],
+                    "id": "bs_ppe",
+                    "polarity": "debit",
+                    "showHeading": true,
+                    "showTotal": true,
+                    "totalCaption": "Property and equipment, net",
+                    "totalRuleAbove": "single",
+                    "type": "section"
+                  },
+                  {
+                    "id": "bs_blank2",
+                    "type": "blank"
+                  },
+                  {
+                    "caption": "Other assets",
+                    "display": "single_line",
+                    "id": "bs_other_assets",
+                    "ref": {
+                      "groupingId": "5",
+                      "leadsheetCode": "E"
+                    },
+                    "type": "leadsheet"
+                  }
+                ],
+                "hideWhenZero": false,
+                "id": "bs_assets",
+                "polarity": "debit",
+                "revenueBase": false,
+                "role": "total_assets",
+                "showHeading": true,
+                "showTotal": true,
+                "style": {
+                  "bold": true
+                },
+                "totalCaption": "TOTAL ASSETS",
+                "totalRuleAbove": "single",
+                "totalRuleBelow": "double",
+                "totalStyle": {
+                  "bold": true,
+                  "caps": true
+                },
+                "type": "section"
+              },
+              {
+                "id": "bs_blank3",
+                "type": "blank"
+              },
+              {
+                "caption": "LIABILITIES AND STOCKHOLDERS' EQUITY",
+                "children": [
+                  {
+                    "caption": "Current liabilities",
+                    "children": [
+                      {
+                        "caption": "Accounts payable",
+                        "display": "single_line",
+                        "id": "bs_ap",
+                        "ref": {
+                          "groupingId": "6",
+                          "leadsheetCode": "F"
+                        },
+                        "type": "leadsheet"
+                      },
+                      {
+                        "caption": "Accrued liabilities",
+                        "display": "single_line",
+                        "id": "bs_accrued",
+                        "ref": {
+                          "groupingId": "7",
+                          "leadsheetCode": "G"
+                        },
+                        "type": "leadsheet"
+                      }
+                    ],
+                    "id": "bs_current_liab",
+                    "polarity": "credit",
+                    "showHeading": true,
+                    "showTotal": true,
+                    "totalCaption": "Total current liabilities",
+                    "totalRuleAbove": "single",
+                    "type": "section"
+                  },
+                  {
+                    "id": "bs_blank4",
+                    "type": "blank"
+                  },
+                  {
+                    "caption": "Long-term liabilities",
+                    "children": [
+                      {
+                        "caption": "Notes payable",
+                        "display": "single_line",
+                        "id": "bs_debt",
+                        "ref": {
+                          "groupingId": "8",
+                          "leadsheetCode": "H"
+                        },
+                        "type": "leadsheet"
+                      },
+                      {
+                        "caption": "Other liabilities",
+                        "display": "single_line",
+                        "id": "bs_other_liab",
+                        "ref": {
+                          "groupingId": "9",
+                          "leadsheetCode": "I"
+                        },
+                        "type": "leadsheet"
+                      }
+                    ],
+                    "id": "bs_lt_liab",
+                    "polarity": "credit",
+                    "showHeading": true,
+                    "showTotal": true,
+                    "totalCaption": "Total long-term liabilities",
+                    "totalRuleAbove": "single",
+                    "type": "section"
+                  },
+                  {
+                    "caption": "Total liabilities",
+                    "id": "bs_total_liab",
+                    "ruleAbove": "single",
+                    "terms": [
+                      {
+                        "nodeId": "bs_current_liab",
+                        "sign": 1
+                      },
+                      {
+                        "nodeId": "bs_lt_liab",
+                        "sign": 1
+                      }
+                    ],
+                    "type": "total"
+                  },
+                  {
+                    "id": "bs_blank5",
+                    "type": "blank"
+                  },
+                  {
+                    "caption": "Stockholders' equity",
+                    "children": [
+                      {
+                        "caption": "Stockholders' Equity",
+                        "display": "detail",
+                        "id": "bs_equity_ls",
+                        "ref": {
+                          "groupingId": "10",
+                          "leadsheetCode": "J"
+                        },
+                        "type": "leadsheet"
+                      }
+                    ],
+                    "id": "bs_equity",
+                    "polarity": "credit",
+                    "showHeading": true,
+                    "showTotal": true,
+                    "totalCaption": "Total stockholders' equity",
+                    "totalRuleAbove": "single",
+                    "type": "section"
+                  }
+                ],
+                "id": "bs_le",
+                "polarity": "credit",
+                "role": "total_liabilities_equity",
+                "showHeading": true,
+                "showTotal": true,
+                "totalCaption": "TOTAL LIABILITIES AND STOCKHOLDERS' EQUITY",
+                "totalRuleBelow": "double",
+                "type": "section"
+              },
+              {
+                "id": "x_blank",
+                "style": {
+                  "sizeDelta": -2
+                },
+                "type": "blank"
+              },
+              {
+                "anchor": false,
+                "caption": "Assets less liabilities and equity",
+                "hideWhenZero": true,
+                "id": "x_check",
+                "revenueBase": false,
+                "ruleAbove": "single",
+                "ruleBelow": "none",
+                "style": {
+                  "italic": true
+                },
+                "terms": [
+                  {
+                    "nodeId": "bs_assets",
+                    "sign": 1
+                  },
+                  {
+                    "nodeId": "bs_le",
+                    "sign": -1
+                  }
+                ],
+                "type": "total"
+              },
+              {
+                "id": "x_break",
+                "type": "page_break"
+              },
+              {
+                "breakBefore": false,
+                "id": "x_note",
+                "style": {
+                  "italic": true,
+                  "sizeDelta": -1
+                },
+                "text": "See accountant's compilation report.",
+                "type": "text"
+              }
+            ],
+            "enabled": true,
+            "id": "bs",
+            "kind": "balance_sheet",
+            "pageSetup": {
+              "orientation": "portrait"
+            },
+            "plugs": {
+              "bs_assets": "bs_cash"
+            },
+            "titleOverride": "Statement of Assets, Liabilities and Equity"
+          },
+          {
+            "body": [
+              {
+                "caption": "Revenue",
+                "display": "single_line",
+                "id": "is_revenue",
+                "polarity": "credit",
+                "ref": {
+                  "groupingId": "11",
+                  "leadsheetCode": "K"
+                },
+                "revenueBase": true,
+                "type": "leadsheet"
+              },
+              {
+                "caption": "Cost of goods sold",
+                "display": "single_line",
+                "id": "is_cogs",
+                "polarity": "debit",
+                "ref": {
+                  "groupingId": "12",
+                  "leadsheetCode": "L"
+                },
+                "ruleBelow": "single",
+                "type": "leadsheet"
+              },
+              {
+                "caption": "Gross profit",
+                "id": "is_gross_profit",
+                "terms": [
+                  {
+                    "nodeId": "is_revenue",
+                    "sign": 1
+                  },
+                  {
+                    "nodeId": "is_cogs",
+                    "sign": -1
+                  }
+                ],
+                "type": "total"
+              },
+              {
+                "id": "is_blank1",
+                "type": "blank"
+              },
+              {
+                "caption": "Operating expenses",
+                "display": "summary_with_schedule",
+                "id": "is_opex",
+                "polarity": "debit",
+                "ref": {
+                  "groupingId": "13",
+                  "leadsheetCode": "M"
+                },
+                "ruleBelow": "single",
+                "scheduleTitle": "Schedule of Operating Expenses",
+                "type": "leadsheet"
+              },
+              {
+                "caption": "Income from operations",
+                "id": "is_operating_income",
+                "terms": [
+                  {
+                    "nodeId": "is_gross_profit",
+                    "sign": 1
+                  },
+                  {
+                    "nodeId": "is_opex",
+                    "sign": -1
+                  }
+                ],
+                "type": "total"
+              },
+              {
+                "id": "is_blank2",
+                "type": "blank"
+              },
+              {
+                "caption": "Other income (expense)",
+                "children": [
+                  {
+                    "caption": "Other income",
+                    "display": "single_line",
+                    "id": "is_other_income",
+                    "ref": {
+                      "groupingId": "14",
+                      "leadsheetCode": "N"
+                    },
+                    "type": "leadsheet"
+                  },
+                  {
+                    "caption": "Other expense",
+                    "display": "single_line",
+                    "id": "is_other_expense",
+                    "ref": {
+                      "groupingId": "15",
+                      "leadsheetCode": "O"
+                    },
+                    "type": "leadsheet"
+                  }
+                ],
+                "hideWhenZero": true,
+                "id": "is_other",
+                "polarity": "credit",
+                "showHeading": true,
+                "showTotal": true,
+                "totalCaption": "Total other income (expense)",
+                "totalRuleAbove": "single",
+                "type": "section"
+              },
+              {
+                "id": "is_blank3",
+                "type": "blank"
+              },
+              {
+                "caption": "NET INCOME",
+                "id": "is_net_income",
+                "role": "net_income",
+                "ruleAbove": "single",
+                "ruleBelow": "double",
+                "terms": [
+                  {
+                    "nodeId": "is_operating_income",
+                    "sign": 1
+                  },
+                  {
+                    "nodeId": "is_other",
+                    "sign": 1
+                  }
+                ],
+                "type": "total"
+              },
+              {
+                "id": "x_is_blank",
+                "type": "blank"
+              },
+              {
+                "caption": "Memo: one expense account",
+                "hideWhenZero": true,
+                "id": "x_account",
+                "polarity": "debit",
+                "refs": [
+                  {
+                    "accountId": "11"
+                  }
+                ],
+                "revenueBase": false,
+                "type": "account"
+              }
+            ],
+            "enabled": true,
+            "id": "is",
+            "kind": "income_statement"
+          },
+          {
+            "body": [],
+            "enabled": true,
+            "equity": {
+              "captions": {
+                "beginning": "Balance, beginning of year",
+                "contributions": "Contributions",
+                "distributions": "Distributions",
+                "ending": "Balance, end of year",
+                "netIncome": "Net income",
+                "other": "Other changes",
+                "total": "Total"
+              },
+              "columnCaptions": {
+                "7": "Common stock"
+              },
+              "columns": "by_account"
+            },
+            "id": "eq",
+            "kind": "equity"
+          },
+          {
+            "body": [],
+            "cashFlow": {
+              "captions": {
+                "adjustmentsHeading": "Adjustments to reconcile net income",
+                "beginningCash": "Cash, beginning of year",
+                "changesHeading": "Changes in operating assets and liabilities",
+                "endingCash": "Cash, end of year",
+                "financingHeading": "Cash flows from financing activities",
+                "investingHeading": "Cash flows from investing activities",
+                "netChange": "Net change in cash",
+                "netFinancing": "Net cash from financing activities",
+                "netIncome": "Net income",
+                "netInvesting": "Net cash from investing activities",
+                "netOperating": "Net cash from operating activities",
+                "operatingHeading": "Cash flows from operating activities"
+              },
+              "detailByAccount": true
+            },
+            "enabled": true,
+            "id": "cf",
+            "kind": "cash_flows"
+          }
+        ],
+        "version": 1
+      },
+      "name": "Financial statements",
+      "style": {
+        "amountColumnWidthIn": 1.2,
+        "baseSizePt": 11,
+        "elements": {
+          "columnHeader": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 10
+          },
+          "companyName": {
+            "align": "center",
+            "bold": true,
+            "caps": true,
+            "italic": false,
+            "sizePt": 13
+          },
+          "dateLine": {
+            "bold": false,
+            "italic": false,
+            "sizePt": 11
+          },
+          "detail": {
+            "bold": false,
+            "italic": false,
+            "sizePt": 11
+          },
+          "footer": {
+            "bold": false,
+            "italic": true,
+            "sizePt": 9
+          },
+          "sectionHeading": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 11
+          },
+          "statementTitle": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 12
+          },
+          "subtotal": {
+            "bold": false,
+            "italic": false,
+            "sizePt": 11
+          },
+          "text": {
+            "bold": false,
+            "italic": true,
+            "sizePt": 10
+          },
+          "total": {
+            "bold": true,
+            "italic": false,
+            "sizePt": 11
+          }
+        },
+        "fontKey": "liberation_serif",
+        "footer": {
+          "onSchedules": true,
+          "onStatements": true,
+          "pageNumber": {
+            "format": "dash_n",
+            "position": "bottom_center"
+          },
+          "text": "See Accountant's Compilation Report."
+        },
+        "indentPt": 12,
+        "lineHeight": 1.25,
+        "number": {
+          "decimals": 0,
+          "dollarSigns": "first_and_totals",
+          "hideZeroLines": true,
+          "negative": "parens",
+          "zero": "dash"
+        },
+        "page": {
+          "margins": {
+            "bottom": 1,
+            "left": 1,
+            "right": 1,
+            "top": 1
+          },
+          "orientation": "portrait",
+          "paper": "letter"
+        },
+        "titleBlock": {
+          "align": "center"
+        }
+      },
+      "updatedAt": "2026-11-18T10:37:17.380Z"
+    }
+  },
+  "error": null
+}

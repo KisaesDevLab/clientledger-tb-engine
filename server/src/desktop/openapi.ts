@@ -13,6 +13,7 @@ import { desktopBackupRouter } from './backupRoutes';
 import { desktopTbRouter } from './tbTotals';
 import { desktopClientSummaryRouter } from './clientSummary';
 import { desktopDraftRouter } from './draftStamp';
+import { fsPaths, fsSchemas } from './openapiFs';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -75,7 +76,11 @@ const schemas: Record<string, Schema> = {
       error: {
         type: 'object',
         required: ['code', 'message'],
-        properties: { code: { type: 'string' }, message: { type: 'string' } },
+        properties: {
+          code: { type: 'string' },
+          message: { type: 'string' },
+          details: { description: 'Statement Writer refusals: checks (FS_VALIDATION), updatedAt (FS_CONFLICT)' },
+        },
       },
     },
   },
@@ -1146,9 +1151,10 @@ export function buildOpenApiSpec(): Schema {
       securitySchemes: {
         desktopSession: { type: 'apiKey', in: 'header', name: 'X-CLTB-Session', description: 'Per-launch token from the launcher' },
       },
-      schemas,
+      schemas: { ...schemas, ...fsSchemas },
     },
     paths: {
+      ...fsPaths,
       '/api/v1/ping': {
         get: {
           operationId: 'ping', tags: ['system'], security: [],

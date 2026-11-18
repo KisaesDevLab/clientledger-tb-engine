@@ -1,0 +1,16 @@
+{
+  "data": {
+    "letter": {
+      "bodyHtml": "<p>Management is responsible for the accompanying financial statements of {{client_name}}.</p><p><strong>{{firm_name}}</strong></p>",
+      "builtin": false,
+      "id": 3,
+      "isActive": true,
+      "isDefault": false,
+      "letterType": "compilation",
+      "name": "Example compilation",
+      "title": "Compilation Report",
+      "updatedAt": "2026-11-18T10:37:17.045Z"
+    }
+  },
+  "error": null
+}

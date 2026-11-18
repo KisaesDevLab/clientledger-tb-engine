@@ -1,0 +1,119 @@
+{
+  "data": {
+    "accounts": [
+      {
+        "accountType": "asset",
+        "id": "1",
+        "leadSheetId": "1",
+        "name": "Cash - Operating",
+        "number": "1000"
+      },
+      {
+        "accountType": "asset",
+        "id": "2",
+        "leadSheetId": "2",
+        "name": "Accounts Receivable",
+        "number": "1100"
+      },
+      {
+        "accountType": "asset",
+        "id": "3",
+        "leadSheetId": "4",
+        "name": "Property & Equipment",
+        "number": "1500"
+      },
+      {
+        "accountType": "liability",
+        "id": "4",
+        "leadSheetId": "6",
+        "name": "Accounts Payable",
+        "number": "2000"
+      },
+      {
+        "accountType": "liability",
+        "id": "5",
+        "leadSheetId": "7",
+        "name": "Accrued Liabilities",
+        "number": "2100"
+      },
+      {
+        "accountType": "liability",
+        "id": "6",
+        "leadSheetId": "8",
+        "name": "Notes Payable",
+        "number": "2500"
+      },
+      {
+        "accountType": "equity",
+        "id": "7",
+        "leadSheetId": "10",
+        "name": "Common Stock",
+        "number": "3000"
+      },
+      {
+        "accountType": "equity",
+        "id": "8",
+        "leadSheetId": "10",
+        "name": "Retained Earnings",
+        "number": "3100"
+      },
+      {
+        "accountType": "revenue",
+        "id": "9",
+        "leadSheetId": "11",
+        "name": "Service Revenue",
+        "number": "4000"
+      },
+      {
+        "accountType": "revenue",
+        "id": "10",
+        "leadSheetId": "11",
+        "name": "Product Sales",
+        "number": "4100"
+      },
+      {
+        "accountType": "expense",
+        "id": "11",
+        "leadSheetId": "12",
+        "name": "Cost of Goods Sold",
+        "number": "5000"
+      },
+      {
+        "accountType": "expense",
+        "id": "12",
+        "leadSheetId": "13",
+        "name": "Salaries & Wages",
+        "number": "6000"
+      },
+      {
+        "accountType": "expense",
+        "id": "13",
+        "leadSheetId": "13",
+        "name": "Rent Expense",
+        "number": "6100"
+      },
+      {
+        "accountType": "expense",
+        "id": "14",
+        "leadSheetId": "13",
+        "name": "Depreciation Expense",
+        "number": "6200"
+      },
+      {
+        "accountType": "expense",
+        "id": "15",
+        "leadSheetId": "13",
+        "name": "Professional Fees",
+        "number": "6300"
+      },
+      {
+        "accountType": "expense",
+        "id": "16",
+        "leadSheetId": "13",
+        "name": "Utilities Expense",
+        "number": "6400"
+      }
+    ]
+  },
+  "error": null
+}

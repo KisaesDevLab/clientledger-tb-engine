@@ -1,0 +1,187 @@
+{
+  "data": {
+    "accounts": [
+      {
+        "accountType": "asset",
+        "fallback": "cash",
+        "fallbackSource": "chart_of_accounts",
+        "id": "1",
+        "leadSheetId": "1",
+        "name": "Cash - Operating",
+        "number": "1000",
+        "override": null
+      },
+      {
+        "accountType": "asset",
+        "fallback": "operating",
+        "fallbackSource": "chart_of_accounts",
+        "id": "2",
+        "leadSheetId": "2",
+        "name": "Accounts Receivable",
+        "number": "1100",
+        "override": null
+      },
+      {
+        "accountType": "asset",
+        "fallback": "investing",
+        "fallbackSource": "chart_of_accounts",
+        "id": "3",
+        "leadSheetId": "4",
+        "name": "Property & Equipment",
+        "number": "1500",
+        "override": null
+      },
+      {
+        "accountType": "liability",
+        "fallback": "operating",
+        "fallbackSource": "chart_of_accounts",
+        "id": "4",
+        "leadSheetId": "6",
+        "name": "Accounts Payable",
+        "number": "2000",
+        "override": null
+      },
+      {
+        "accountType": "liability",
+        "fallback": "operating",
+        "fallbackSource": "chart_of_accounts",
+        "id": "5",
+        "leadSheetId": "7",
+        "name": "Accrued Liabilities",
+        "number": "2100",
+        "override": null
+      },
+      {
+        "accountType": "liability",
+        "fallback": "financing",
+        "fallbackSource": "chart_of_accounts",
+        "id": "6",
+        "leadSheetId": "8",
+        "name": "Notes Payable",
+        "number": "2500",
+        "override": null
+      },
+      {
+        "accountType": "equity",
+        "fallback": "financing",
+        "fallbackSource": "default",
+        "id": "7",
+        "leadSheetId": "10",
+        "name": "Common Stock",
+        "number": "3000",
+        "override": null
+      },
+      {
+        "accountType": "equity",
+        "fallback": "financing",
+        "fallbackSource": "default",
+        "id": "8",
+        "leadSheetId": "10",
+        "name": "Retained Earnings",
+        "number": "3100",
+        "override": null
+      }
+    ],
+    "classes": [
+      "cash",
+      "operating",
+      "noncash_adjustment",
+      "investing",
+      "financing",
+      "excluded"
+    ],
+    "leadSheets": [
+      {
+        "code": "A",
+        "id": "1",
+        "name": "Cash",
+        "override": null
+      },
+      {
+        "code": "B",
+        "id": "2",
+        "name": "Accounts Receivable",
+        "override": null
+      },
+      {
+        "code": "C",
+        "id": "3",
+        "name": "Inventory",
+        "override": null
+      },
+      {
+        "code": "D",
+        "id": "4",
+        "name": "Fixed Assets",
+        "override": null
+      },
+      {
+        "code": "E",
+        "id": "5",
+        "name": "Other Assets",
+        "override": null
+      },
+      {
+        "code": "F",
+        "id": "6",
+        "name": "Accounts Payable",
+        "override": null
+      },
+      {
+        "code": "G",
+        "id": "7",
+        "name": "Accrued Liabilities",
+        "override": null
+      },
+      {
+        "code": "H",
+        "id": "8",
+        "name": "Debt",
+        "override": null
+      },
+      {
+        "code": "I",
+        "id": "9",
+        "name": "Other Liabilities",
+        "override": null
+      },
+      {
+        "code": "J",
+        "id": "10",
+        "name": "Equity",
+        "override": null
+      },
+      {
+        "code": "K",
+        "id": "11",
+        "name": "Revenue",
+        "override": null
+      },
+      {
+        "code": "L",
+        "id": "12",
+        "name": "Cost of Goods Sold",
+        "override": null
+      },
+      {
+        "code": "M",
+        "id": "13",
+        "name": "Operating Expenses",
+        "override": null
+      },
+      {
+        "code": "N",
+        "id": "14",
+        "name": "Other Income",
+        "override": null
+      },
+      {
+        "code": "O",
+        "id": "15",
+        "name": "Other Expenses",
+        "override": null
+      }
+    ]
+  },
+  "error": null
+}

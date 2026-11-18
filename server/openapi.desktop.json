@@ -56,6 +56,9 @@
               },
               "message": {
                 "type": "string"
+              },
+              "details": {
+                "description": "Statement Writer refusals: checks (FS_VALIDATION), updatedAt (FS_CONFLICT)"
               }
             }
           }
@@ -3899,10 +3902,6706 @@
             }
           }
         }
+      },
+      "FsNodeStyle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "bold": {
+            "type": "boolean"
+          },
+          "italic": {
+            "type": "boolean"
+          },
+          "indent": {
+            "type": "integer",
+            "minimum": -4,
+            "maximum": 6,
+            "description": "Extra indent levels on top of the tree depth"
+          },
+          "sizeDelta": {
+            "type": "number",
+            "minimum": -4,
+            "maximum": 8,
+            "description": "Points added to the element style"
+          },
+          "caps": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsAccountRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accountId"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "pattern": "^-?\\d{1,15}$",
+            "description": "A database id as a decimal string; -1 is the virtual retained-earnings account"
+          }
+        }
+      },
+      "FsScheduleLine": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "accountRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Omitted: the account's own name"
+          },
+          "accountRefs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/FsAccountRef"
+            }
+          }
+        }
+      },
+      "FsSectionNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id",
+          "caption",
+          "children"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "ruleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "ruleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          },
+          "hideWhenZero": {
+            "type": "boolean",
+            "description": "Hide when every rounded amount column is zero; unset follows the style"
+          },
+          "breakBefore": {
+            "type": "boolean",
+            "description": "Start a new page before this line"
+          },
+          "type": {
+            "const": "section"
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "showHeading": {
+            "type": "boolean"
+          },
+          "polarity": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "children": {
+            "type": "array",
+            "maxItems": 300,
+            "items": {
+              "$ref": "#/components/schemas/FsNode"
+            }
+          },
+          "showTotal": {
+            "type": "boolean"
+          },
+          "totalCaption": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "total_assets",
+              "total_liabilities_equity",
+              "net_income"
+            ]
+          },
+          "anchor": {
+            "type": "boolean",
+            "description": "A rounding anchor"
+          },
+          "revenueBase": {
+            "type": "boolean",
+            "description": "The base of % of revenue"
+          },
+          "totalStyle": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "totalRuleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "totalRuleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          }
+        }
+      },
+      "FsLeadsheetNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id",
+          "ref",
+          "display"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "ruleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "ruleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          },
+          "hideWhenZero": {
+            "type": "boolean",
+            "description": "Hide when every rounded amount column is zero; unset follows the style"
+          },
+          "breakBefore": {
+            "type": "boolean",
+            "description": "Start a new page before this line"
+          },
+          "type": {
+            "const": "leadsheet"
+          },
+          "ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "groupingId": {
+                "type": "string",
+                "pattern": "^-?\\d{1,15}$",
+                "description": "A database id as a decimal string; -1 is the virtual retained-earnings account"
+              },
+              "leadsheetCode": {
+                "type": "string",
+                "maxLength": 10,
+                "minLength": 1
+              }
+            },
+            "description": "One of the client's lead sheets (groupingId), or a code to bind (templates)"
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "single_line",
+              "detail",
+              "summary_with_schedule"
+            ]
+          },
+          "polarity": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "scheduleTitle": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "scheduleLines": {
+            "type": "array",
+            "maxItems": 300,
+            "items": {
+              "$ref": "#/components/schemas/FsScheduleLine"
+            }
+          },
+          "revenueBase": {
+            "type": "boolean"
+          },
+          "anchor": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsAccountNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id",
+          "refs",
+          "caption"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "ruleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "ruleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          },
+          "hideWhenZero": {
+            "type": "boolean",
+            "description": "Hide when every rounded amount column is zero; unset follows the style"
+          },
+          "breakBefore": {
+            "type": "boolean",
+            "description": "Start a new page before this line"
+          },
+          "type": {
+            "const": "account"
+          },
+          "refs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/FsAccountRef"
+            }
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "polarity": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "revenueBase": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsTotalNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id",
+          "caption",
+          "terms"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "ruleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "ruleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          },
+          "hideWhenZero": {
+            "type": "boolean",
+            "description": "Hide when every rounded amount column is zero; unset follows the style"
+          },
+          "breakBefore": {
+            "type": "boolean",
+            "description": "Start a new page before this line"
+          },
+          "type": {
+            "const": "total"
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "terms": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "nodeId",
+                "sign"
+              ],
+              "properties": {
+                "nodeId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                "sign": {
+                  "type": "integer",
+                  "enum": [
+                    1,
+                    -1
+                  ]
+                }
+              }
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "total_assets",
+              "total_liabilities_equity",
+              "net_income"
+            ]
+          },
+          "anchor": {
+            "type": "boolean"
+          },
+          "revenueBase": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsTextNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "ruleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "ruleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          },
+          "hideWhenZero": {
+            "type": "boolean",
+            "description": "Hide when every rounded amount column is zero; unset follows the style"
+          },
+          "breakBefore": {
+            "type": "boolean",
+            "description": "Start a new page before this line"
+          },
+          "type": {
+            "const": "text"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "FsSpacerNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsNodeStyle"
+          },
+          "ruleAbove": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single"
+            ]
+          },
+          "ruleBelow": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single",
+              "double"
+            ]
+          },
+          "hideWhenZero": {
+            "type": "boolean",
+            "description": "Hide when every rounded amount column is zero; unset follows the style"
+          },
+          "breakBefore": {
+            "type": "boolean",
+            "description": "Start a new page before this line"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "blank",
+              "page_break"
+            ]
+          }
+        }
+      },
+      "FsNode": {
+        "description": "A line of a statement. Ids are unique within a statement.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/FsSectionNode"
+          },
+          {
+            "$ref": "#/components/schemas/FsLeadsheetNode"
+          },
+          {
+            "$ref": "#/components/schemas/FsAccountNode"
+          },
+          {
+            "$ref": "#/components/schemas/FsTotalNode"
+          },
+          {
+            "$ref": "#/components/schemas/FsTextNode"
+          },
+          {
+            "$ref": "#/components/schemas/FsSpacerNode"
+          }
+        ]
+      },
+      "FsMargins": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "top",
+          "right",
+          "bottom",
+          "left"
+        ],
+        "properties": {
+          "top": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3,
+            "description": "Inches"
+          },
+          "right": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3,
+            "description": "Inches"
+          },
+          "bottom": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3,
+            "description": "Inches"
+          },
+          "left": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3,
+            "description": "Inches"
+          }
+        }
+      },
+      "FsPageSetup": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "paper",
+          "orientation",
+          "margins"
+        ],
+        "properties": {
+          "paper": {
+            "type": "string",
+            "enum": [
+              "letter",
+              "legal",
+              "a4"
+            ]
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "portrait",
+              "landscape"
+            ]
+          },
+          "margins": {
+            "$ref": "#/components/schemas/FsMargins"
+          }
+        }
+      },
+      "FsStatementConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "enabled",
+          "body"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "balance_sheet",
+              "income_statement",
+              "equity",
+              "cash_flows"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "titleOverride": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "pageSetup": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "paper": {
+                "type": "string",
+                "enum": [
+                  "letter",
+                  "legal",
+                  "a4"
+                ]
+              },
+              "orientation": {
+                "type": "string",
+                "enum": [
+                  "portrait",
+                  "landscape"
+                ]
+              },
+              "margins": {
+                "$ref": "#/components/schemas/FsMargins"
+              }
+            },
+            "description": "Overrides the style's page for this statement"
+          },
+          "plugs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "description": "Rounding plug: anchor node id to the line that takes the difference"
+          },
+          "body": {
+            "type": "array",
+            "maxItems": 300,
+            "items": {
+              "$ref": "#/components/schemas/FsNode"
+            }
+          },
+          "equity": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "captions": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [],
+                "properties": {
+                  "beginning": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "netIncome": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "contributions": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "distributions": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "other": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "ending": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "total": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              },
+              "columns": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "single",
+                  "by_account"
+                ]
+              },
+              "columnCaptions": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "description": "By account id"
+              }
+            }
+          },
+          "cashFlow": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "captions": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [],
+                "properties": {
+                  "operatingHeading": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "netIncome": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "adjustmentsHeading": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "changesHeading": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "netOperating": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "investingHeading": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "netInvesting": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "financingHeading": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "netFinancing": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "netChange": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "beginningCash": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "endingCash": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              },
+              "detailByAccount": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "FsLayout": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "statements",
+          "schedules"
+        ],
+        "properties": {
+          "version": {
+            "const": 1
+          },
+          "statements": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/FsStatementConfig"
+            }
+          },
+          "schedules": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled",
+              "dividerTitle",
+              "numbering"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "dividerTitle": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "numbering": {
+                "type": "string",
+                "enum": [
+                  "numeric",
+                  "alpha"
+                ]
+              }
+            }
+          }
+        },
+        "description": "A statement layout. A client layout names the client's lead sheets and accounts; a firm template names lead sheet codes only."
+      },
+      "FsElementStyle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sizePt",
+          "bold",
+          "italic"
+        ],
+        "properties": {
+          "sizePt": {
+            "type": "number",
+            "minimum": 6,
+            "maximum": 28
+          },
+          "bold": {
+            "type": "boolean"
+          },
+          "italic": {
+            "type": "boolean"
+          },
+          "caps": {
+            "type": "boolean"
+          },
+          "align": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          }
+        }
+      },
+      "FsStyle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fontKey",
+          "baseSizePt",
+          "lineHeight",
+          "indentPt",
+          "amountColumnWidthIn",
+          "number",
+          "elements",
+          "page",
+          "titleBlock",
+          "footer"
+        ],
+        "properties": {
+          "fontKey": {
+            "type": "string",
+            "description": "A bundled font (lib/fs/engine/fonts.ts FS_FONT_KEYS)"
+          },
+          "baseSizePt": {
+            "type": "number",
+            "minimum": 7,
+            "maximum": 16
+          },
+          "lineHeight": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2.2
+          },
+          "indentPt": {
+            "type": "number",
+            "minimum": 4,
+            "maximum": 36
+          },
+          "amountColumnWidthIn": {
+            "type": "number",
+            "minimum": 0.6,
+            "maximum": 2.5
+          },
+          "number": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "decimals",
+              "dollarSigns",
+              "negative",
+              "zero",
+              "hideZeroLines"
+            ],
+            "properties": {
+              "decimals": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  2
+                ]
+              },
+              "dollarSigns": {
+                "type": "string",
+                "enum": [
+                  "first_and_totals",
+                  "none"
+                ]
+              },
+              "negative": {
+                "type": "string",
+                "enum": [
+                  "parens",
+                  "minus"
+                ]
+              },
+              "zero": {
+                "type": "string",
+                "enum": [
+                  "dash",
+                  "zero"
+                ]
+              },
+              "hideZeroLines": {
+                "type": "boolean"
+              }
+            }
+          },
+          "elements": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "companyName",
+              "statementTitle",
+              "dateLine",
+              "columnHeader",
+              "sectionHeading",
+              "detail",
+              "subtotal",
+              "total",
+              "text",
+              "footer"
+            ],
+            "properties": {
+              "companyName": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "statementTitle": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "dateLine": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "columnHeader": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "sectionHeading": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "detail": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "subtotal": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "total": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "text": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              },
+              "footer": {
+                "$ref": "#/components/schemas/FsElementStyle"
+              }
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/FsPageSetup"
+          },
+          "titleBlock": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "align"
+            ],
+            "properties": {
+              "align": {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "center"
+                ]
+              }
+            }
+          },
+          "footer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text",
+              "onStatements",
+              "onSchedules",
+              "pageNumber"
+            ],
+            "properties": {
+              "text": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "onStatements": {
+                "type": "boolean"
+              },
+              "onSchedules": {
+                "type": "boolean"
+              },
+              "pageNumber": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "format",
+                  "position"
+                ],
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "n",
+                      "dash_n",
+                      "page_n",
+                      "page_n_of_total",
+                      "none"
+                    ]
+                  },
+                  "position": {
+                    "type": "string",
+                    "enum": [
+                      "bottom_center",
+                      "bottom_right"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "FsReportSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "framework",
+          "columns"
+        ],
+        "properties": {
+          "framework": {
+            "type": "string",
+            "enum": [
+              "gaap",
+              "cash",
+              "tax"
+            ],
+            "description": "gaap and cash read book balances (cash changes the wording); tax reads tax-adjusted balances"
+          },
+          "columns": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "mode",
+              "pctOfRevenue",
+              "varianceAmt",
+              "variancePct"
+            ],
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "cy_py"
+                ]
+              },
+              "pctOfRevenue": {
+                "type": "boolean"
+              },
+              "varianceAmt": {
+                "type": "boolean"
+              },
+              "variancePct": {
+                "type": "boolean"
+              }
+            }
+          },
+          "entityKind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "corporation",
+              "partnership",
+              "llc",
+              "sole_prop",
+              null
+            ],
+            "description": "Overrides the kind implied by the client's return type"
+          }
+        }
+      },
+      "FsFrontMatter": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cover",
+          "toc",
+          "letter"
+        ],
+        "properties": {
+          "cover": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "subtitle": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "showFirmName": {
+                "type": "boolean"
+              }
+            }
+          },
+          "toc": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              }
+            }
+          },
+          "letter": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "letterId": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "description": "A library letter; null: the default one"
+              },
+              "titleOverride": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 200
+              },
+              "bodyHtmlOverride": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 3000000,
+                "description": "This report's own wording (sanitized HTML with {{variables}}); null: the library letter's"
+              },
+              "reportDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              }
+            }
+          }
+        }
+      },
+      "FsCreateReport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "settings",
+          "layoutSource"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/FsReportSettings"
+          },
+          "layoutSource": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "default"
+                  },
+                  "layoutName": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "clientLayoutId"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "client_layout"
+                  },
+                  "clientLayoutId": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "templateId"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "template"
+                  },
+                  "templateId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "layoutName": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                  },
+                  "resolutions": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^-?\\d{1,15}$"
+                    },
+                    "description": "Unbound template line (node id) to one of the client's lead sheets, or null to leave it"
+                  }
+                }
+              }
+            ]
+          },
+          "stylePresetId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "frontMatter": {
+            "$ref": "#/components/schemas/FsFrontMatter"
+          }
+        }
+      },
+      "FsUpdateReport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/FsReportSettings"
+          },
+          "frontMatter": {
+            "$ref": "#/components/schemas/FsFrontMatter"
+          }
+        }
+      },
+      "FsLayoutUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "layout": {
+            "$ref": "#/components/schemas/FsLayout"
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsStyle"
+          },
+          "expectedUpdatedAt": {
+            "type": "string",
+            "description": "updatedAt as read. When it no longer matches, the save is refused (409 FS_CONFLICT). The desktop always sends it."
+          }
+        }
+      },
+      "FsDraftOverrides": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "layout": {
+            "$ref": "#/components/schemas/FsLayout"
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsStyle"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/FsReportSettings"
+          },
+          "frontMatter": {
+            "$ref": "#/components/schemas/FsFrontMatter"
+          }
+        },
+        "description": "Unsaved changes to compute or print instead of the saved ones"
+      },
+      "FsFinalizeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "overrideValidation": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "At least 5 characters when overriding failed checks"
+          }
+        }
+      },
+      "FsPdfEngineStatus": {
+        "type": "object",
+        "required": [
+          "available",
+          "path",
+          "source",
+          "configuredPath",
+          "message"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "setting",
+              "env",
+              "detected",
+              null
+            ]
+          },
+          "configuredPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "The engine's words (server wording; the desktop says its own)"
+          }
+        }
+      },
+      "FsClientLayout": {
+        "type": "object",
+        "required": [
+          "id",
+          "clientId",
+          "name",
+          "layout",
+          "style",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "clientId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "layout": {
+            "$ref": "#/components/schemas/FsLayout"
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsStyle"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Send back as expectedUpdatedAt, as read"
+          }
+        },
+        "description": "A client layout: shared by every statement set of the client that uses it"
+      },
+      "FsLayoutSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "updatedAt",
+          "sourceTemplateId"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceTemplateId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "FsReportSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "periodId",
+          "periodName",
+          "periodStart",
+          "periodEnd",
+          "periodLocked",
+          "framework",
+          "columns",
+          "updatedAt",
+          "currentVersion"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "final"
+            ]
+          },
+          "periodId": {
+            "type": "integer"
+          },
+          "periodName": {
+            "type": "string"
+          },
+          "periodStart": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "periodEnd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "periodLocked": {
+            "type": "boolean"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "gaap",
+              "cash",
+              "tax"
+            ]
+          },
+          "columns": {
+            "type": "object"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currentVersion": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "versionNo",
+                  "finalizedAt",
+                  "validationOverride",
+                  "stale"
+                ],
+                "properties": {
+                  "versionNo": {
+                    "type": "integer"
+                  },
+                  "finalizedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "validationOverride": {
+                    "type": "boolean"
+                  },
+                  "stale": {
+                    "type": "boolean",
+                    "description": "Something the statements are built from changed since they were issued"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "FsVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "versionNo",
+          "status",
+          "finalizedAt",
+          "finalizedByName",
+          "validationOverride",
+          "overrideReason",
+          "pageCount",
+          "supersededAt",
+          "reopenedAt",
+          "hasFile",
+          "regenerated",
+          "stale"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "versionNo": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "final",
+              "superseded"
+            ]
+          },
+          "finalizedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finalizedByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validationOverride": {
+            "type": "boolean"
+          },
+          "overrideReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pageCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "supersededAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reopenedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasFile": {
+            "type": "boolean"
+          },
+          "regenerated": {
+            "type": "boolean",
+            "description": "The PDF was drawn again from the issued snapshot (after a restore)"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsReportDetail": {
+        "type": "object",
+        "required": [
+          "report",
+          "period",
+          "defaultEntityKind",
+          "layout",
+          "versions"
+        ],
+        "properties": {
+          "report": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "status",
+              "clientId",
+              "periodId",
+              "currentVersionId",
+              "settings",
+              "frontMatter",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "final"
+                ]
+              },
+              "clientId": {
+                "type": "integer"
+              },
+              "periodId": {
+                "type": "integer"
+              },
+              "currentVersionId": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "settings": {
+                "$ref": "#/components/schemas/FsReportSettings"
+              },
+              "frontMatter": {
+                "$ref": "#/components/schemas/FsFrontMatter"
+              },
+              "updatedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "period": {
+            "type": "object",
+            "required": [
+              "id",
+              "clientId",
+              "clientName",
+              "name",
+              "start",
+              "end",
+              "locked"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "clientId": {
+                "type": "integer"
+              },
+              "clientName": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              },
+              "locked": {
+                "type": "boolean"
+              }
+            }
+          },
+          "defaultEntityKind": {
+            "type": "string",
+            "enum": [
+              "corporation",
+              "partnership",
+              "llc",
+              "sole_prop"
+            ]
+          },
+          "layout": {
+            "$ref": "#/components/schemas/FsClientLayout"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsVersion"
+            }
+          }
+        }
+      },
+      "FsCheck": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "statementId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "The line to go to"
+          },
+          "accountIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      },
+      "FsRenderedStatement": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "dateLine",
+          "pageSetup",
+          "columns",
+          "rows"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "balance_sheet",
+              "income_statement",
+              "equity",
+              "cash_flows",
+              "schedule"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "dateLine": {
+            "type": "string"
+          },
+          "scheduleNo": {
+            "type": "string"
+          },
+          "pageSetup": {
+            "$ref": "#/components/schemas/FsPageSetup"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "label",
+                "kind"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "sublabel": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "amount",
+                    "pct",
+                    "variance_amt",
+                    "variance_pct"
+                  ]
+                }
+              }
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "kind",
+                "caption",
+                "level",
+                "styleRole",
+                "values",
+                "dollarSign",
+                "ruleAbove",
+                "ruleBelow"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "nodeId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "heading",
+                    "detail",
+                    "subtotal",
+                    "total",
+                    "text",
+                    "blank",
+                    "page_break"
+                  ]
+                },
+                "caption": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "integer"
+                },
+                "styleRole": {
+                  "type": "string",
+                  "enum": [
+                    "sectionHeading",
+                    "detail",
+                    "subtotal",
+                    "total",
+                    "text"
+                  ]
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "description": "One per column: amounts rounded for display (dollars, or cents with 2 decimals), percents as 12.3"
+                },
+                "dollarSign": {
+                  "type": "boolean"
+                },
+                "ruleAbove": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "single"
+                  ]
+                },
+                "ruleBelow": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "single",
+                    "double"
+                  ]
+                },
+                "scheduleRef": {
+                  "type": "string"
+                },
+                "plug": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "breakBefore": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "FsRenderedReport": {
+        "type": "object",
+        "required": [
+          "meta",
+          "statements",
+          "schedules",
+          "checks"
+        ],
+        "properties": {
+          "meta": {
+            "type": "object",
+            "required": [
+              "companyName",
+              "periodStart",
+              "periodEnd",
+              "framework",
+              "entityKind",
+              "columnMode",
+              "sourceStamp",
+              "decimals",
+              "bsDateLine"
+            ],
+            "properties": {
+              "companyName": {
+                "type": "string"
+              },
+              "periodStart": {
+                "type": "string"
+              },
+              "periodEnd": {
+                "type": "string"
+              },
+              "framework": {
+                "type": "string",
+                "enum": [
+                  "gaap",
+                  "cash",
+                  "tax"
+                ]
+              },
+              "entityKind": {
+                "type": "string",
+                "enum": [
+                  "corporation",
+                  "partnership",
+                  "llc",
+                  "sole_prop"
+                ]
+              },
+              "columnMode": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "cy_py"
+                ]
+              },
+              "sourceStamp": {
+                "type": "string"
+              },
+              "decimals": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  2
+                ]
+              },
+              "bsDateLine": {
+                "type": "string"
+              }
+            }
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsRenderedStatement"
+            }
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsRenderedStatement"
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsCheck"
+            }
+          }
+        },
+        "description": "What the engine computed: every figure and check. The desktop shows it; it never computes one."
+      },
+      "FsVersionDetail": {
+        "type": "object",
+        "required": [
+          "versionNo",
+          "status",
+          "finalizedAt",
+          "finalizedByName",
+          "validationOverride",
+          "overrideReason",
+          "pageCount",
+          "stale",
+          "model"
+        ],
+        "properties": {
+          "versionNo": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "finalizedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finalizedByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validationOverride": {
+            "type": "boolean"
+          },
+          "overrideReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pageCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "model": {
+            "$ref": "#/components/schemas/FsRenderedReport"
+          }
+        }
+      },
+      "FsFinalized": {
+        "type": "object",
+        "required": [
+          "versionNo",
+          "pageCount",
+          "validationOverride",
+          "periodUnlocked"
+        ],
+        "properties": {
+          "versionNo": {
+            "type": "integer"
+          },
+          "pageCount": {
+            "type": "integer"
+          },
+          "validationOverride": {
+            "type": "boolean"
+          },
+          "periodUnlocked": {
+            "type": "boolean",
+            "description": "The period is not locked; its balances can still change"
+          }
+        }
+      },
+      "FsLetterhead": {
+        "type": "object",
+        "required": [
+          "displayName",
+          "addressLine1",
+          "addressLine2",
+          "city",
+          "state",
+          "postalCode",
+          "phone",
+          "email",
+          "website",
+          "logoDataUri",
+          "accountantSignature",
+          "letterheadAlign",
+          "letterheadContent",
+          "logoSize",
+          "updatedAt"
+        ],
+        "properties": {
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "addressLine1": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "addressLine2": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoDataUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "accountantSignature": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "letterheadAlign": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "letterheadContent": {
+            "type": "string",
+            "enum": [
+              "both",
+              "logo",
+              "text"
+            ]
+          },
+          "logoSize": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "content_width",
+              "full_bleed"
+            ]
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FsLetterheadInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "addressLine1": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "addressLine2": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "postalCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "logoDataUri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$",
+            "description": "A PNG or JPEG of about 700 KB at most"
+          },
+          "accountantSignature": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 300
+          },
+          "letterheadAlign": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "letterheadContent": {
+            "type": "string",
+            "enum": [
+              "both",
+              "logo",
+              "text"
+            ]
+          },
+          "logoSize": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "content_width",
+              "full_bleed"
+            ]
+          }
+        }
+      },
+      "FsLetter": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "letterType",
+          "title",
+          "bodyHtml",
+          "isActive",
+          "isDefault",
+          "builtin",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "letterType": {
+            "type": "string",
+            "enum": [
+              "compilation",
+              "preparation"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bodyHtml": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "builtin": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FsLetterInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "letterType": {
+            "type": "string",
+            "enum": [
+              "compilation",
+              "preparation"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "bodyHtml": {
+            "type": "string",
+            "maxLength": 3000000
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "description": "All of name, letterType and bodyHtml to create; any of them to change"
+      },
+      "FsStylePreset": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "style",
+          "isDefault",
+          "builtin",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsStyle"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "builtin": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FsStylePresetInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "style": {
+            "$ref": "#/components/schemas/FsStyle"
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        },
+        "description": "name and style to create; any of them to change"
+      },
+      "FsLayoutTemplate": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "entityKind",
+          "layout",
+          "isDefault",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entityKind": {
+            "type": "string",
+            "enum": [
+              "corporation",
+              "partnership",
+              "llc",
+              "sole_prop",
+              "any"
+            ]
+          },
+          "layout": {
+            "$ref": "#/components/schemas/FsLayout"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FsLayoutTemplateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "entityKind",
+          "layout"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "entityKind": {
+            "type": "string",
+            "enum": [
+              "corporation",
+              "partnership",
+              "llc",
+              "sole_prop",
+              "any"
+            ]
+          },
+          "layout": {
+            "$ref": "#/components/schemas/FsLayout"
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsLayoutTemplatePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "entityKind": {
+            "type": "string",
+            "enum": [
+              "corporation",
+              "partnership",
+              "llc",
+              "sole_prop",
+              "any"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FsLibrary": {
+        "type": "object",
+        "required": [
+          "letterhead",
+          "letters",
+          "presets",
+          "templates"
+        ],
+        "properties": {
+          "letterhead": {
+            "$ref": "#/components/schemas/FsLetterhead"
+          },
+          "letters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsLetter"
+            },
+            "description": "Active letters only"
+          },
+          "presets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsStylePreset"
+            }
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FsLayoutTemplate"
+            }
+          }
+        },
+        "description": "The firm library (seeded on first read)"
+      },
+      "FsBindPreview": {
+        "type": "object",
+        "required": [
+          "unresolved",
+          "groupings"
+        ],
+        "properties": {
+          "unresolved": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "nodeId",
+                "statementId",
+                "leadsheetCode",
+                "caption"
+              ],
+              "properties": {
+                "nodeId": {
+                  "type": "string"
+                },
+                "statementId": {
+                  "type": "string"
+                },
+                "leadsheetCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "caption": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "groupings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "code",
+                "name"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Template lines no lead sheet of the client matches, and the client's lead sheets to choose from"
+      },
+      "FsPickAccount": {
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "name",
+          "accountType",
+          "leadSheetId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "accountType": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability",
+              "equity",
+              "revenue",
+              "expense"
+            ]
+          },
+          "leadSheetId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FsCashFlowClassification": {
+        "type": "object",
+        "required": [
+          "classes",
+          "leadSheets",
+          "accounts"
+        ],
+        "properties": {
+          "classes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "cash",
+                "operating",
+                "noncash_adjustment",
+                "investing",
+                "financing",
+                "excluded"
+              ]
+            }
+          },
+          "leadSheets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "code",
+                "name",
+                "override"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "override": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "cash",
+                        "operating",
+                        "noncash_adjustment",
+                        "investing",
+                        "financing",
+                        "excluded"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "number",
+                "name",
+                "accountType",
+                "leadSheetId",
+                "override",
+                "fallback",
+                "fallbackSource"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "accountType": {
+                  "type": "string",
+                  "enum": [
+                    "asset",
+                    "liability",
+                    "equity"
+                  ]
+                },
+                "leadSheetId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "override": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "cash",
+                        "operating",
+                        "noncash_adjustment",
+                        "investing",
+                        "financing",
+                        "excluded"
+                      ]
+                    }
+                  ]
+                },
+                "fallback": {
+                  "type": "string",
+                  "enum": [
+                    "cash",
+                    "operating",
+                    "noncash_adjustment",
+                    "investing",
+                    "financing",
+                    "excluded"
+                  ]
+                },
+                "fallbackSource": {
+                  "type": "string",
+                  "enum": [
+                    "chart_of_accounts",
+                    "lead_sheet",
+                    "default"
+                  ],
+                  "description": "Where the class without an override comes from"
+                }
+              }
+            }
+          }
+        },
+        "description": "Balance sheet accounts and lead sheets with their Statement Writer cash flow class"
+      },
+      "FsCashFlowOverridesInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "overrides"
+        ],
+        "properties": {
+          "overrides": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "classification"
+              ],
+              "properties": {
+                "accountId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^-?\\d{1,15}$"
+                },
+                "groupingId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^-?\\d{1,15}$"
+                },
+                "classification": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "cash",
+                        "operating",
+                        "noncash_adjustment",
+                        "investing",
+                        "financing",
+                        "excluded"
+                      ]
+                    }
+                  ],
+                  "description": "null removes the override"
+                }
+              },
+              "description": "Exactly one of accountId and groupingId"
+            }
+          }
+        }
+      },
+      "FsEquityRoles": {
+        "type": "object",
+        "required": [
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "number",
+                "name",
+                "role",
+                "defaultRole",
+                "isFold"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "retained",
+                        "distributions",
+                        "contributions",
+                        "other"
+                      ]
+                    }
+                  ]
+                },
+                "defaultRole": {
+                  "type": "string",
+                  "enum": [
+                    "retained",
+                    "distributions",
+                    "contributions",
+                    "other"
+                  ]
+                },
+                "isFold": {
+                  "type": "boolean",
+                  "description": "Net income is closed into this account"
+                }
+              }
+            }
+          }
+        }
+      },
+      "FsEquityRolesInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "roles"
+        ],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "accountId",
+                "role"
+              ],
+              "properties": {
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^-?\\d{1,15}$",
+                  "description": "A database id as a decimal string; -1 is the virtual retained-earnings account"
+                },
+                "role": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "retained",
+                        "distributions",
+                        "contributions",
+                        "other"
+                      ]
+                    }
+                  ],
+                  "description": "null: back to the default by name"
+                },
+                "isFold": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "description": "At most one account receives net income"
+      },
+      "FsSavedToFolder": {
+        "type": "object",
+        "required": [
+          "documentId",
+          "filename",
+          "objectKey",
+          "sizeBytes"
+        ],
+        "properties": {
+          "documentId": {
+            "type": "integer"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          }
+        }
       }
     }
   },
   "paths": {
+    "/api/v1/fs/status": {
+      "get": {
+        "operationId": "getFsStatus",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Whether a browser to draw PDFs with was found",
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "pdfEngine"
+                      ],
+                      "properties": {
+                        "pdfEngine": {
+                          "$ref": "#/components/schemas/FsPdfEngineStatus"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/pdf-engine": {
+      "put": {
+        "operationId": "setFsPdfEngine",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The browser to draw PDFs with (admin); null finds one",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "chromiumPath"
+                ],
+                "properties": {
+                  "chromiumPath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "pdfEngine"
+                      ],
+                      "properties": {
+                        "pdfEngine": {
+                          "$ref": "#/components/schemas/FsPdfEngineStatus"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/pdf-engine/test": {
+      "post": {
+        "operationId": "testFsPdfEngine",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Start the browser and print one page (admin)",
+        "responses": {
+          "200": {
+            "description": "Printed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok",
+                        "bytes"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "const": true
+                        },
+                        "bytes": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PDF_ENGINE_UNAVAILABLE (no browser, or it could not be started), PDF_BUSY or PDF_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library": {
+      "get": {
+        "operationId": "getFsLibrary",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Letterhead, letters, style presets and layout templates",
+        "responses": {
+          "200": {
+            "description": "Library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsLibrary"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/letterhead": {
+      "put": {
+        "operationId": "saveFsLetterhead",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Save the letterhead (admin); fields left out are cleared",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsLetterheadInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "letterhead"
+                      ],
+                      "properties": {
+                        "letterhead": {
+                          "$ref": "#/components/schemas/FsLetterhead"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/letters": {
+      "post": {
+        "operationId": "createFsLetter",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A new accountant's report letter (admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsLetterInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "letter"
+                      ],
+                      "properties": {
+                        "letter": {
+                          "$ref": "#/components/schemas/FsLetter"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/letters/{letterId}": {
+      "parameters": [
+        {
+          "name": "letterId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "put": {
+        "operationId": "updateFsLetter",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Change a letter (admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsLetterInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "letter"
+                      ],
+                      "properties": {
+                        "letter": {
+                          "$ref": "#/components/schemas/FsLetter"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "retireFsLetter",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Retire a letter (admin); reports that chose it fall back to the default one",
+        "responses": {
+          "200": {
+            "description": "Retired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/presets": {
+      "post": {
+        "operationId": "createFsPreset",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A new firm style (admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsStylePresetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "preset"
+                      ],
+                      "properties": {
+                        "preset": {
+                          "$ref": "#/components/schemas/FsStylePreset"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/presets/{presetId}": {
+      "parameters": [
+        {
+          "name": "presetId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "put": {
+        "operationId": "updateFsPreset",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Change a firm style (admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsStylePresetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "preset"
+                      ],
+                      "properties": {
+                        "preset": {
+                          "$ref": "#/components/schemas/FsStylePreset"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFsPreset",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Delete a firm style (admin); layouts keep their own copy of the style",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/templates": {
+      "post": {
+        "operationId": "createFsTemplate",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A new layout template (admin); lead sheet codes only",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsLayoutTemplateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "template"
+                      ],
+                      "properties": {
+                        "template": {
+                          "$ref": "#/components/schemas/FsLayoutTemplate"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/library/templates/{templateId}": {
+      "parameters": [
+        {
+          "name": "templateId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "put": {
+        "operationId": "updateFsTemplate",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Rename or describe a template (admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsLayoutTemplatePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "template"
+                      ],
+                      "properties": {
+                        "template": {
+                          "$ref": "#/components/schemas/FsLayoutTemplate"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFsTemplate",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Delete a template (admin)",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/layouts/{layoutId}": {
+      "parameters": [
+        {
+          "name": "layoutId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsLayout",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A client layout and its style",
+        "responses": {
+          "200": {
+            "description": "Layout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "layout"
+                      ],
+                      "properties": {
+                        "layout": {
+                          "$ref": "#/components/schemas/FsClientLayout"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "saveFsLayout",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Save a client layout; every statement set that uses it changes",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsLayoutUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "layout"
+                      ],
+                      "properties": {
+                        "layout": {
+                          "$ref": "#/components/schemas/FsClientLayout"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR (also: an account or lead sheet that is not the client's)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FS_CONFLICT: changed since it was read; details.updatedAt is the time now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/layouts/{layoutId}/save-as-template": {
+      "parameters": [
+        {
+          "name": "layoutId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "saveFsLayoutAsTemplate",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Copy a client layout into the firm library (admin); accounts and lead sheets become codes",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  },
+                  "entityKind": {
+                    "type": "string",
+                    "enum": [
+                      "corporation",
+                      "partnership",
+                      "llc",
+                      "sole_prop",
+                      "any"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "template"
+                      ],
+                      "properties": {
+                        "template": {
+                          "$ref": "#/components/schemas/FsLayoutTemplate"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A statement set: settings, front matter, its layout, its period and its versions",
+        "responses": {
+          "200": {
+            "description": "Report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsReportDetail"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Change a draft's name, settings or front matter",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsUpdateReport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsReportDetail"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "FS_FINAL_LOCKED: final; reopen first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "archiveFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Archive a statement set; its issued versions are kept",
+        "responses": {
+          "200": {
+            "description": "Archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/roll-forward": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "rollFsReportForward",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A new draft in another period of the client, on the same layout",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "periodId"
+                ],
+                "properties": {
+                  "periodId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "report"
+                      ],
+                      "properties": {
+                        "report": {
+                          "type": "object",
+                          "required": [
+                            "id"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/compute": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "computeFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Every figure and check, from the saved report or the unsaved changes sent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsDraftOverrides"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Computed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "model"
+                      ],
+                      "properties": {
+                        "model": {
+                          "$ref": "#/components/schemas/FsRenderedReport"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/preview.pdf": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsPreviewPdf",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The exact PDF of the saved draft (DRAFT on every page)",
+        "responses": {
+          "200": {
+            "description": "The proof",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PDF_ENGINE_UNAVAILABLE (no browser, or it could not be started), PDF_BUSY or PDF_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postFsPreviewPdf",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The exact PDF with the unsaved changes sent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsDraftOverrides"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The proof",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PDF_ENGINE_UNAVAILABLE (no browser, or it could not be started), PDF_BUSY or PDF_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/export": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "format",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx",
+              "xlsx"
+            ],
+            "default": "pdf"
+          }
+        },
+        {
+          "name": "version",
+          "in": "query",
+          "required": false,
+          "description": "An issued version (its stored PDF); without it, the draft",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "exportFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Download as PDF, Word or Excel",
+        "responses": {
+          "200": {
+            "description": "The file",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PDF_ENGINE_UNAVAILABLE (no browser, or it could not be started), PDF_BUSY or PDF_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/finalize": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "finalizeFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Issue the next version: the PDF is drawn first, then the version is written",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsFinalizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Finalized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsFinalized"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR (an override without a reason)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "FS_VALIDATION: checks failed; details.checks lists them",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "FS_FINAL_LOCKED: already final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PDF_ENGINE_UNAVAILABLE (no browser, or it could not be started), PDF_BUSY or PDF_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/reopen": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "reopenFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Make a final statement set a draft again; the next finalize is the next version",
+        "responses": {
+          "200": {
+            "description": "Reopened",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "FS_NOT_FINAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/versions/{versionNo}": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "versionNo",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsVersion",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "An issued version and what it said",
+        "responses": {
+          "200": {
+            "description": "Version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsVersionDetail"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/versions/{versionNo}/impact": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "versionNo",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsVersionImpact",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Whether the books changed since it was issued, and whether its figures would",
+        "responses": {
+          "200": {
+            "description": "Impact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "stale",
+                        "changed"
+                      ],
+                      "properties": {
+                        "stale": {
+                          "type": "boolean"
+                        },
+                        "changed": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fs/reports/{reportId}/versions/{versionNo}/save-to-folder": {
+      "parameters": [
+        {
+          "name": "reportId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "versionNo",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "saveFsVersionToDocuments",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Copy the issued PDF into the client's documents (workpapers)",
+        "responses": {
+          "201": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsSavedToFolder"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PDF_ENGINE_UNAVAILABLE (no browser, or it could not be started), PDF_BUSY or PDF_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/fs/reports": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listFsReports",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The client's statement sets, newest period first",
+        "responses": {
+          "200": {
+            "description": "Reports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "reports"
+                      ],
+                      "properties": {
+                        "reports": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/FsReportSummary"
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/fs/layouts": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listFsLayouts",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The client's layouts",
+        "responses": {
+          "200": {
+            "description": "Layouts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "layouts"
+                      ],
+                      "properties": {
+                        "layouts": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/FsLayoutSummary"
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/fs/bind-preview": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "templateId",
+          "in": "query",
+          "required": false,
+          "description": "Without it: the built-in default layout",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "previewFsBinding",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Which lines of a template find no lead sheet of the client",
+        "responses": {
+          "200": {
+            "description": "Binding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsBindPreview"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/fs/accounts": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listFsAccounts",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The client's active accounts, for the editor's pickers",
+        "responses": {
+          "200": {
+            "description": "Accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "accounts"
+                      ],
+                      "properties": {
+                        "accounts": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/FsPickAccount"
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/fs/cash-flow-overrides": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsCashFlowClasses",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The cash flow class of each balance sheet account and lead sheet",
+        "responses": {
+          "200": {
+            "description": "Classes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsCashFlowClassification"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveFsCashFlowClasses",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Set or remove overrides",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsCashFlowOverridesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/fs/equity-roles": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFsEquityRoles",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "The role of each equity account, and where net income goes",
+        "responses": {
+          "200": {
+            "description": "Roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FsEquityRoles"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveFsEquityRoles",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "Set roles",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsEquityRolesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "ok"
+                      ],
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/fs/reports": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "createFsReport",
+        "tags": [
+          "statement-writer"
+        ],
+        "summary": "A new statement set for the period",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FsCreateReport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "report"
+                      ],
+                      "properties": {
+                        "report": {
+                          "type": "object",
+                          "required": [
+                            "id"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ping": {
       "get": {
         "operationId": "ping",

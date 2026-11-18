@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "FS_NOT_FINAL",
+    "message": "Only final statements can be reopened."
+  }
+}

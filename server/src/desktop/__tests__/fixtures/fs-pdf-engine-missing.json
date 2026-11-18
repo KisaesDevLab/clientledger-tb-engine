@@ -1,0 +1,12 @@
+{
+  "data": {
+    "pdfEngine": {
+      "available": false,
+      "configuredPath": "C:\\Nowhere\\chrome.exe",
+      "message": "No Chromium at the configured path (C:\\Nowhere\\chrome.exe). Install Chromium on the server (Debian / Raspberry Pi OS: \"sudo apt install chromium\"; the official Docker image includes it), or set its path in Settings → PDF engine.",
+      "path": null,
+      "source": null
+    }
+  },
+  "error": null
+}

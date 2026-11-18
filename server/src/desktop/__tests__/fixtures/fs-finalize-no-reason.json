@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "A reason (5+ characters) is required to finalize with validation errors (reason)"
+  }
+}

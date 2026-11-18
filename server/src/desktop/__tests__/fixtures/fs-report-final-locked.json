@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "FS_FINAL_LOCKED",
+    "message": "These statements are final. Reopen them to make changes (a new version will be created)."
+  }
+}

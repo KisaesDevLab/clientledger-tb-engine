@@ -1,0 +1,83 @@
+{
+  "data": {
+    "groupings": [
+      {
+        "code": "A",
+        "id": "1",
+        "name": "Cash"
+      },
+      {
+        "code": "B",
+        "id": "2",
+        "name": "Accounts Receivable"
+      },
+      {
+        "code": "C",
+        "id": "3",
+        "name": "Inventory"
+      },
+      {
+        "code": "D",
+        "id": "4",
+        "name": "Fixed Assets"
+      },
+      {
+        "code": "E",
+        "id": "5",
+        "name": "Other Assets"
+      },
+      {
+        "code": "F",
+        "id": "6",
+        "name": "Accounts Payable"
+      },
+      {
+        "code": "G",
+        "id": "7",
+        "name": "Accrued Liabilities"
+      },
+      {
+        "code": "H",
+        "id": "8",
+        "name": "Debt"
+      },
+      {
+        "code": "I",
+        "id": "9",
+        "name": "Other Liabilities"
+      },
+      {
+        "code": "J",
+        "id": "10",
+        "name": "Equity"
+      },
+      {
+        "code": "K",
+        "id": "11",
+        "name": "Revenue"
+      },
+      {
+        "code": "L",
+        "id": "12",
+        "name": "Cost of Goods Sold"
+      },
+      {
+        "code": "M",
+        "id": "13",
+        "name": "Operating Expenses"
+      },
+      {
+        "code": "N",
+        "id": "14",
+        "name": "Other Income"
+      },
+      {
+        "code": "O",
+        "id": "15",
+        "name": "Other Expenses"
+      }
+    ],
+    "unresolved": []
+  },
+  "error": null
+}
