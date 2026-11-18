@@ -12,6 +12,7 @@ import { Router } from 'express';
 import { desktopBackupRouter } from './backupRoutes';
 import { desktopTbRouter } from './tbTotals';
 import { desktopClientSummaryRouter } from './clientSummary';
+import { desktopDraftRouter } from './draftStamp';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -211,6 +212,7 @@ const schemas: Record<string, Schema> = {
       tax_line_source: nullable('string', { description: 'Who chose the tax code: manual, ai, import, rule, cross_client, firm_history' }),
       tax_line_confidence: { type: ['string', 'number', 'null'], description: 'How sure the AI was, 0 to 1 (a decimal column: "0.62")' },
       workpaper_ref: nullable('string'),
+      cash_flow_category: { type: ['string', 'null'], enum: ['operating', 'investing', 'financing', 'non_cash', 'cash', null], description: 'Where the statement of cash flows puts the account (Q62)' },
     },
   },
   TrialBalanceRow: {
@@ -641,6 +643,17 @@ const schemas: Record<string, Schema> = {
       leadSheetId: nullable('integer', { minimum: 1, description: 'One of the client\'s lead sheets; null clears it' }),
       taxCodeId: nullable('integer', { minimum: 1, description: 'A tax code; null clears it. The source and confidence stay as they were unless taxLineSource is sent (the desktop assigns through /tax-lines/bulk-confirm, which sets both).' }),
       taxLineSource: { type: 'string', enum: ['manual', 'ai', 'import', 'rule'] },
+      cashFlowCategory: { type: ['string', 'null'], enum: ['operating', 'investing', 'financing', 'non_cash', 'cash', null], description: 'Where the statement of cash flows puts the account; null clears it. The appliance offers non_cash for revenue and expense accounts only, the others for balance sheet accounts (Q62).' },
+    },
+  },
+  FirmIdentity: {
+    type: 'object',
+    description: 'Name, address and email of the firm (engine settings firm_name, firm_address, firm_email). The name prints as "Prepared by" on every report PDF (Q62).',
+    required: ['name', 'address', 'email'],
+    properties: {
+      name: { type: 'string', maxLength: 200 },
+      address: { type: 'string', maxLength: 1000, description: 'A line each' },
+      email: { type: 'string', maxLength: 254, description: 'Empty, or an email address' },
     },
   },
   UpdatedAccount: {
@@ -1738,6 +1751,31 @@ export function buildOpenApiSpec(): Schema {
           responses: { '200': ok('Features', { type: 'object', required: ['ai'], properties: { ai: { type: 'boolean' } } }), ...commonErrors },
         },
       },
+      '/api/v1/settings/firm': {
+        get: {
+          operationId: 'getFirm', tags: ['settings'],
+          summary: 'Name, address and email of the firm (admin; the desktop user is the admin)',
+          responses: { '200': ok('Firm', ref('FirmIdentity')), '403': errorResponse('FORBIDDEN'), ...commonErrors },
+        },
+        put: {
+          operationId: 'saveFirm', tags: ['settings'],
+          summary: 'Save all three (each trimmed); send the email back as read to keep it',
+          requestBody: jsonBody(ref('FirmIdentity')),
+          responses: { '200': ok('Saved', ref('FirmIdentity')), '400': errorResponse('Validation error'), '403': errorResponse('FORBIDDEN'), ...commonErrors },
+        },
+      },
+      '/api/v1/desktop/draft/{report}': {
+        parameters: [{ name: 'report', in: 'path', required: true, description: 'A report route after /api/v1/: reports/periods/{id}/{report}[/{id}] or periods/{id}/exports/bookkeeper-letter; its query string is passed on', schema: { type: 'string' } }],
+        get: {
+          operationId: 'getDraftReport', tags: ['reports'],
+          summary: 'The report PDF the engine makes, with DRAFT across every page (Q61). An answer that is not a PDF comes back as the report route gave it.',
+          responses: {
+            '200': { description: 'The report, stamped', content: { 'application/pdf': { schema: { type: 'string', format: 'binary' } } } },
+            '404': errorResponse('Not a report that can be marked as a draft'),
+            ...commonErrors,
+          },
+        },
+      },
       '/api/v1/settings/llm-provider': {
         get: {
           operationId: 'getLlmProvider', tags: ['settings'],
@@ -1974,6 +2012,7 @@ export const desktopRouter = Router();
 desktopRouter.use(desktopBackupRouter);
 desktopRouter.use(desktopTbRouter);
 desktopRouter.use(desktopClientSummaryRouter);
+desktopRouter.use(desktopDraftRouter);
 desktopRouter.get('/openapi.json', (_req, res) => {
   res.json(buildOpenApiSpec());
 });

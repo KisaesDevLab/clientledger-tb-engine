@@ -39,8 +39,12 @@ function requireEnv(names: string[]): void {
 function applyDesktopEnv(): void {
   // The engine assumes the appliance's UTC clock: DATE columns become JS Dates
   // at local midnight, and a laptop east of UTC would serialize 2024-01-01 as
-  // 2023-12-31. Must be set before anything creates a Date.
+  // 2023-12-31. Must be set before anything creates a Date. The PC's own zone
+  // is read first: "Prepared:" on a PDF is today's date in it (Q63).
+  const { readLocalZone, useLocalDates } = require('./localDate') as typeof import('./localDate');
+  const localZone = readLocalZone();
   process.env.TZ = 'UTC';
+  useLocalDates(localZone);
   process.env.DESKTOP_MODE = 'true';
   process.env.BIND_HOST = '127.0.0.1';
   process.env.NODE_ENV = 'production';
