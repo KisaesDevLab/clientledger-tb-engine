@@ -7405,7 +7405,7 @@
         "tags": [
           "statement-writer"
         ],
-        "summary": "Save the letterhead (admin); fields left out are cleared",
+        "summary": "Save the letterhead (admin); a field left out is kept, null or an empty string clears it",
         "requestBody": {
           "required": true,
           "content": {

@@ -501,7 +501,7 @@ export const fsPaths: Record<string, Schema> = {
     get: op('getFsLibrary', 'Letterhead, letters, style presets and layout templates', { responses: { '200': answer('Library', ref('FsLibrary')), ...common } }),
   },
   [`${v1}/fs/library/letterhead`]: {
-    put: op('saveFsLetterhead', 'Save the letterhead (admin); fields left out are cleared', {
+    put: op('saveFsLetterhead', 'Save the letterhead (admin); a field left out is kept, null or an empty string clears it', {
       requestBody: body(ref('FsLetterheadInput')),
       responses: { '200': answer('Saved', open(['letterhead'], { letterhead: ref('FsLetterhead') })), '400': err('VALIDATION_ERROR'), '403': err('FORBIDDEN'), ...common },
     }),

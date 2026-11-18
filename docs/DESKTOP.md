@@ -96,7 +96,7 @@ What blocks or complicates an SEA build. Paths are relative to `server/`.
 ### OpenAPI
 - None upstream. Desktop spec in `src/desktop/openapi.ts` (see above); grows per phase (shell repo Q11).
 - Statement Writer (shell P08b): `src/desktop/openapiFs.ts`, written from the zod contracts in `lib/fs/engine/schemas.ts`. The layout and style objects are closed (`additionalProperties: false`). `__tests__/fsContract.test.ts` fails when a zod schema has a field the OpenAPI entry lacks, so a field upstream adds is described before the desktop can drop it on a save. Fixtures `fs-*.json` are recorded by the shell's `crates/cltb-api/tests/record_p08b.rs` on the demo seed (one temp path in `fs-pdf-engine-test.json` replaced by an example).
-- Statement Writer Excel export fails for an LLC (found 2026-11-18, not filed upstream): `fsXlsx.ts` `sheetName` cuts "Statement of Changes in Members' Equity" to 31 characters, which ends in an apostrophe, and exceljs refuses a sheet name that starts or ends with one (500 SERVER_ERROR). Any title whose 31st character is `'` does the same.
+- Statement Writer Excel export fails for an LLC (found 2026-11-18, not filed upstream): `fsXlsx.ts` `sheetName` cuts "Statement of Changes in Member's Equity" (the LLC title, `titles.ts`) to 31 characters, "Statement of Changes in Member'", which ends in an apostrophe, and exceljs refuses a sheet name that starts or ends with one (500 SERVER_ERROR). Any title whose 31st character is `'` does the same.
 
 ### Money on the wire
 - Amounts are BIGINT cents as integers. The Rust client converts at the boundary to `Decimal`.
