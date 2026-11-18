@@ -5241,7 +5241,7 @@
                       ],
                       "pattern": "^-?\\d{1,15}$"
                     },
-                    "description": "Unbound template line (node id) to one of the client's lead sheets, or null to leave it"
+                    "description": "Unbound template line (node id) to one of the client's lead sheets, or null to remove the line; a line not named stays unlinked"
                   }
                 }
               }

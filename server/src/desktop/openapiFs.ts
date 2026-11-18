@@ -227,7 +227,7 @@ export const fsSchemas: Record<string, Schema> = {
           kind: { const: 'template' },
           templateId: { type: 'integer', minimum: 1 },
           layoutName: str(200, { minLength: 1 }),
-          resolutions: { type: 'object', additionalProperties: { type: ['string', 'null'], pattern: '^-?\\d{1,15}$' }, description: 'Unbound template line (node id) to one of the client\'s lead sheets, or null to leave it' },
+          resolutions: { type: 'object', additionalProperties: { type: ['string', 'null'], pattern: '^-?\\d{1,15}$' }, description: 'Unbound template line (node id) to one of the client\'s lead sheets, or null to remove the line; a line not named stays unlinked' },
         }),
       ],
     },
