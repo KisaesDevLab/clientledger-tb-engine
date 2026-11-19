@@ -931,6 +931,27 @@ const schemas: Record<string, Schema> = {
       account_count: { type: 'integer', description: 'Active accounts on it' },
     },
   },
+  LeadSheetSuggestion: {
+    type: 'object',
+    description: 'A lead sheet the engine proposes for one account (auto-assign preview); writes nothing.',
+    required: ['accountId', 'accountNumber', 'accountName', 'category', 'subcategory', 'currentLeadSheetId', 'currentCode',
+      'suggestedLeadSheetId', 'suggestedCode', 'suggestedName', 'confidence', 'source', 'changed'],
+    properties: {
+      accountId: { type: 'integer' },
+      accountNumber: { type: 'string' },
+      accountName: { type: 'string' },
+      category: { type: 'string', enum: ['assets', 'liabilities', 'equity', 'revenue', 'expenses'] },
+      subcategory: { type: ['string', 'null'] },
+      currentLeadSheetId: { type: ['integer', 'null'] },
+      currentCode: { type: ['string', 'null'] },
+      suggestedLeadSheetId: { type: ['integer', 'null'], description: "The client's lead sheet the rule names; null when none matched or the client has no sheet with that code" },
+      suggestedCode: { type: ['string', 'null'] },
+      suggestedName: { type: ['string', 'null'] },
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+      source: { type: 'string', enum: ['rule', 'unmatched'] },
+      changed: { type: 'boolean', description: 'The suggestion differs from the current lead sheet' },
+    },
+  },
   TaxCodeMap: {
     type: 'object',
     description: 'What one tax program calls a tax code, and the account a combined export row gets.',
@@ -1482,6 +1503,59 @@ export function buildOpenApiSpec(): Schema {
           responses: {
             '200': ok('Already had lead sheets', { type: 'object', required: ['seeded', 'created'], properties: { seeded: { type: 'boolean' }, created: { type: 'integer' } } }),
             '201': ok('Added', { type: 'object', required: ['seeded', 'created'], properties: { seeded: { type: 'boolean' }, created: { type: 'integer' } } }),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/clients/{clientId}/lead-sheets/auto-assign/preview': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'previewLeadSheetAutoAssign', tags: ['lead-sheets'],
+          summary: 'A proposed lead sheet for each active account, by number; writes nothing',
+          requestBody: jsonBody({ type: 'object', properties: { mode: { type: 'string', enum: ['unassigned_only', 'all'], default: 'unassigned_only' } } }),
+          responses: {
+            '200': {
+              description: 'Suggestions',
+              content: {
+                [json]: {
+                  schema: {
+                    type: 'object', required: ['data', 'error', 'meta'],
+                    properties: {
+                      data: { type: 'array', items: ref('LeadSheetSuggestion') },
+                      error: { type: 'null' },
+                      meta: {
+                        type: 'object', required: ['count', 'changed', 'unmatched', 'mode'],
+                        properties: { count: { type: 'integer' }, changed: { type: 'integer' }, unmatched: { type: 'integer' }, mode: { type: 'string', enum: ['unassigned_only', 'all'] } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '400': errorResponse('Validation error'),
+            '409': errorResponse('NOT_SEEDED: the client has no lead sheets yet'),
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/clients/{clientId}/lead-sheets/auto-assign/confirm': {
+        parameters: [idParam('clientId', 'Client id')],
+        post: {
+          operationId: 'confirmLeadSheetAutoAssign', tags: ['lead-sheets'],
+          summary: 'Put each account on the lead sheet given (null takes it off one), in one transaction',
+          requestBody: jsonBody({
+            type: 'object', required: ['assignments'],
+            properties: {
+              assignments: {
+                type: 'array', minItems: 1, maxItems: 2000,
+                items: { type: 'object', required: ['accountId', 'leadSheetId'], properties: { accountId: { type: 'integer' }, leadSheetId: { type: ['integer', 'null'] } } },
+              },
+            },
+          }),
+          responses: {
+            '200': ok('How many accounts changed', { type: 'object', required: ['applied'], properties: { applied: { type: 'integer' } } }),
+            '400': errorResponse('Validation error'),
+            '403': errorResponse('FORBIDDEN: an account or lead sheet of another client'),
             ...commonErrors,
           },
         },
