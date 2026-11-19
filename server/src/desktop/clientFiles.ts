@@ -57,7 +57,8 @@ export async function placeFilesForNewClient(
   const manifestFile = dir.files.find((f) => f.path === 'manifest.json');
   if (!manifestFile) throw new ClientFilesError('This is not a backup file.', 'NOT_A_CLIENT_BACKUP');
   const manifest = JSON.parse((await manifestFile.buffer()).toString('utf8')) as Record<string, unknown>;
-  if (manifest.backupLevel !== 'client') {
+  // A client archive, or a period pulled from the firm server (P12).
+  if (manifest.backupLevel !== 'client' && manifest.backupLevel !== 'period') {
     throw new ClientFilesError('This backup does not hold one client.', 'NOT_A_CLIENT_BACKUP');
   }
   const checked = verifyEntries(manifest, await hashArchive(archivePath));
