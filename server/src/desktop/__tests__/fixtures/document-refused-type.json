@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_FILE_TYPE",
+    "message": "File extension \".exe\" is not allowed."
+  }
+}

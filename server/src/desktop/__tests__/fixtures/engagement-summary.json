@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "assignee_id": null,
+      "assignee_name": null,
+      "category": null,
+      "client_id": 1,
+      "client_name": "Demo Company LLC",
+      "end_date": "2024-12-31T00:00:00.000Z",
+      "id": 2,
+      "notes": null,
+      "period_id": 1,
+      "period_name": "FY 2024",
+      "status": "in_progress",
+      "title": "Review fixed asset additions"
+    }
+  ],
+  "error": null,
+  "meta": {
+    "count": 1
+  }
+}

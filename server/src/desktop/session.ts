@@ -15,6 +15,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { signFullToken } from '../lib/sessionTokens';
 import { SESSION_HEADER, isDesktopMode, launchToken } from './env';
 import { ensureClientLinks } from './clientLinks';
+import { setCurrentUserId } from './currentUser';
 
 const OPEN_PATHS = new Set(['/api/v1/ping', '/api/v1/health']);
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -28,6 +29,7 @@ let cached: { token: string; at: number } | null = null;
 export function setDesktopUser(user: DesktopUser): void {
   desktopUser = user;
   cached = null;
+  setCurrentUserId(user.id);
 }
 
 function bearerFor(user: DesktopUser): string {

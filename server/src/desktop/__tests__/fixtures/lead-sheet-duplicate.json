@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "DUPLICATE",
+    "message": "That lead sheet code is already used for this client."
+  }
+}

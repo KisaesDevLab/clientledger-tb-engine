@@ -1,0 +1,44 @@
+{
+  "data": [
+    {
+      "assignee_id": null,
+      "assignee_name": null,
+      "category": "Bank Reconciliation",
+      "completed_at": "2026-11-19T12:43:43.656Z",
+      "completed_by": 2,
+      "completed_by_name": "Example Preparer",
+      "created_at": "2026-11-19T12:43:43.633Z",
+      "created_by": 2,
+      "description": "Every account to the statement",
+      "id": 1,
+      "notes": "Tied out",
+      "period_id": 1,
+      "sort_order": 10,
+      "status": "completed",
+      "title": "Reconcile bank accounts",
+      "updated_at": "2026-11-19T12:43:43.656Z"
+    },
+    {
+      "assignee_id": null,
+      "assignee_name": null,
+      "category": null,
+      "completed_at": null,
+      "completed_by": null,
+      "completed_by_name": null,
+      "created_at": "2026-11-19T12:43:43.651Z",
+      "created_by": 2,
+      "description": null,
+      "id": 2,
+      "notes": null,
+      "period_id": 1,
+      "sort_order": 20,
+      "status": "in_progress",
+      "title": "Review fixed asset additions",
+      "updated_at": "2026-11-19T12:43:43.651Z"
+    }
+  ],
+  "error": null,
+  "meta": {
+    "count": 2
+  }
+}

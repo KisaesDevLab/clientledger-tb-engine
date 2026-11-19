@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "CONTENT_MISMATCH",
+    "message": "The file content does not match its declared type (application/pdf)."
+  }
+}

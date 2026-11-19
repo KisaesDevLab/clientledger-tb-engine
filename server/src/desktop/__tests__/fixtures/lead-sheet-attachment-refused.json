@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_FILE_TYPE",
+    "message": "Attach a PDF, PNG or JPEG. Images are converted to PDF automatically."
+  }
+}

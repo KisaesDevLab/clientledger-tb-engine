@@ -1,0 +1,24 @@
+{
+  "data": {
+    "bucket": null,
+    "client_id": 1,
+    "deleted_at": null,
+    "deleted_by": null,
+    "etag": "84567ed2f2da5791874ae6546338f08357deeb01afd4a5f3a2adf7eac587901d",
+    "file_path": null,
+    "file_size": 589,
+    "file_type": "application/pdf",
+    "filename": "Example engagement letter.pdf",
+    "id": 2,
+    "linked_account_id": null,
+    "linked_journal_entry_id": null,
+    "object_key": "Clients/Demo Company LLC/Workpapers & Support/unknown-year/Example engagement letter.pdf",
+    "period_id": null,
+    "section": "Workpapers & Support",
+    "sha256": "84567ed2f2da5791874ae6546338f08357deeb01afd4a5f3a2adf7eac587901d",
+    "storage_backend": "local",
+    "uploaded_at": "2026-11-19T12:43:43.570Z",
+    "uploaded_by": 2
+  },
+  "error": null
+}

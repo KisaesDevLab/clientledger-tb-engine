@@ -1,0 +1,20 @@
+{
+  "data": {
+    "account_id": null,
+    "annotations": [],
+    "client_id": 1,
+    "created_at": "2026-11-19T12:43:43.892Z",
+    "created_by": 2,
+    "deleted_at": null,
+    "deleted_by": null,
+    "document_id": 4,
+    "fileSize": 1155,
+    "id": 2,
+    "lead_sheet_code": "A",
+    "lead_sheet_id": 1,
+    "period_id": 1,
+    "ref_code": "A002",
+    "source_file_name": "Example receipt.png"
+  },
+  "error": null
+}

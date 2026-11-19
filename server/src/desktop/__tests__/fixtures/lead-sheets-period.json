@@ -1,0 +1,264 @@
+{
+  "data": [
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "A",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 1,
+      "name": "Cash",
+      "signoffs": {},
+      "sort_order": 0,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "B",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 2,
+      "name": "Accounts Receivable",
+      "signoffs": {},
+      "sort_order": 10,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "C",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 3,
+      "name": "Inventory",
+      "signoffs": {},
+      "sort_order": 20,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "D",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 4,
+      "name": "Fixed Assets",
+      "signoffs": {},
+      "sort_order": 30,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "E",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 5,
+      "name": "Other Assets",
+      "signoffs": {},
+      "sort_order": 40,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "F",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 6,
+      "name": "Accounts Payable",
+      "signoffs": {},
+      "sort_order": 50,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "G",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 7,
+      "name": "Accrued Liabilities",
+      "signoffs": {},
+      "sort_order": 60,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "H",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 8,
+      "name": "Debt",
+      "signoffs": {},
+      "sort_order": 70,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "I",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 9,
+      "name": "Other Liabilities",
+      "signoffs": {},
+      "sort_order": 80,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "J",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 10,
+      "name": "Equity",
+      "signoffs": {},
+      "sort_order": 90,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "K",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 11,
+      "name": "Revenue",
+      "signoffs": {},
+      "sort_order": 100,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "L",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 12,
+      "name": "Cost of Goods Sold",
+      "signoffs": {},
+      "sort_order": 110,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "M",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 13,
+      "name": "Operating Expenses",
+      "signoffs": {},
+      "sort_order": 120,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "N",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 14,
+      "name": "Other Income",
+      "signoffs": {},
+      "sort_order": 130,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    },
+    {
+      "account_count": 0,
+      "client_id": 1,
+      "code": "O",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "current_stamp": "2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf",
+      "id": 15,
+      "name": "Other Expenses",
+      "signoffs": {},
+      "sort_order": 140,
+      "status": {
+        "preparer": "unsigned",
+        "reviewer": "unsigned"
+      },
+      "updated_at": "2026-11-19T12:43:43.685Z"
+    }
+  ],
+  "error": null,
+  "meta": {
+    "count": 15,
+    "unassignedCount": 16
+  }
+}

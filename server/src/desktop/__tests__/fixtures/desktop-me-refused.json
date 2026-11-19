@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "A name of 1 to 255 characters"
+  }
+}

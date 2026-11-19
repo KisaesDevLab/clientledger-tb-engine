@@ -12,8 +12,10 @@ import { Router } from 'express';
 import { desktopBackupRouter } from './backupRoutes';
 import { desktopTbRouter } from './tbTotals';
 import { desktopClientSummaryRouter } from './clientSummary';
+import { desktopMeRouter } from './me';
 import { desktopDraftRouter } from './draftStamp';
 import { fsPaths, fsSchemas } from './openapiFs';
+import { wpPaths, wpSchemas } from './openapiWp';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -925,7 +927,7 @@ const schemas: Record<string, Schema> = {
     properties: {
       id: { type: 'integer' },
       client_id: { type: 'integer' },
-      code: { type: 'string' },
+      code: nullable('string'),
       name: { type: 'string' },
       sort_order: { type: 'integer' },
       account_count: { type: 'integer', description: 'Active accounts on it' },
@@ -1172,10 +1174,11 @@ export function buildOpenApiSpec(): Schema {
       securitySchemes: {
         desktopSession: { type: 'apiKey', in: 'header', name: 'X-CLTB-Session', description: 'Per-launch token from the launcher' },
       },
-      schemas: { ...schemas, ...fsSchemas },
+      schemas: { ...schemas, ...fsSchemas, ...wpSchemas },
     },
     paths: {
       ...fsPaths,
+      ...wpPaths,
       '/api/v1/ping': {
         get: {
           operationId: 'ping', tags: ['system'], security: [],
@@ -1491,8 +1494,20 @@ export function buildOpenApiSpec(): Schema {
         parameters: [idParam('clientId', 'Client id')],
         get: {
           operationId: 'listLeadSheets', tags: ['lead-sheets'],
-          summary: 'The client\'s lead sheets, in order, with how many accounts are on each',
+          summary: 'The client\'s lead sheets, in order, with how many accounts are on each; with periodId also each one\'s sign-off status for that period (LeadSheetForPeriod) and meta.unassignedCount',
+          parameters: [{ name: 'periodId', in: 'query', schema: { type: 'integer', minimum: 1 } }],
           responses: { '200': ok('Lead sheets', { type: 'array', items: ref('LeadSheet') }, true), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+        post: {
+          operationId: 'createLeadSheet', tags: ['lead-sheets'],
+          summary: 'Add a lead sheet',
+          requestBody: jsonBody({ ...ref('LeadSheetInput'), required: ['name'] }),
+          responses: {
+            '201': ok('Added', ref('LeadSheetRow')),
+            '400': errorResponse('Validation error'),
+            '409': errorResponse('DUPLICATE: the code is used'),
+            ...commonErrors,
+          },
         },
       },
       '/api/v1/clients/{clientId}/lead-sheets/seed': {
@@ -2092,6 +2107,7 @@ export const desktopRouter = Router();
 desktopRouter.use(desktopBackupRouter);
 desktopRouter.use(desktopTbRouter);
 desktopRouter.use(desktopClientSummaryRouter);
+desktopRouter.use(desktopMeRouter);
 desktopRouter.use(desktopDraftRouter);
 desktopRouter.get('/openapi.json', (_req, res) => {
   res.json(buildOpenApiSpec());

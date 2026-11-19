@@ -1,0 +1,136 @@
+{
+  "data": {
+    "accountCount": 1,
+    "currentStamp": "1fcdf7f3e85bcafa286d458576da1febc231b4b01ee192721e57f551a649b781",
+    "leadSheet": {
+      "client_id": 1,
+      "code": "A",
+      "created_at": "2026-11-19T12:43:43.685Z",
+      "created_by": 2,
+      "id": 1,
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "2026-11-19T12:43:43.742Z"
+    },
+    "notes": [
+      {
+        "account_id": 1,
+        "author_id": 2,
+        "author_name": "Example Preparer",
+        "body": "Agree to the bank confirmation",
+        "client_id": 1,
+        "created_at": "2026-11-19T12:43:43.819Z",
+        "id": 1,
+        "lead_sheet_id": 1,
+        "period_id": 1,
+        "resolved_at": "2026-11-19T12:43:43.834Z",
+        "resolved_by": 2,
+        "resolved_by_name": "Example Preparer",
+        "updated_at": "2026-11-19T12:43:43.834Z"
+      },
+      {
+        "account_id": null,
+        "author_id": 2,
+        "author_name": "Example Preparer",
+        "body": "Sheet-level note",
+        "client_id": 1,
+        "created_at": "2026-11-19T12:43:43.830Z",
+        "id": 2,
+        "lead_sheet_id": 1,
+        "period_id": 1,
+        "resolved_at": null,
+        "resolved_by": null,
+        "resolved_by_name": null,
+        "updated_at": "2026-11-19T12:43:43.830Z"
+      }
+    ],
+    "openNoteCount": 1,
+    "rows": [
+      {
+        "account_id": 1,
+        "account_name": "Cash - Operating",
+        "account_number": "1000",
+        "attachments": [
+          {
+            "id": 1,
+            "marks": 0,
+            "refCode": "A001"
+          }
+        ],
+        "book_adj_credit": "0",
+        "book_adj_debit": "0",
+        "book_adjusted_credit": "0",
+        "book_adjusted_debit": "15000000",
+        "category": "assets",
+        "is_active": true,
+        "lead_sheet_code": "A",
+        "lead_sheet_id": 1,
+        "lead_sheet_name": "Cash",
+        "lead_sheet_sort": 0,
+        "normal_balance": "debit",
+        "notes": [
+          {
+            "account_id": 1,
+            "author_id": 2,
+            "author_name": "Example Preparer",
+            "body": "Agree to the bank confirmation",
+            "client_id": 1,
+            "created_at": "2026-11-19T12:43:43.819Z",
+            "id": 1,
+            "lead_sheet_id": 1,
+            "period_id": 1,
+            "resolved_at": "2026-11-19T12:43:43.834Z",
+            "resolved_by": 2,
+            "resolved_by_name": "Example Preparer",
+            "updated_at": "2026-11-19T12:43:43.834Z"
+          }
+        ],
+        "period_id": 1,
+        "post_trans_credit": "0",
+        "post_trans_debit": "15000000",
+        "preparer_notes": null,
+        "prior_year_credit": "0",
+        "prior_year_debit": "12000000",
+        "reviewer_notes": null,
+        "row_updated_at": "2026-11-19T12:43:42.952Z",
+        "tax_adj_credit": "0",
+        "tax_adj_debit": "0",
+        "tax_adjusted_credit": "0",
+        "tax_adjusted_debit": "15000000",
+        "tax_line": null,
+        "tickmarks": [],
+        "trans_adj_credit": "0",
+        "trans_adj_debit": "0",
+        "unadjusted_credit": "0",
+        "unadjusted_debit": "15000000",
+        "unit": null,
+        "workpaper_ref": null
+      }
+    ],
+    "signoffs": {
+      "preparer": {
+        "balance_stamp": "1fcdf7f3e85bcafa286d458576da1febc231b4b01ee192721e57f551a649b781",
+        "id": 1,
+        "lead_sheet_id": 1,
+        "role": "preparer",
+        "signed_at": "2026-11-19T12:43:43.796Z",
+        "user_id": 2,
+        "user_name": "Example Preparer"
+      },
+      "reviewer": {
+        "balance_stamp": "1fcdf7f3e85bcafa286d458576da1febc231b4b01ee192721e57f551a649b781",
+        "id": 2,
+        "lead_sheet_id": 1,
+        "role": "reviewer",
+        "signed_at": "2026-11-19T12:43:43.810Z",
+        "user_id": 2,
+        "user_name": "Example Preparer"
+      }
+    },
+    "status": {
+      "preparer": "signed",
+      "reviewer": "signed"
+    }
+  },
+  "error": null
+}

@@ -1,0 +1,24 @@
+{
+  "data": {
+    "bucket": null,
+    "client_id": 1,
+    "deleted_at": null,
+    "deleted_by": null,
+    "etag": "a60d4dd416062e88f276f02a95b38cad3746b2fa6f07b722711d57daff31b9c1",
+    "file_path": null,
+    "file_size": 592,
+    "file_type": "application/pdf",
+    "filename": "Example bank statement.pdf",
+    "id": 1,
+    "linked_account_id": null,
+    "linked_journal_entry_id": null,
+    "object_key": "Clients/Demo Company LLC/Workpapers & Support/2024/Example bank statement.pdf",
+    "period_id": 1,
+    "section": "Workpapers & Support",
+    "sha256": "a60d4dd416062e88f276f02a95b38cad3746b2fa6f07b722711d57daff31b9c1",
+    "storage_backend": "local",
+    "uploaded_at": "2026-11-19T12:43:43.555Z",
+    "uploaded_by": 2
+  },
+  "error": null
+}

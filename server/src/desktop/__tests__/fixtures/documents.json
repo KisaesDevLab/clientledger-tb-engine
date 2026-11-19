@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+      "account_name": null,
+      "account_number": null,
+      "client_id": 1,
+      "file_size": 589,
+      "file_type": "application/pdf",
+      "filename": "Example engagement letter.pdf",
+      "id": 2,
+      "je_entry_number": null,
+      "linked_account_id": null,
+      "linked_journal_entry_id": null,
+      "object_key": "Clients/Demo Company LLC/Workpapers & Support/unknown-year/Example engagement letter.pdf",
+      "period_id": null,
+      "section": "Workpapers & Support",
+      "storage_backend": "local",
+      "uploaded_at": "2026-11-19T12:43:43.570Z",
+      "uploaded_by": 2,
+      "uploader_name": "Example Preparer"
+    },
+    {
+      "account_name": "Cash - Operating",
+      "account_number": "1000",
+      "client_id": 1,
+      "file_size": 592,
+      "file_type": "application/pdf",
+      "filename": "Example bank statement.pdf",
+      "id": 1,
+      "je_entry_number": null,
+      "linked_account_id": 1,
+      "linked_journal_entry_id": null,
+      "object_key": "Clients/Demo Company LLC/Workpapers & Support/2024/Example bank statement.pdf",
+      "period_id": 1,
+      "section": "Workpapers & Support",
+      "storage_backend": "local",
+      "uploaded_at": "2026-11-19T12:43:43.555Z",
+      "uploaded_by": 2,
+      "uploader_name": "Example Preparer"
+    }
+  ],
+  "error": null,
+  "meta": {
+    "total": 2
+  }
+}

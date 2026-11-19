@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "NOT_SIGNED",
+    "message": "No live signature to remove."
+  }
+}

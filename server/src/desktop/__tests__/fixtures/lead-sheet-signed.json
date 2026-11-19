@@ -1,0 +1,19 @@
+{
+  "data": {
+    "currentStamp": "1fcdf7f3e85bcafa286d458576da1febc231b4b01ee192721e57f551a649b781",
+    "signoff": {
+      "balance_stamp": "1fcdf7f3e85bcafa286d458576da1febc231b4b01ee192721e57f551a649b781",
+      "id": 1,
+      "invalidated_at": null,
+      "invalidated_by": null,
+      "lead_sheet_id": 1,
+      "period_id": 1,
+      "role": "preparer",
+      "signed_at": "2026-11-19T12:43:43.796Z",
+      "user_id": 2,
+      "user_name": "Example Preparer"
+    },
+    "status": "signed"
+  },
+  "error": null
+}

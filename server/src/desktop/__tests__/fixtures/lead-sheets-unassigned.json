@@ -1,0 +1,120 @@
+{
+  "data": [
+    {
+      "account_name": "Cash - Operating",
+      "account_number": "1000",
+      "category": "assets",
+      "id": 1,
+      "subcategory": null
+    },
+    {
+      "account_name": "Accounts Receivable",
+      "account_number": "1100",
+      "category": "assets",
+      "id": 2,
+      "subcategory": null
+    },
+    {
+      "account_name": "Property & Equipment",
+      "account_number": "1500",
+      "category": "assets",
+      "id": 3,
+      "subcategory": null
+    },
+    {
+      "account_name": "Accounts Payable",
+      "account_number": "2000",
+      "category": "liabilities",
+      "id": 4,
+      "subcategory": null
+    },
+    {
+      "account_name": "Accrued Liabilities",
+      "account_number": "2100",
+      "category": "liabilities",
+      "id": 5,
+      "subcategory": null
+    },
+    {
+      "account_name": "Notes Payable",
+      "account_number": "2500",
+      "category": "liabilities",
+      "id": 6,
+      "subcategory": null
+    },
+    {
+      "account_name": "Common Stock",
+      "account_number": "3000",
+      "category": "equity",
+      "id": 7,
+      "subcategory": null
+    },
+    {
+      "account_name": "Retained Earnings",
+      "account_number": "3100",
+      "category": "equity",
+      "id": 8,
+      "subcategory": null
+    },
+    {
+      "account_name": "Service Revenue",
+      "account_number": "4000",
+      "category": "revenue",
+      "id": 9,
+      "subcategory": null
+    },
+    {
+      "account_name": "Product Sales",
+      "account_number": "4100",
+      "category": "revenue",
+      "id": 10,
+      "subcategory": null
+    },
+    {
+      "account_name": "Cost of Goods Sold",
+      "account_number": "5000",
+      "category": "expenses",
+      "id": 11,
+      "subcategory": null
+    },
+    {
+      "account_name": "Salaries & Wages",
+      "account_number": "6000",
+      "category": "expenses",
+      "id": 12,
+      "subcategory": null
+    },
+    {
+      "account_name": "Rent Expense",
+      "account_number": "6100",
+      "category": "expenses",
+      "id": 13,
+      "subcategory": null
+    },
+    {
+      "account_name": "Depreciation Expense",
+      "account_number": "6200",
+      "category": "expenses",
+      "id": 14,
+      "subcategory": null
+    },
+    {
+      "account_name": "Professional Fees",
+      "account_number": "6300",
+      "category": "expenses",
+      "id": 15,
+      "subcategory": null
+    },
+    {
+      "account_name": "Utilities Expense",
+      "account_number": "6400",
+      "category": "expenses",
+      "id": 16,
+      "subcategory": null
+    }
+  ],
+  "error": null,
+  "meta": {
+    "count": 16
+  }
+}

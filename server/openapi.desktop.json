@@ -3212,7 +3212,10 @@
             "type": "integer"
           },
           "code": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "type": "string"
@@ -7185,6 +7188,1450 @@
             "type": "integer"
           }
         }
+      },
+      "DesktopMe": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "displayName"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Shown on sign-offs, notes and completed tasks"
+          }
+        }
+      },
+      "Document": {
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "filename",
+          "file_size",
+          "file_type",
+          "uploaded_at",
+          "section"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "integer"
+          },
+          "file_type": {
+            "type": "string"
+          },
+          "section": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The folder section (Workpapers & Support, …)"
+          },
+          "period_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "linked_account_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "linked_journal_entry_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "uploaded_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "storage_backend": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "object_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "je_entry_number": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ]
+          },
+          "uploader_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "description": "A stored file of the client (the list adds the linked account and entry and the uploader)"
+      },
+      "DocumentLink": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "linkedAccountId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "linkedJournalEntryId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "EngagementTask": {
+        "type": "object",
+        "required": [
+          "id",
+          "period_id",
+          "title",
+          "status",
+          "sort_order"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "period_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "review",
+              "completed",
+              "n_a"
+            ]
+          },
+          "assignee_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completed_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "assignee_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completed_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EngagementTaskInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "review",
+              "completed",
+              "n_a"
+            ]
+          },
+          "assigneeId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "OpenTask": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "period_id",
+          "period_name",
+          "end_date",
+          "client_id",
+          "client_name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "review",
+              "completed",
+              "n_a"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "period_id": {
+            "type": "integer"
+          },
+          "period_name": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "assignee_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "assignee_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "description": "A task not completed or n/a, of any client"
+      },
+      "LeadSheetRow": {
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "code",
+          "name",
+          "sort_order"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LeadSheetInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 10
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        }
+      },
+      "LeadSheetForPeriod": {
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "code",
+          "name",
+          "sort_order",
+          "account_count",
+          "current_stamp",
+          "signoffs",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "account_count": {
+            "type": "integer"
+          },
+          "current_stamp": {
+            "type": "string"
+          },
+          "signoffs": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "preparer": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "lead_sheet_id",
+                  "role",
+                  "user_id",
+                  "user_name",
+                  "signed_at",
+                  "balance_stamp"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "lead_sheet_id": {
+                    "type": "integer"
+                  },
+                  "period_id": {
+                    "type": "integer"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "preparer",
+                      "reviewer"
+                    ]
+                  },
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "user_name": {
+                    "type": "string"
+                  },
+                  "signed_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "balance_stamp": {
+                    "type": "string"
+                  },
+                  "invalidated_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "invalidated_by": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "reviewer": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "lead_sheet_id",
+                  "role",
+                  "user_id",
+                  "user_name",
+                  "signed_at",
+                  "balance_stamp"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "lead_sheet_id": {
+                    "type": "integer"
+                  },
+                  "period_id": {
+                    "type": "integer"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "preparer",
+                      "reviewer"
+                    ]
+                  },
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "user_name": {
+                    "type": "string"
+                  },
+                  "signed_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "balance_stamp": {
+                    "type": "string"
+                  },
+                  "invalidated_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "invalidated_by": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "description": "The live signature for each role, when there is one"
+          },
+          "status": {
+            "type": "object",
+            "required": [
+              "preparer",
+              "reviewer"
+            ],
+            "properties": {
+              "preparer": {
+                "type": "string",
+                "enum": [
+                  "signed",
+                  "stale",
+                  "unsigned"
+                ],
+                "description": "stale: signed, but the balances moved since"
+              },
+              "reviewer": {
+                "type": "string",
+                "enum": [
+                  "signed",
+                  "stale",
+                  "unsigned"
+                ],
+                "description": "stale: signed, but the balances moved since"
+              }
+            }
+          }
+        },
+        "description": "A lead sheet with its sign-off status for one period (?periodId=)"
+      },
+      "UnassignedAccount": {
+        "type": "object",
+        "required": [
+          "id",
+          "account_number",
+          "account_name",
+          "category"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "account_number": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LeadSheetNote": {
+        "type": "object",
+        "required": [
+          "id",
+          "lead_sheet_id",
+          "period_id",
+          "body",
+          "author_name",
+          "created_at",
+          "resolved_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "lead_sheet_id": {
+            "type": "integer"
+          },
+          "period_id": {
+            "type": "integer"
+          },
+          "account_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "author_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "author_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolved_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "resolved_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LeadSheetAccountRow": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "account_number",
+          "account_name",
+          "category",
+          "normal_balance",
+          "is_active",
+          "unadjusted_debit",
+          "unadjusted_credit",
+          "prior_year_debit",
+          "prior_year_credit",
+          "book_adj_debit",
+          "book_adj_credit",
+          "tax_adj_debit",
+          "tax_adj_credit",
+          "book_adjusted_debit",
+          "book_adjusted_credit",
+          "tax_adjusted_debit",
+          "tax_adjusted_credit",
+          "tickmarks",
+          "attachments",
+          "notes"
+        ],
+        "properties": {
+          "period_id": {
+            "type": "integer"
+          },
+          "account_id": {
+            "type": "integer"
+          },
+          "account_number": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "assets",
+              "liabilities",
+              "equity",
+              "revenue",
+              "expenses"
+            ]
+          },
+          "normal_balance": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "tax_line": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workpaper_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preparer_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reviewer_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lead_sheet_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lead_sheet_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lead_sheet_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lead_sheet_sort": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "row_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unadjusted_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Unadjusted debit (cents, as decimal text)"
+          },
+          "unadjusted_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Unadjusted credit (cents, as decimal text)"
+          },
+          "prior_year_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Prior-year debit (cents, as decimal text)"
+          },
+          "prior_year_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Prior-year credit (cents, as decimal text)"
+          },
+          "trans_adj_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Transaction adjustments debit (cents, as decimal text)"
+          },
+          "trans_adj_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Transaction adjustments credit (cents, as decimal text)"
+          },
+          "post_trans_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "After transaction adjustments, debit (cents, as decimal text)"
+          },
+          "post_trans_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "After transaction adjustments, credit (cents, as decimal text)"
+          },
+          "book_adj_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Book AJE debit (cents, as decimal text)"
+          },
+          "book_adj_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Book AJE credit (cents, as decimal text)"
+          },
+          "tax_adj_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Tax AJE debit (cents, as decimal text)"
+          },
+          "tax_adj_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Tax AJE credit (cents, as decimal text)"
+          },
+          "book_adjusted_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Book adjusted debit (cents, as decimal text)"
+          },
+          "book_adjusted_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Book adjusted credit (cents, as decimal text)"
+          },
+          "tax_adjusted_debit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Tax basis debit (cents, as decimal text)"
+          },
+          "tax_adjusted_credit": {
+            "type": "string",
+            "pattern": "^-?\\d+$",
+            "description": "Tax basis credit (cents, as decimal text)"
+          },
+          "tickmarks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "As /periods/{periodId}/tb-tickmarks"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "refCode"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "refCode": {
+                  "type": "string"
+                },
+                "marks": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadSheetNote"
+            }
+          }
+        },
+        "description": "One account of a lead sheet for the period: the trial balance row plus its marks, attachments and notes"
+      },
+      "LeadSheetSchedule": {
+        "type": "object",
+        "required": [
+          "leadSheet",
+          "rows",
+          "accountCount",
+          "currentStamp",
+          "signoffs",
+          "status",
+          "notes",
+          "openNoteCount"
+        ],
+        "properties": {
+          "leadSheet": {
+            "$ref": "#/components/schemas/LeadSheetRow"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadSheetAccountRow"
+            }
+          },
+          "accountCount": {
+            "type": "integer"
+          },
+          "currentStamp": {
+            "type": "string",
+            "description": "SHA-256 of the sheet's balances; a signature with another stamp is stale"
+          },
+          "signoffs": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "preparer": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "lead_sheet_id",
+                  "role",
+                  "user_id",
+                  "user_name",
+                  "signed_at",
+                  "balance_stamp"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "lead_sheet_id": {
+                    "type": "integer"
+                  },
+                  "period_id": {
+                    "type": "integer"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "preparer",
+                      "reviewer"
+                    ]
+                  },
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "user_name": {
+                    "type": "string"
+                  },
+                  "signed_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "balance_stamp": {
+                    "type": "string"
+                  },
+                  "invalidated_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "invalidated_by": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "reviewer": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "lead_sheet_id",
+                  "role",
+                  "user_id",
+                  "user_name",
+                  "signed_at",
+                  "balance_stamp"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "lead_sheet_id": {
+                    "type": "integer"
+                  },
+                  "period_id": {
+                    "type": "integer"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "preparer",
+                      "reviewer"
+                    ]
+                  },
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "user_name": {
+                    "type": "string"
+                  },
+                  "signed_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "balance_stamp": {
+                    "type": "string"
+                  },
+                  "invalidated_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "invalidated_by": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "description": "The live signature for each role, when there is one"
+          },
+          "status": {
+            "type": "object",
+            "required": [
+              "preparer",
+              "reviewer"
+            ],
+            "properties": {
+              "preparer": {
+                "type": "string",
+                "enum": [
+                  "signed",
+                  "stale",
+                  "unsigned"
+                ],
+                "description": "stale: signed, but the balances moved since"
+              },
+              "reviewer": {
+                "type": "string",
+                "enum": [
+                  "signed",
+                  "stale",
+                  "unsigned"
+                ],
+                "description": "stale: signed, but the balances moved since"
+              }
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadSheetNote"
+            },
+            "description": "Every note of the sheet, the account notes too"
+          },
+          "openNoteCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "LeadSheetSigned": {
+        "type": "object",
+        "required": [
+          "signoff",
+          "status",
+          "currentStamp"
+        ],
+        "properties": {
+          "signoff": {
+            "type": "object",
+            "required": [
+              "id",
+              "lead_sheet_id",
+              "role",
+              "user_id",
+              "user_name",
+              "signed_at",
+              "balance_stamp"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "lead_sheet_id": {
+                "type": "integer"
+              },
+              "period_id": {
+                "type": "integer"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "preparer",
+                  "reviewer"
+                ]
+              },
+              "user_id": {
+                "type": "integer"
+              },
+              "user_name": {
+                "type": "string"
+              },
+              "signed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "balance_stamp": {
+                "type": "string"
+              },
+              "invalidated_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "invalidated_by": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          },
+          "status": {
+            "const": "signed"
+          },
+          "currentStamp": {
+            "type": "string"
+          }
+        }
+      },
+      "LeadSheetAttachment": {
+        "type": "object",
+        "required": [
+          "id",
+          "period_id",
+          "ref_code",
+          "source_file_name",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "period_id": {
+            "type": "integer"
+          },
+          "lead_sheet_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lead_sheet_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ref_code": {
+            "type": "string",
+            "description": "The sheet code's letters and a number (A001), never reused"
+          },
+          "document_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source_file_name": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_by_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_size": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "fileSize": {
+            "type": "integer"
+          },
+          "file_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deleted_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "WorkpaperSave": {
+        "type": "object",
+        "required": [
+          "reports"
+        ],
+        "properties": {
+          "reports": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "pdf-wp-index",
+                "pdf-lead-sheets",
+                "pdf-tb",
+                "pdf-is",
+                "pdf-bs",
+                "pdf-equity",
+                "pdf-je",
+                "pdf-aje",
+                "pdf-gl",
+                "pdf-tax-code",
+                "pdf-tax-pl",
+                "pdf-tax-return",
+                "pdf-m1"
+              ]
+            }
+          },
+          "includeAttachments": {
+            "type": "boolean"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "unadjusted",
+              "book",
+              "tax"
+            ]
+          },
+          "groupByLeadSheet": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WorkpaperSaved": {
+        "type": "object",
+        "required": [
+          "documentId",
+          "filename",
+          "sizeBytes",
+          "skippedAttachments"
+        ],
+        "properties": {
+          "documentId": {
+            "type": "integer"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          },
+          "skippedAttachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "refCode",
+                "reason"
+              ],
+              "properties": {
+                "refCode": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -10695,6 +12142,3029 @@
         }
       }
     },
+    "/api/v1/desktop/me": {
+      "get": {
+        "operationId": "desktopMe",
+        "tags": [
+          "desktop"
+        ],
+        "summary": "The name of the person at this PC (the desktop's one engine user)",
+        "responses": {
+          "200": {
+            "description": "The user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DesktopMe"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The desktop user is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "setDesktopMe",
+        "tags": [
+          "desktop"
+        ],
+        "summary": "Set the name shown on sign-offs, notes and completed tasks (Q74)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "displayName"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DesktopMe"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Blank or longer than 255",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/documents": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listDocuments",
+        "tags": [
+          "documents"
+        ],
+        "summary": "The client's documents, newest first",
+        "responses": {
+          "200": {
+            "description": "Documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Document"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "uploadDocument",
+        "tags": [
+          "documents"
+        ],
+        "summary": "Store a file in the client's folder (25 MB at most; PDF, CSV, TXT, Excel, Word, PNG, JPEG, GIF, WEBP, TIFF; the content must match the type)",
+        "requestBody": {
+          "required": true,
+          "description": "The file as field `file`",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "periodId": {
+                    "type": "string",
+                    "pattern": "^\\d+$",
+                    "description": "Files it under that period's fiscal year"
+                  },
+                  "section": {
+                    "type": "string",
+                    "description": "A folder section; the default upload section when absent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Document"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file, a type not allowed (INVALID_FILE_TYPE) or content that does not match (CONTENT_MISMATCH)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CLIENT_NOT_LINKED: the client has no folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Larger than 25 MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Document id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "downloadDocument",
+        "tags": [
+          "documents"
+        ],
+        "summary": "The stored file, as an attachment",
+        "responses": {
+          "200": {
+            "description": "The file",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Document id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "delete": {
+        "operationId": "deleteDocument",
+        "tags": [
+          "documents"
+        ],
+        "summary": "Delete a document and its file",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Neither the uploader nor an admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/link": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Document id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "put": {
+        "operationId": "linkDocument",
+        "tags": [
+          "documents"
+        ],
+        "summary": "Link a document to an account or a journal entry (null unlinks)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentLink"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Document"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/engagement-tasks": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listEngagementTasks",
+        "tags": [
+          "checklist"
+        ],
+        "summary": "The period's checklist, in order",
+        "responses": {
+          "200": {
+            "description": "Tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EngagementTask"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "count"
+                      ],
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createEngagementTask",
+        "tags": [
+          "checklist"
+        ],
+        "summary": "Add a task",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementTaskInput",
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/EngagementTask"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engagement-tasks/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Task id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateEngagementTask",
+        "tags": [
+          "checklist"
+        ],
+        "summary": "Change a task; completed stamps who and when, any other status clears them",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementTaskInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/EngagementTask"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteEngagementTask",
+        "tags": [
+          "checklist"
+        ],
+        "summary": "Delete a task",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engagement-summary": {
+      "get": {
+        "operationId": "openEngagementTasks",
+        "tags": [
+          "checklist"
+        ],
+        "summary": "Every client's tasks not completed or n/a",
+        "responses": {
+          "200": {
+            "description": "Open tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OpenTask"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "count"
+                      ],
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/lead-sheets/unassigned": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "unassignedAccounts",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Active accounts on no lead sheet",
+        "responses": {
+          "200": {
+            "description": "Accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UnassignedAccount"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "count"
+                      ],
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/lead-sheets/reorder": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "reorderLeadSheets",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Set each lead sheet's place",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order"
+                ],
+                "properties": {
+                  "order": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "sortOrder"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "updated"
+                      ],
+                      "properties": {
+                        "updated": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{clientId}/lead-sheets/assign": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "description": "Client id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "assignLeadSheet",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Put accounts on a lead sheet (null takes them off)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "accountIds",
+                  "leadSheetId"
+                ],
+                "properties": {
+                  "accountIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 2000,
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "leadSheetId": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "updated"
+                      ],
+                      "properties": {
+                        "updated": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such lead sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lead-sheets/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateLeadSheet",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Rename a lead sheet or move it",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadSheetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetRow"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such lead sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "DUPLICATE: the code is used",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteLeadSheet",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Delete a lead sheet: its accounts become unassigned, its sign-offs and notes go with it, its attachments stay",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "orphanedAccounts"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "orphanedAccounts": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such lead sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheets": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetSchedules",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Every lead sheet of the period with its accounts, sign-offs and notes",
+        "responses": {
+          "200": {
+            "description": "Schedules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LeadSheetSchedule"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "count"
+                      ],
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheets/{leadSheetId}": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "leadSheetId",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetSchedule",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "One lead sheet of the period",
+        "responses": {
+          "200": {
+            "description": "Schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetSchedule"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such lead sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheets/{leadSheetId}/signoff": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "leadSheetId",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "signLeadSheet",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Sign as preparer or reviewer (a new signature replaces the live one)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "role"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "preparer",
+                      "reviewer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Signed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetSigned"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such lead sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheets/{leadSheetId}/unsign": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "leadSheetId",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "unsignLeadSheet",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Remove the live signature of a role",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "role"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "preparer",
+                      "reviewer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "removed",
+                        "status"
+                      ],
+                      "properties": {
+                        "removed": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "const": "unsigned"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_SIGNED: no live signature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "The period is locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheets/{leadSheetId}/notes": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "leadSheetId",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetNotes",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "The sheet's notes, the account notes too",
+        "responses": {
+          "200": {
+            "description": "Notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LeadSheetNote"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "open"
+                      ],
+                      "properties": {
+                        "open": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addLeadSheetNote",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Add a note to the sheet or one of its accounts",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "body"
+                ],
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "accountId": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetNote"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheets/{leadSheetId}/notes/{noteId}/resolve": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "leadSheetId",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "noteId",
+          "in": "path",
+          "required": true,
+          "description": "Note id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "resolveLeadSheetNote",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Resolve a note, or open it again",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resolved"
+                ],
+                "properties": {
+                  "resolved": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetNote"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such note",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheet-attachments": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetAttachments",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "The period's attachments, by ref code",
+        "responses": {
+          "200": {
+            "description": "Attachments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LeadSheetAttachment"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "count"
+                      ],
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addLeadSheetAttachment",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Attach a PDF, PNG or JPEG (10 MB at most; pictures become PDF) to a lead sheet or one of its accounts",
+        "requestBody": {
+          "required": true,
+          "description": "The file as field `file`",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "leadSheetId": {
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                  },
+                  "leadSheetCode": {
+                    "type": "string",
+                    "description": "Its letters start the ref code"
+                  },
+                  "accountId": {
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Attached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetAttachment"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file or not a PDF, PNG or JPEG (INVALID_FILE_TYPE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CLIENT_NOT_LINKED: the client has no folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Larger than 10 MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "The period is locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/lead-sheet-attachments/by-account": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetAttachmentsByAccount",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Each account's attachment ref codes",
+        "responses": {
+          "200": {
+            "description": "By account id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "refCode"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "refCode": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lead-sheet-attachments/{id}/file": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Attachment id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetAttachmentFile",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "The attachment as PDF (inline)",
+        "responses": {
+          "200": {
+            "description": "The PDF",
+            "headers": {
+              "X-Skipped-Attachments": {
+                "description": "Ref codes of attachments that could not be read and were left out, comma separated",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such attachment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lead-sheet-attachments/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Attachment id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "delete": {
+        "operationId": "deleteLeadSheetAttachment",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Delete an attachment; its ref code is never reused",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "refCode"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "refCode": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Neither the uploader nor an admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such attachment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "The period is locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/workpaper-index": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "pageBreak",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          "description": "A new page for each workpaper reference"
+        }
+      ],
+      "get": {
+        "operationId": "workpaperIndexPdf",
+        "tags": [
+          "workpapers"
+        ],
+        "summary": "The workpaper index (accounts by workpaper reference) as PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF",
+            "headers": {
+              "X-Skipped-Attachments": {
+                "description": "Ref codes of attachments that could not be read and were left out, comma separated",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/lead-sheets/{leadSheetId}": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "leadSheetId",
+          "in": "path",
+          "required": true,
+          "description": "Lead sheet id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "includeAttachments",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1",
+              "true",
+              "false"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "leadSheetPdf",
+        "tags": [
+          "workpapers"
+        ],
+        "summary": "One lead sheet schedule as PDF, its attachments after it when asked",
+        "responses": {
+          "200": {
+            "description": "The PDF",
+            "headers": {
+              "X-Skipped-Attachments": {
+                "description": "Ref codes of attachments that could not be read and were left out, comma separated",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such lead sheet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/workpaper-merged": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "reports",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Report ids, comma separated, in the order they print (pdf-wp-index, pdf-lead-sheets, pdf-tb, pdf-is, pdf-bs, pdf-equity, pdf-je, pdf-aje, pdf-gl, pdf-tax-code, pdf-tax-pl, pdf-tax-return, pdf-m1)"
+        },
+        {
+          "name": "includeAttachments",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1",
+              "true",
+              "false"
+            ]
+          }
+        },
+        {
+          "name": "basis",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "unadjusted",
+              "book",
+              "tax"
+            ]
+          }
+        },
+        {
+          "name": "groupByLeadSheet",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "workpaperPackagePdf",
+        "tags": [
+          "workpapers"
+        ],
+        "summary": "The workpaper package: a contents page, the reports, then the attachments",
+        "responses": {
+          "200": {
+            "description": "The PDF",
+            "headers": {
+              "X-Skipped-Attachments": {
+                "description": "Ref codes of attachments that could not be read and were left out, comma separated",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No report asked for",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/workpaper-merged/save": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "saveWorkpaperPackage",
+        "tags": [
+          "workpapers"
+        ],
+        "summary": "Build the package and store it in the client's workpapers",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkpaperSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkpaperSaved"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CLIENT_NOT_LINKED: the client has no folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ping": {
       "get": {
         "operationId": "ping",
@@ -13461,7 +17931,17 @@
         "tags": [
           "lead-sheets"
         ],
-        "summary": "The client's lead sheets, in order, with how many accounts are on each",
+        "summary": "The client's lead sheets, in order, with how many accounts are on each; with periodId also each one's sign-off status for that period (LeadSheetForPeriod) and meta.unassignedCount",
+        "parameters": [
+          {
+            "name": "periodId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Lead sheets",
@@ -13503,6 +17983,90 @@
           },
           "401": {
             "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createLeadSheet",
+        "tags": [
+          "lead-sheets"
+        ],
+        "summary": "Add a lead sheet",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadSheetInput",
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LeadSheetRow"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "DUPLICATE: the code is used",
             "content": {
               "application/json": {
                 "schema": {

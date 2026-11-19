@@ -1,0 +1,38 @@
+{
+  "data": [
+    {
+      "account_id": 1,
+      "annotations": [],
+      "created_at": "2026-11-19T12:43:43.855Z",
+      "created_by_name": "Example Preparer",
+      "document_id": 3,
+      "file_size": 595,
+      "file_type": "application/pdf",
+      "id": 1,
+      "lead_sheet_code": "A",
+      "lead_sheet_id": 1,
+      "period_id": 1,
+      "ref_code": "A001",
+      "source_file_name": "Example confirmation.pdf"
+    },
+    {
+      "account_id": null,
+      "annotations": [],
+      "created_at": "2026-11-19T12:43:43.892Z",
+      "created_by_name": "Example Preparer",
+      "document_id": 4,
+      "file_size": 1155,
+      "file_type": "application/pdf",
+      "id": 2,
+      "lead_sheet_code": "A",
+      "lead_sheet_id": 1,
+      "period_id": 1,
+      "ref_code": "A002",
+      "source_file_name": "Example receipt.png"
+    }
+  ],
+  "error": null,
+  "meta": {
+    "count": 2
+  }
+}
