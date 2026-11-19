@@ -9,6 +9,7 @@ This repo is the desktop fork of the Vibe Trial Balance engine, bundled in Clien
 ## Fork rules
 
 - Desktop changes live under `server/src/desktop/`, switched on by `DESKTOP_MODE=true`. Upstream files get the smallest possible hooks; no reformatting or restructuring.
+- Hooks in upstream files: `server/src/lib/fs/fsReports.ts`, the accountant's report's default date is `localToday()` from `desktop/localDate.ts` (Q71; the same day as before when no PC zone is set, so the appliance is unchanged). Upstream issue KisaesDevLab/Vibe-Trial-Balance#26.
 - Desktop never ships a database migration that upstream doesn't have (keeps `.tbak` compatible with the appliance).
 - Every ClientLedger Trial Balance phase ends with a sync check: `git fetch upstream --tags`, list new commits and migrations, merge or record why not below.
 

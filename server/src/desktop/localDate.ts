@@ -51,3 +51,19 @@ export function useLocalDates(zone: string | undefined): void {
     return original.apply(this, args);
   };
 }
+
+/**
+ * Today's date, `YYYY-MM-DD`, in the PC's zone (as `useLocalDates` was
+ * given it), else in UTC. The Statement Writer dates the accountant's report
+ * with it when the set has no date of its own (Q71).
+ */
+export function localToday(now: Date = new Date()): string {
+  if (!installed) return now.toISOString().slice(0, 10);
+  // en-CA writes dates as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: installed,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}

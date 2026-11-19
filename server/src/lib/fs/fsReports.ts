@@ -20,6 +20,7 @@
 import crypto from 'crypto';
 import type { Knex } from 'knex';
 import { db } from '../../db';
+import { localToday } from '../../desktop/localDate';
 import {
   bindLayout, buildDefaultLayout, computeFsReport, fsClientEntityKind, fsClientLayoutSchema, fsFrontMatterSchema,
   fsIncludedTitlesPhrase, fsReportSettingsSchema, fsStyleSchema, renderLetterBody, sanitizeFsLetterHtml, toPortableLayout,
@@ -439,7 +440,8 @@ export async function resolveLetter(draft: ResolvedDraft, source: FsSourceData):
   const firmName = (profile?.display_name as string | null)?.trim() || firm?.trim() || '';
   const city = (profile?.city as string | null)?.trim() || '';
   const state = (profile?.state as string | null)?.trim() || '';
-  const reportDate = fm.reportDate ?? new Date().toISOString().slice(0, 10);
+  // Desktop fork (Q71): today in the PC's zone, not the UTC day the engine runs on.
+  const reportDate = fm.reportDate ?? localToday();
   const framework = draft.settings.framework;
   const kinds = draft.layout.statements.filter((s) => s.enabled).map((s) => s.kind);
   const values: Record<string, string> = {

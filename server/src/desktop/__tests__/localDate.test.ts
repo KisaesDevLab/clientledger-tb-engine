@@ -7,7 +7,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readLocalZone, useLocalDates } from '../localDate';
+import { localToday, readLocalZone, useLocalDates } from '../localDate';
 
 process.env.TZ = 'UTC';
 after(() => useLocalDates(undefined));
@@ -45,4 +45,16 @@ test('an unknown zone is refused at start-up', () => {
 test('UTC itself is not a local zone', () => {
   const zone = readLocalZone();
   assert.ok(zone === undefined || (zone !== 'UTC' && zone !== 'Etc/UTC'));
+});
+
+test('today for the accountant\'s report is the PC\'s day, not the UTC one (Q71)', () => {
+  // 01:30 UTC on Nov 19 is still Nov 18 in Chicago.
+  const evening = new Date('2026-11-19T01:30:00Z');
+  useLocalDates('America/Chicago');
+  try {
+    assert.equal(localToday(evening), '2026-11-18');
+  } finally {
+    useLocalDates(undefined);
+  }
+  assert.equal(localToday(evening), '2026-11-19', 'no zone known: UTC');
 });
