@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
+import { assertNotCheckedOut } from '../lib/periodGuard';
 
 export const engagementCollectionRouter = Router({ mergeParams: true });
 engagementCollectionRouter.use(authMiddleware);
@@ -62,7 +63,10 @@ engagementCollectionRouter.post('/', async (req: AuthRequest, res: Response): Pr
   if (!result.success) { res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: result.error.message } }); return; }
   const d = result.data;
   try {
-    const [row] = await db('engagement_tasks').insert({
+    const [row] = await db.transaction(async (trx) => {
+      // Desktop sync: not in a period a desktop holds.
+      await assertNotCheckedOut(trx, [periodId]);
+      return trx('engagement_tasks').insert({
       period_id:   periodId,
       title:       d.title,
       description: d.description ?? null,
@@ -73,6 +77,7 @@ engagementCollectionRouter.post('/', async (req: AuthRequest, res: Response): Pr
       notes:       d.notes ?? null,
       created_by:  req.user!.userId,
     }).returning('*');
+    });
     res.status(201).json({ data: parseRow(row as Record<string, unknown>), error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'engagement');
@@ -104,7 +109,10 @@ engagementItemRouter.patch('/', async (req: AuthRequest, res: Response): Promise
     }
   }
   try {
-    const [updated] = await db('engagement_tasks').where({ id }).update(updates).returning('*');
+    const [updated] = await db.transaction(async (trx) => {
+      await assertNotCheckedOut(trx, [(await trx('engagement_tasks').where({ id }).first('period_id'))?.period_id]);
+      return trx('engagement_tasks').where({ id }).update(updates).returning('*');
+    });
     if (!updated) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Task not found' } }); return; }
     res.json({ data: parseRow(updated as Record<string, unknown>), error: null });
   } catch (err: unknown) {
@@ -117,7 +125,11 @@ engagementItemRouter.delete('/', async (req: AuthRequest, res: Response): Promis
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ data: null, error: { code: 'INVALID_ID', message: 'Invalid ID' } }); return; }
   try {
-    const deleted = await db('engagement_tasks').where({ id }).delete();
+    const deleted = await db.transaction(async (trx): Promise<number> => {
+      await assertNotCheckedOut(trx, [(await trx('engagement_tasks').where({ id }).first('period_id'))?.period_id]);
+      const n: number = await trx('engagement_tasks').where({ id }).delete();
+      return n;
+    });
     if (!deleted) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Task not found' } }); return; }
     res.json({ data: { id }, error: null });
   } catch (err: unknown) {

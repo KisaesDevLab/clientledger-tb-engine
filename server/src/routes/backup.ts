@@ -32,6 +32,7 @@ import {
   deleteFsClientData, dumpFsClientTables, dumpFsLibrary, restoreFsClientTables, restoreFsLibrary, FS_USER_FK_COLUMNS,
 } from '../lib/fs/fsBackup';
 import { sendServerError } from '../lib/safeError';
+import { assertClientNotCheckedOut } from '../lib/periodGuard';
 import {
   BackupRefusal,
   FORMAT_VERSION,
@@ -112,6 +113,19 @@ interface BackupOptions {
    * only). Off by default: an archive carries rows, not bytes.
    */
   includeFiles?: boolean;
+  /**
+   * Desktop sync (S3 pull): write the archive here instead of the backups
+   * folder, and record no backup_history row (it is not a backup anyone
+   * restores from the Backups page; the sync job owns the file).
+   */
+  outDir?: string;
+  recordHistory?: boolean;
+  /**
+   * Fields added to the manifest, computed inside the archive's own
+   * REPEATABLE READ snapshot (the period stamp, so it describes exactly the
+   * rows in the archive).
+   */
+  manifestExtra?: (trx: Knex.Transaction) => Promise<Record<string, unknown>>;
 }
 
 interface BackupHistoryRow {
@@ -161,7 +175,7 @@ function appendAndWait(archive: archiver.Archiver, body: Buffer, name: string): 
   });
 }
 
-async function createBackup(
+export async function createBackup(
   level: BackupLevel,
   options: BackupOptions,
   userId: number | null,
@@ -177,6 +191,7 @@ async function createBackup(
   let clientName: string | null = null;
   let periodName: string | null = null;
   let username = 'system';
+  let extra: Record<string, unknown> = {};
 
   await db.transaction(
     async (trx) => {
@@ -294,8 +309,21 @@ async function createBackup(
         if (await trx.schema.hasTable('m1_adjustments') && periodIds.length > 0) {
           await dump('m1_adjustments', await trx('m1_adjustments').whereIn('period_id', periodIds).select('*'));
         }
-        if (await trx.schema.hasTable('bank_reconciliations') && periodIds.length > 0) {
-          const reconRows = await trx('bank_reconciliations').whereIn('period_id', periodIds).select('*');
+        if (await trx.schema.hasTable('py_comparison_data') && periodIds.length > 0) {
+          await dump('py_comparison_data', await trx('py_comparison_data').whereIn('period_id', periodIds).select('*'));
+        }
+        // Client-level rows that deleteClientData removes on a replace, so
+        // they must ride along or a replace loses them.
+        if (await trx.schema.hasTable('saved_reports')) {
+          await dump('saved_reports', await trx('saved_reports').where('client_id', clientId).select('*'));
+        }
+        if (await trx.schema.hasTable('export_consolidation_settings')) {
+          await dump('export_consolidation_settings', await trx('export_consolidation_settings').where('client_id', clientId).select('*'));
+        }
+        // By client, not by period: a reconciliation need not name a period,
+        // and deleteClientData removes them by client.
+        if (await trx.schema.hasTable('bank_reconciliations')) {
+          const reconRows = await trx('bank_reconciliations').where('client_id', clientId).select('*');
           await dump('bank_reconciliations', reconRows);
           const reconIds = reconRows.map((r: { id: number }) => r.id);
           if (reconIds.length > 0 && await trx.schema.hasTable('reconciliation_items')) {
@@ -309,17 +337,49 @@ async function createBackup(
         const cId = period?.client_id;
         const client = cId ? await trx('clients').where('id', cId).select('*') : [];
         await dump('clients', client);
-        await dump('periods', period ? [period] : []);
-        await dump('chart_of_accounts', cId ? await trx('chart_of_accounts').where('client_id', cId).select('*') : []);
         const coaRows = cId ? await trx('chart_of_accounts').where('client_id', cId).select('id') : [];
         const coaIds = coaRows.map((r: { id: number }) => r.id);
+        // References (desktop sync, owner 2026-11-19): the period's own rows
+        // name rows of other periods, a variance note its comparison period
+        // and a reconciliation item a transaction of an earlier period. They
+        // come along as plain rows (a period carries no balances by itself)
+        // so the notes and items restore and a send-back returns them; the
+        // prior period's data is still not carried (SQ7). The manifest's
+        // periodId tells the archive's own period from a reference.
+        const varianceRows = coaIds.length > 0
+          ? await trx('variance_notes').where('period_id', periodId).whereIn('account_id', coaIds).select('*')
+          : [];
+        const reconRows = (await trx.schema.hasTable('bank_reconciliations'))
+          ? await trx('bank_reconciliations').where('period_id', periodId).select('*')
+          : [];
+        const reconIds = reconRows.map((r: { id: number }) => r.id);
+        const itemRows = reconIds.length > 0 && (await trx.schema.hasTable('reconciliation_items'))
+          ? await trx('reconciliation_items').whereIn('reconciliation_id', reconIds).select('*')
+          : [];
+        const ownTxns = cId ? await trx('bank_transactions').where('client_id', cId).where('period_id', periodId).select('*') : [];
+        const ownTxnIds = new Set(ownTxns.map((t: { id: number }) => t.id));
+        const refTxnIds = [...new Set(itemRows.map((i: { transaction_id: number | null }) => i.transaction_id)
+          .filter((id: number | null): id is number => id != null && !ownTxnIds.has(id)))];
+        const refTxns = cId && refTxnIds.length > 0
+          ? await trx('bank_transactions').where('client_id', cId).whereIn('id', refTxnIds).select('*')
+          : [];
+        const refPeriodIds = [...new Set([
+          ...varianceRows.map((v: { compare_period_id: number | null }) => v.compare_period_id),
+          ...refTxns.map((t: { period_id: number | null }) => t.period_id),
+        ].filter((id): id is number => id != null && id !== periodId))];
+        const refPeriods = cId && refPeriodIds.length > 0
+          ? await trx('periods').where('client_id', cId).whereIn('id', refPeriodIds).select('*')
+          : [];
+        // Marked, so where they arrive they are hidden and read-only (migration 20261001000003).
+        await dump('periods', period ? [period, ...refPeriods.map((p: Record<string, unknown>) => ({ ...p, is_reference: true, is_current: false }))] : []);
+        await dump('chart_of_accounts', cId ? await trx('chart_of_accounts').where('client_id', cId).select('*') : []);
         await dump('trial_balance', await trx('trial_balance').where('period_id', periodId).select('*'));
         const jeRows = await trx('journal_entries').where('period_id', periodId).select('*');
         await dump('journal_entries', jeRows);
         const jeIds = jeRows.map((r: { id: number }) => r.id);
         await dump('journal_entry_lines', jeIds.length > 0 ? await trx('journal_entry_lines').whereIn('journal_entry_id', jeIds).select('*') : []);
-        await dump('bank_transactions', cId ? await trx('bank_transactions').where('client_id', cId).where('period_id', periodId).select('*') : []);
-        await dump('variance_notes', coaIds.length > 0 ? await trx('variance_notes').where('period_id', periodId).whereIn('account_id', coaIds).select('*') : []);
+        await dump('bank_transactions', [...ownTxns, ...refTxns]);
+        await dump('variance_notes', varianceRows);
         await dump('document_imports', await trx('document_imports').where('period_id', periodId).select('*'));
         if (await trx.schema.hasTable('lead_sheets')) {
           await dump('lead_sheets', cId ? await trx('lead_sheets').where('client_id', cId).select('*') : []);
@@ -336,6 +396,11 @@ async function createBackup(
         if (await trx.schema.hasTable('lead_sheet_attachments')) {
           await dump('lead_sheet_attachments', await trx('lead_sheet_attachments').where('period_id', periodId).select('*'));
         }
+        // The period's marks point into the client's library, so the library
+        // comes along whole (it is small).
+        if (await trx.schema.hasTable('tickmark_library')) {
+          await dump('tickmark_library', cId ? await trx('tickmark_library').where('client_id', cId).select('*') : []);
+        }
         if (await trx.schema.hasTable('tb_tickmarks')) {
           await dump('tb_tickmarks', await trx('tb_tickmarks').where('period_id', periodId).select('*'));
         }
@@ -345,15 +410,17 @@ async function createBackup(
         if (await trx.schema.hasTable('m1_adjustments')) {
           await dump('m1_adjustments', await trx('m1_adjustments').where('period_id', periodId).select('*'));
         }
+        if (await trx.schema.hasTable('py_comparison_data')) {
+          await dump('py_comparison_data', await trx('py_comparison_data').where('period_id', periodId).select('*'));
+        }
         if (await trx.schema.hasTable('bank_reconciliations')) {
-          const reconRows = await trx('bank_reconciliations').where('period_id', periodId).select('*');
           await dump('bank_reconciliations', reconRows);
-          const reconIds = reconRows.map((r: { id: number }) => r.id);
           if (reconIds.length > 0 && await trx.schema.hasTable('reconciliation_items')) {
-            await dump('reconciliation_items', await trx('reconciliation_items').whereIn('reconciliation_id', reconIds).select('*'));
+            await dump('reconciliation_items', itemRows);
           }
         }
       }
+      if (options.manifestExtra) extra = await options.manifestExtra(trx);
     },
     { isolationLevel: 'repeatable read' },
   );
@@ -370,7 +437,7 @@ async function createBackup(
     ? `_${resolvedPeriodName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}`
     : '';
   const filename = `backup_${level}${suffix}_${ts}.tbak`;
-  const filePath = path.join(BACKUP_DIR, filename);
+  const filePath = path.join(options.outDir ?? BACKUP_DIR, filename);
 
   // Build manifest (no checksum yet). Format 2 adds fields only; see
   // lib/backupManifest.ts. It is written LAST, once every entry is hashed.
@@ -398,6 +465,7 @@ async function createBackup(
     missingFiles,
     entries,
     checksum: '',
+    ...extra,
   };
 
   // Create ZIP
@@ -460,6 +528,10 @@ async function createBackup(
   // Update manifest with checksum (re-zip would be needed for perfect integrity; store in DB instead)
   manifest.checksum = checksum;
 
+  if (options.recordHistory === false) {
+    return { filename, file_size: fileSize, checksum, storage_local: filePath } as unknown as BackupHistoryRow;
+  }
+
   // Insert backup_history
   const [record] = await db('backup_history')
     .insert({
@@ -494,13 +566,41 @@ const MAX_RESTORE_ENTRIES = 200;
 const MAX_RESTORE_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024; // 2 GiB
 const MAX_RESTORE_TABLE_BYTES = 512 * 1024 * 1024;             // 512 MiB per table
 
-async function readZipContents(filePath: string): Promise<Record<string, unknown[]>> {
+/** The largest manifest.json read. */
+const MAX_MANIFEST_BYTES = 8 * 1024 * 1024;
+
+/**
+ * An archive entry's bytes, read through a counter that stops at `cap`
+ * (security review: unzipper inflates until the stream ends, whatever size the
+ * zip declares, so a small zip can expand to gigabytes in memory).
+ */
+export async function entryBuffer(file: unzipper.File, cap: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let got = 0;
+  await new Promise<void>((resolve, reject) => {
+    const stream = file.stream();
+    stream.on('data', (c: Buffer) => {
+      got += c.length;
+      if (got > cap) {
+        stream.destroy();
+        reject(Object.assign(new Error(`Archive entry "${file.path}" is larger than ${cap} bytes`), { code: 'INVALID_BACKUP' }));
+        return;
+      }
+      chunks.push(c);
+    });
+    stream.on('end', () => resolve());
+    stream.on('error', reject);
+  });
+  return Buffer.concat(chunks);
+}
+
+export async function readZipContents(filePath: string, maxEntries = MAX_RESTORE_ENTRIES): Promise<Record<string, unknown[]>> {
   const tables: Record<string, unknown[]> = {};
   const dir = await unzipper.Open.file(filePath);
 
-  if (dir.files.length > MAX_RESTORE_ENTRIES) {
+  if (dir.files.length > maxEntries) {
     throw Object.assign(
-      new Error(`Backup archive has ${dir.files.length} entries (max ${MAX_RESTORE_ENTRIES})`),
+      new Error(`Backup archive has ${dir.files.length} entries (max ${maxEntries})`),
       { code: 'INVALID_BACKUP' },
     );
   }
@@ -531,7 +631,8 @@ async function readZipContents(filePath: string): Promise<Record<string, unknown
     }
 
     const tableName = path.basename(file.path, '.json');
-    const content = await file.buffer();
+    // The declared size is the zip's word; the read is capped by the bytes that come out.
+    const content = await entryBuffer(file, Math.min(MAX_RESTORE_TABLE_BYTES, MAX_RESTORE_UNCOMPRESSED_BYTES - (totalBytes - declaredSize)));
     tables[tableName] = JSON.parse(content.toString('utf8')) as unknown[];
   }
   return tables;
@@ -592,11 +693,11 @@ async function placeArchivedFiles(
   return { placed, notPlaced };
 }
 
-async function readManifest(filePath: string): Promise<Record<string, unknown>> {
+export async function readManifest(filePath: string): Promise<Record<string, unknown>> {
   const dir = await unzipper.Open.file(filePath);
   const manifestFile = dir.files.find((f) => f.path === 'manifest.json');
   if (!manifestFile) throw new Error('manifest.json not found in backup');
-  const content = await manifestFile.buffer();
+  const content = await entryBuffer(manifestFile, MAX_MANIFEST_BYTES);
   return JSON.parse(content.toString('utf8')) as Record<string, unknown>;
 }
 
@@ -644,7 +745,7 @@ async function jsonColumnsFor(trx: Knex.Transaction, table: string): Promise<Set
 }
 
 /** JSON-encode any json/jsonb values in `rows` so Postgres accepts them. */
-async function encodeJsonColumns<T extends Record<string, unknown>>(
+export async function encodeJsonColumns<T extends Record<string, unknown>>(
   trx: Knex.Transaction,
   table: string,
   rows: T[],
@@ -670,7 +771,7 @@ async function encodeJsonColumns<T extends Record<string, unknown>>(
 }
 
 /** Encode json columns, then bulk-insert in parameter-limit-safe batches. */
-async function insertBatched(
+export async function insertBatched(
   trx: Knex.Transaction,
   table: string,
   rows: Array<Record<string, unknown>>,
@@ -690,7 +791,7 @@ async function insertBatched(
 // so attribution is dropped rather than misassigned. Leaving the raw id in
 // place — the previous behaviour — failed the whole restore on the FK when the
 // user was absent.
-const USER_FK_COLUMNS: Record<string, string[]> = {
+export const USER_FK_COLUMNS: Record<string, string[]> = {
   periods: ['locked_by'],
   trial_balance: ['updated_by'],
   journal_entries: ['created_by'],
@@ -701,6 +802,13 @@ const USER_FK_COLUMNS: Record<string, string[]> = {
   lead_sheet_signoffs: ['user_id', 'invalidated_by'],
   lead_sheet_attachments: ['created_by', 'deleted_by'],
   lead_sheet_notes: ['author_id', 'resolved_by'],
+  tickmark_library: ['created_by'],
+  tb_tickmarks: ['created_by'],
+  engagement_tasks: ['assignee_id', 'completed_by', 'created_by'],
+  m1_adjustments: ['created_by'],
+  py_comparison_data: ['uploaded_by'],
+  bank_reconciliations: ['created_by', 'completed_by'],
+  saved_reports: ['created_by'],
   client_documents: ['uploaded_by', 'deleted_by'],
   client_folder_links: ['created_by'],
   qbo_connections: ['connected_by'],
@@ -709,7 +817,7 @@ const USER_FK_COLUMNS: Record<string, string[]> = {
 
 type UserFkSanitizer = (table: string, row: Record<string, unknown>) => Record<string, unknown>;
 
-async function makeUserFkSanitizer(
+export async function makeUserFkSanitizer(
   trx: Knex.Transaction,
   trustSourceUserIds: boolean,
 ): Promise<UserFkSanitizer> {
@@ -749,7 +857,7 @@ function isLegacyAlphaTaxCode(row: Record<string, unknown>): boolean {
  * the archive's tax_codes row up by (return_form, activity_type, tax_code) → live
  * id; otherwise null (the account shows as unmapped instead of failing the FK).
  */
-async function makeTaxCodeResolver(
+export async function makeTaxCodeResolver(
   trx: Knex.Transaction,
   tables: Record<string, unknown[]>,
 ): Promise<(oldId: unknown) => number | null> {
@@ -773,16 +881,185 @@ async function makeTaxCodeResolver(
   };
 }
 
-async function restoreAsNew(
+/** Insert rows and return old id → new id, in input order. */
+async function insertMapped(
+  trx: Knex.Transaction,
+  table: string,
+  rows: Array<{ oldId: number; row: Record<string, unknown> }>,
+): Promise<Map<number, number>> {
+  const map = new Map<number, number>();
+  const encoded = await encodeJsonColumns(trx, table, rows.map((r) => r.row));
+  for (let start = 0; start < encoded.length; start += BATCH_SIZE) {
+    const inserted = await trx(table).insert(encoded.slice(start, start + BATCH_SIZE)).returning('id');
+    inserted.forEach((r, i) => map.set(rows[start + i].oldId, (r as { id: number }).id));
+  }
+  return map;
+}
+
+interface WorkpaperRestoreContext {
+  clientId: number;
+  period: (oldId: number) => number | undefined;
+  account: (oldId: number) => number | undefined;
+  bankTransaction: (oldId: number) => number | undefined;
+  resolveTaxCode: (oldId: unknown) => number | null;
+  sanitizeUserFks: UserFkSanitizer;
+}
+
+/**
+ * Workpaper tables that both client restore paths share: the tickmark
+ * library and the marks on trial balance rows (issue #18), engagement tasks,
+ * M-1 adjustments, prior-year tie-out data, bank reconciliations and their
+ * cleared items, saved custom reports and tax export consolidation settings.
+ *
+ * Each table is optional in the archive (older archives lack some) and in
+ * the schema. A row whose required parent is not in the archive is skipped
+ * and counted, never pointed at another client's rows: a period archive, for
+ * one, carries only its own period, so a reconciliation item clearing an
+ * earlier period's check has no transaction to attach to.
+ */
+async function restoreClientWorkpapers(
+  trx: Knex.Transaction,
+  tables: Record<string, unknown[]>,
+  ctx: WorkpaperRestoreContext,
+): Promise<{ skipped: number }> {
+  let skipped = 0;
+  const data = (t: string) => (tables[t] as Array<Record<string, unknown>> | undefined) ?? [];
+  const has = async (t: string) => data(t).length > 0 && (await trx.schema.hasTable(t));
+  const req = (map: (id: number) => number | undefined, id: unknown) =>
+    (id === null || id === undefined ? undefined : map(id as number));
+  const opt = (map: (id: number) => number | undefined, id: unknown): number | null | undefined =>
+    (id === null || id === undefined ? null : map(id as number));
+
+  // Rows built by `build`; `null` from build means "parent missing, skip".
+  async function restore(
+    table: string,
+    build: (row: Record<string, unknown>) => Record<string, unknown> | null,
+  ): Promise<Map<number, number>> {
+    if (!(await has(table))) return new Map();
+    const rows: Array<{ oldId: number; row: Record<string, unknown> }> = [];
+    for (const row of data(table)) {
+      const built = build(row);
+      if (built === null) { skipped++; continue; }
+      rows.push({ oldId: row.id as number, row: ctx.sanitizeUserFks(table, { ...built, id: undefined }) });
+    }
+    return insertMapped(trx, table, rows);
+  }
+
+  const libraryMap = await restore('tickmark_library', (row) => ({ ...row, client_id: ctx.clientId }));
+
+  await restore('tb_tickmarks', (row) => {
+    const period = req(ctx.period, row.period_id);
+    const account = req(ctx.account, row.account_id);
+    const tickmark = req((id) => libraryMap.get(id), row.tickmark_id);
+    if (period === undefined || account === undefined || tickmark === undefined) return null;
+    return { ...row, period_id: period, account_id: account, tickmark_id: tickmark };
+  });
+
+  for (const table of ['engagement_tasks', 'm1_adjustments']) {
+    await restore(table, (row) => {
+      const period = req(ctx.period, row.period_id);
+      return period === undefined ? null : { ...row, period_id: period };
+    });
+  }
+
+  await restore('py_comparison_data', (row) => {
+    const period = req(ctx.period, row.period_id);
+    const account = req(ctx.account, row.account_id);
+    if (period === undefined || account === undefined) return null;
+    return { ...row, period_id: period, account_id: account };
+  });
+
+  const reconMap = await restore('bank_reconciliations', (row) => {
+    const account = req(ctx.account, row.source_account_id);
+    const period = opt(ctx.period, row.period_id);
+    if (account === undefined || period === undefined) return null;
+    return { ...row, client_id: ctx.clientId, source_account_id: account, period_id: period };
+  });
+
+  await restore('reconciliation_items', (row) => {
+    const recon = req((id) => reconMap.get(id), row.reconciliation_id);
+    const tx = req(ctx.bankTransaction, row.transaction_id);
+    if (recon === undefined || tx === undefined) return null;
+    return { ...row, reconciliation_id: recon, transaction_id: tx };
+  });
+
+  // A saved report names accounts by id inside its config.
+  await restore('saved_reports', (row) => {
+    const config = row.config as { sections?: Array<Record<string, unknown>> } | null;
+    const sections = Array.isArray(config?.sections)
+      ? config!.sections.map((s) => ({
+          ...s,
+          accountIds: Array.isArray(s.accountIds)
+            ? (s.accountIds as unknown[]).map((id) => ctx.account(id as number)).filter((id): id is number => id !== undefined)
+            : s.accountIds,
+        }))
+      : undefined;
+    return { ...row, client_id: ctx.clientId, config: sections ? { ...config, sections } : config };
+  });
+
+  await restore('export_consolidation_settings', (row) => {
+    const taxCode = ctx.resolveTaxCode(row.tax_code_id);
+    return taxCode === null ? null : { ...row, client_id: ctx.clientId, tax_code_id: taxCode };
+  });
+
+  return { skipped };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Desktop sync (S1): a restored row keeps the `sync_uid` it carries in the
+ * archive, so the same client, period, account or bank transaction is the
+ * same on every instance, unless a row here already holds it (a copy
+ * restored next to its original is a different client): then the column
+ * default gives it a new one. An archive from before S1 carries none, and
+ * every row gets a new one. The same uid twice in one archive keeps the
+ * first.
+ */
+export async function keepSyncUids<T extends Record<string, unknown>>(
+  trx: Knex | Knex.Transaction,
+  table: string,
+  rows: T[],
+): Promise<T[]> {
+  if (!(await trx.schema.hasColumn(table, 'sync_uid'))) {
+    return rows.map((r) => ({ ...r, sync_uid: undefined }));
+  }
+  const valid = (u: unknown): u is string => typeof u === 'string' && UUID_RE.test(u);
+  const uids = [...new Set(rows.map((r) => r.sync_uid).filter(valid))];
+  const held = new Set<string>();
+  for (const part of chunk(uids, 1000)) {
+    for (const u of (await trx(table).whereIn('sync_uid', part).pluck('sync_uid')) as string[]) held.add(u);
+  }
+  const seen = new Set<string>();
+  return rows.map((r) => {
+    const u = r.sync_uid;
+    if (valid(u) && !held.has(u) && !seen.has(u)) {
+      seen.add(u);
+      return r;
+    }
+    return { ...r, sync_uid: undefined };
+  });
+}
+
+export async function restoreAsNew(
   tables: Record<string, unknown[]>,
   trx: Knex.Transaction,
   trustSourceUserIds: boolean,
+  /**
+   * Desktop sync: a client made on a desktop keeps its name (no " (Restored)");
+   * `untrusted`: the archive came from a device, not a backup an admin chose,
+   * so no storage pointer or folder link in it is kept, whatever ids it
+   * claims (the same-client test below compares ids the archive supplies).
+   */
+  opts: { keepName?: boolean; untrusted?: boolean } = {},
 ): Promise<{
   newClientId: number;
   idMappings: Record<string, Record<number, number>>;
   /** Nullable FK links nulled because the archive didn't carry the parent row. */
   droppedLinks: number;
 }> {
+  // Rows keep the archive's updated_at (migration 20261004000002's trigger).
+  await trx.raw("SET LOCAL vtb.keep_updated_at = 'on'");
   const idMap: IdMap = new Map();
   const sanitizeUserFks = await makeUserFkSanitizer(trx, trustSourceUserIds);
 
@@ -832,13 +1109,14 @@ async function restoreAsNew(
       const oldId = row.id as number;
       const existing = await trx('clients').where('name', row.name as string).first('id');
       let insertName = row.name as string;
-      if (existing) {
+      if (existing && !opts.keepName) {
         insertName = `${insertName} (Restored)`;
       }
       // default_source_account_id points into chart_of_accounts, which is
       // restored AFTER clients — insert null and patch it once accounts are mapped.
+      const [kept] = await keepSyncUids(trx, 'clients', [{ ...row, id: undefined, name: insertName, default_source_account_id: null }]);
       const [inserted] = await trx('clients')
-        .insert({ ...row, id: undefined, name: insertName, default_source_account_id: null })
+        .insert(kept)
         .returning('id');
       const newId = (inserted as { id: number }).id;
       clientMap.set(oldId, newId);
@@ -858,12 +1136,12 @@ async function restoreAsNew(
   const periodsData = tables['periods'] as Array<Record<string, unknown>> | undefined;
   if (periodsData && periodsData.length > 0) {
     const periodMap = registerMap('periods');
-    const prepared = periodsData.map((row) => sanitizeUserFks('periods', {
+    const prepared = await keepSyncUids(trx, 'periods', periodsData.map((row) => sanitizeUserFks('periods', {
       ...row,
       id: undefined,
       client_id: getNewId('clients', row.client_id as number),
       rolled_forward_from: null,
-    }));
+    })));
     const encoded = await encodeJsonColumns(trx, 'periods', prepared);
     for (const batch of chunk(encoded, BATCH_SIZE)) {
       const indexInWhole = encoded.indexOf(batch[0]);
@@ -908,13 +1186,13 @@ async function restoreAsNew(
   if (coaData && coaData.length > 0) {
     const coaMap = registerMap('chart_of_accounts');
     const resolveTaxCode = await makeTaxCodeResolver(trx, tables);
-    const prepared = coaData.map((row) => ({
+    const prepared = await keepSyncUids(trx, 'chart_of_accounts', coaData.map((row) => ({
       ...row,
       id: undefined,
       client_id: getNewId('clients', row.client_id as number),
       tax_code_id: resolveTaxCode(row.tax_code_id),
       lead_sheet_id: mapOptional('lead_sheets', row.lead_sheet_id),
-    }));
+    })));
     const encoded = await encodeJsonColumns(trx, 'chart_of_accounts', prepared);
     for (const batch of chunk(encoded, BATCH_SIZE)) {
       const indexInWhole = encoded.indexOf(batch[0]);
@@ -986,17 +1264,23 @@ async function restoreAsNew(
   // the original client's period and accounts.
   const btData = tables['bank_transactions'] as Array<Record<string, unknown>> | undefined;
   if (btData && btData.length > 0) {
-    const rows = btData.map((row) => sanitizeUserFks('bank_transactions', {
-      ...row,
-      id: undefined,
-      client_id: getNewId('clients', row.client_id as number),
-      account_id: row.account_id ? getNewId('chart_of_accounts', row.account_id as number) : null,
-      period_id: mapOptional('periods', row.period_id),
-      source_account_id: mapOptional('chart_of_accounts', row.source_account_id),
-      ai_suggested_account_id: mapOptional('chart_of_accounts', row.ai_suggested_account_id),
-      journal_entry_id: mapOptional('journal_entries', row.journal_entry_id),
+    // Mapped: reconciliation items point at these rows.
+    const rows = btData.map((row) => ({
+      oldId: row.id as number,
+      row: sanitizeUserFks('bank_transactions', {
+        ...row,
+        id: undefined,
+        client_id: getNewId('clients', row.client_id as number),
+        account_id: row.account_id ? getNewId('chart_of_accounts', row.account_id as number) : null,
+        period_id: mapOptional('periods', row.period_id),
+        source_account_id: mapOptional('chart_of_accounts', row.source_account_id),
+        ai_suggested_account_id: mapOptional('chart_of_accounts', row.ai_suggested_account_id),
+        journal_entry_id: mapOptional('journal_entries', row.journal_entry_id),
+      }),
     }));
-    await insertBatched(trx, 'bank_transactions', rows);
+    const btKept = await keepSyncUids(trx, 'bank_transactions', rows.map((r) => r.row));
+    rows.forEach((r, i) => { r.row = btKept[i]; });
+    idMap.set('bank_transactions', await insertMapped(trx, 'bank_transactions', rows));
   }
 
   // 8. classification_rules — bulk insert
@@ -1059,7 +1343,7 @@ async function restoreAsNew(
       // the other's bytes. Drop the storage pointers instead — the row keeps
       // its metadata, and the download handler already explains that the file
       // was not part of the backup.
-      const sameClient = newClientId === (row.client_id as number);
+      const sameClient = !opts.untrusted && newClientId === (row.client_id as number);
       return sanitizeUserFks('client_documents', {
         ...row,
         id: undefined,
@@ -1089,7 +1373,7 @@ async function restoreAsNew(
       // is unique, and two clients pointing at one folder would interleave
       // their documents. It arrives unlinked instead, which the Storage page
       // surfaces and which matches linking being an explicit act.
-      if (newClientId !== (row.client_id as number)) continue;
+      if (opts.untrusted || newClientId !== (row.client_id as number)) continue;
       await trx('client_folder_links')
         .insert(sanitizeUserFks('client_folder_links', { ...row, id: undefined, client_id: newClientId }))
         // Restoring into an instance that already knows this folder is fine.
@@ -1146,6 +1430,18 @@ async function restoreAsNew(
       }));
     await insertBatched(trx, 'lead_sheet_attachments', rows);
   }
+
+  // 12.5 Tickmarks, engagement tasks, M-1, PY tie-out, reconciliations, saved
+  // reports and export consolidation settings.
+  const workpapers = await restoreClientWorkpapers(trx, tables, {
+    clientId: newClientId,
+    period: (id) => idMap.get('periods')?.get(id),
+    account: (id) => idMap.get('chart_of_accounts')?.get(id),
+    bankTransaction: (id) => idMap.get('bank_transactions')?.get(id),
+    resolveTaxCode: await makeTaxCodeResolver(trx, tables),
+    sanitizeUserFks,
+  });
+  droppedLinks += workpapers.skipped;
 
   // 13. Statement Writer — last: it points at periods, accounts and lead
   // sheets, both as columns and inside its layout JSON.
@@ -1255,6 +1551,11 @@ async function restoreReplace(
   // client serialize. Any other session holding the lock (e.g. another
   // restore) blocks here until the current txn ends.
   await trx.raw('SELECT pg_advisory_xact_lock(?, ?)', [42, targetClientId]);
+  // Rows keep the archive's updated_at (migration 20261004000002's trigger).
+  await trx.raw("SET LOCAL vtb.keep_updated_at = 'on'");
+  // Desktop sync: replacing the client would erase a desktop's check-out
+  // with its period. Release it (or let it be sent back) first.
+  await assertClientNotCheckedOut(trx, targetClientId);
 
   const sanitizeUserFks = await makeUserFkSanitizer(trx, trustSourceUserIds);
 
@@ -1272,7 +1573,8 @@ async function restoreReplace(
 
   // Insert client with target ID
   // default_source_account_id is patched after chart_of_accounts is restored.
-  await trx('clients').insert({ ...clientsData[0], id: targetClientId, default_source_account_id: null });
+  const [clientKept] = await keepSyncUids(trx, 'clients', [{ ...clientsData[0], id: targetClientId, default_source_account_id: null }]);
+  await trx('clients').insert(clientKept);
 
   const periodIdMap = new Map<number, number>();
   const coaIdMap = new Map<number, number>();
@@ -1290,9 +1592,9 @@ async function restoreReplace(
   // and patch once every period has an id.
   const periodsData = tables['periods'] as Array<Record<string, unknown>> | undefined;
   if (periodsData && periodsData.length > 0) {
-    const prepared = periodsData.map((row) =>
+    const prepared = await keepSyncUids(trx, 'periods', periodsData.map((row) =>
       sanitizeUserFks('periods', remapClientId({ ...row, id: undefined, rolled_forward_from: null })),
-    );
+    ));
     const encoded = await encodeJsonColumns(trx, 'periods', prepared);
     for (const batch of chunk(encoded, BATCH_SIZE)) {
       const indexInWhole = encoded.indexOf(batch[0]);
@@ -1317,9 +1619,9 @@ async function restoreReplace(
     const resolveTaxCode = await makeTaxCodeResolver(trx, tables);
     // lead_sheet_id is nulled on insert and applied below: the FK fires at
     // insert time, and lead_sheets are restored after this block.
-    const prepared = coaData.map((row) =>
+    const prepared = await keepSyncUids(trx, 'chart_of_accounts', coaData.map((row) =>
       remapClientId({ ...row, id: undefined, tax_code_id: resolveTaxCode(row.tax_code_id), lead_sheet_id: null }),
-    );
+    ));
     const encoded = await encodeJsonColumns(trx, 'chart_of_accounts', prepared);
     for (const batch of chunk(encoded, BATCH_SIZE)) {
       const indexInWhole = encoded.indexOf(batch[0]);
@@ -1378,18 +1680,25 @@ async function restoreReplace(
 
   // bank_transactions — bulk
   const btData = tables['bank_transactions'] as Array<Record<string, unknown>> | undefined;
+  let btIdMap = new Map<number, number>();
   if (btData && btData.length > 0) {
-    const rows = btData.map((row) => sanitizeUserFks('bank_transactions', {
-      ...row,
-      id: undefined,
-      client_id: targetClientId,
-      account_id: row.account_id ? (coaIdMap.get(row.account_id as number) ?? row.account_id) : null,
-      period_id: mapOptional(periodIdMap, row.period_id),
-      source_account_id: mapOptional(coaIdMap, row.source_account_id),
-      ai_suggested_account_id: mapOptional(coaIdMap, row.ai_suggested_account_id),
-      journal_entry_id: mapOptional(jeIdMap, row.journal_entry_id),
+    // Mapped: reconciliation items point at these rows.
+    const rows = btData.map((row) => ({
+      oldId: row.id as number,
+      row: sanitizeUserFks('bank_transactions', {
+        ...row,
+        id: undefined,
+        client_id: targetClientId,
+        account_id: row.account_id ? (coaIdMap.get(row.account_id as number) ?? row.account_id) : null,
+        period_id: mapOptional(periodIdMap, row.period_id),
+        source_account_id: mapOptional(coaIdMap, row.source_account_id),
+        ai_suggested_account_id: mapOptional(coaIdMap, row.ai_suggested_account_id),
+        journal_entry_id: mapOptional(jeIdMap, row.journal_entry_id),
+      }),
     }));
-    await insertBatched(trx, 'bank_transactions', rows);
+    const btKept = await keepSyncUids(trx, 'bank_transactions', rows.map((r) => r.row));
+    rows.forEach((r, i) => { r.row = btKept[i]; });
+    btIdMap = await insertMapped(trx, 'bank_transactions', rows);
   }
 
   // classification_rules — bulk
@@ -1554,6 +1863,17 @@ async function restoreReplace(
     })));
     await insertBatched(trx, 'lead_sheet_notes', rows);
   }
+
+  // Tickmarks (issue #18), engagement tasks, M-1, PY tie-out, reconciliations,
+  // saved reports, export consolidation: deleteClientData removed them all.
+  await restoreClientWorkpapers(trx, tables, {
+    clientId: targetClientId,
+    period: (id) => periodIdMap.get(id),
+    account: (id) => coaIdMap.get(id),
+    bankTransaction: (id) => btIdMap.get(id),
+    resolveTaxCode: await makeTaxCodeResolver(trx, tables),
+    sanitizeUserFks,
+  });
 
   // Statement Writer — deleteClientData removed these; put the archive's back.
   await restoreFsClientTables(trx, tables, {
@@ -2165,7 +2485,8 @@ restoreRouter.post('/execute', async (req: AuthRequest, res: Response): Promise<
         });
       }
     } catch (_e) { /* ignore */ }
-    if (code === 'INVALID_BACKUP' || code === 'RESTORE_BROKEN_REF') {
+    // PERIOD_CHECKED_OUT (desktop sync) is a guard's refusal, authored for the admin.
+    if (code === 'INVALID_BACKUP' || code === 'RESTORE_BROKEN_REF' || (err as { expose?: unknown }).expose === true) {
       // These carry an operator-actionable message that we author ourselves —
       // safe to return verbatim. RESTORE_BROKEN_REF used to fall through to the
       // generic 500 below, hiding the one message that explains the failure.

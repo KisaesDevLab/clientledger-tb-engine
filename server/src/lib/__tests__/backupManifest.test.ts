@@ -22,6 +22,7 @@ import {
   documentFilePath,
   entryFor,
   hashArchive,
+  syncManifestProblem,
   verifyEntries,
   MANIFEST_PATH,
   type ManifestEntries,
@@ -130,4 +131,24 @@ test('source comes from VIBE_BACKUP_SOURCE and defaults to appliance', () => {
   assert.equal(backupSource({ VIBE_BACKUP_SOURCE: 'Desktop' }), 'desktop');
   assert.equal(backupSource({ VIBE_BACKUP_SOURCE: 'hosted' }), 'hosted');
   assert.equal(backupSource({ VIBE_BACKUP_SOURCE: 'laptop' }), 'appliance');
+});
+
+test('sync refuses an archive without a format version, schema version or checksums', () => {
+  const good = { formatVersion: 2, schemaVersion: '20261101000001_x.js', entries: { 'tables/clients.json': { sha256: 'a', size: 1 } } };
+  assert.equal(syncManifestProblem(good), null);
+  assert.equal(syncManifestProblem({ ...good, formatVersion: 3 }), null);
+  for (const bad of [
+    { version: '1.0' },                                  // format 1
+    { ...good, formatVersion: undefined },
+    { ...good, formatVersion: 1 },
+    { ...good, formatVersion: '2' },
+    { ...good, schemaVersion: undefined },
+    { ...good, schemaVersion: '' },
+    { ...good, entries: undefined },
+    { ...good, entries: {} },
+    { ...good, entries: [] },
+  ]) {
+    const problem = syncManifestProblem(bad as Record<string, unknown>);
+    assert.ok(problem && /older version/.test(problem), JSON.stringify(bad));
+  }
 });

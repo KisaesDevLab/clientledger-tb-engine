@@ -17,6 +17,18 @@ export interface Period {
   locked_at: string | null;
   locked_by: number | null;
   created_at: string;
+  /** Desktop sync: the desktop holding this period, if any. */
+  checkout?: PeriodCheckout | null;
+}
+
+export interface PeriodCheckout {
+  id: number;
+  user: string;
+  device: string;
+  since: string;
+  days: number;
+  /** Out longer than the firm's warning (default 14 days). */
+  stale: boolean;
 }
 
 export interface PeriodInput {
@@ -44,6 +56,13 @@ export const deletePeriod = (id: number) =>
 
 export const lockPeriod = (id: number) =>
   apiFetch<Period>(`/periods/${id}/lock`, { method: 'POST' });
+
+/** Admin: end a desktop's check-out (desktop sync), with a reason. */
+export const releaseCheckout = (id: number, reason: string) =>
+  apiFetch<{ released: boolean; user: string; device: string }>(`/periods/${id}/checkout/release`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
 
 export const unlockPeriod = (id: number) =>
   apiFetch<Period>(`/periods/${id}/unlock`, { method: 'POST' });

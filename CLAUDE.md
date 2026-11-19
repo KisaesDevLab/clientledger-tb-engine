@@ -702,6 +702,94 @@ All planned phases complete. App is feature-complete.
   takes an arbitrary `targetClientId` and so cannot assume the archive came from that client; without
   the guard the insert dies on the partial unique index over `(bucket, object_key)`. Restoring into
   the SAME client keeps its keys and its link, which is the whole point of that mode.
+- **A client archive must restore every client table it carries, and carry every table `deleteClientData`
+  removes.** Until S0 (issue #18) restore dropped the tickmark library and TB tickmarks, engagement tasks,
+  M-1 adjustments, reconciliations and their items (dumped, never re-inserted), and PY tie-out data, saved
+  reports and export consolidation settings (deleted on replace, never dumped). Both restore paths now share
+  `restoreClientWorkpapers` in `routes/backup.ts`; a row whose parent is not in the archive is skipped and
+  counted, never pointed at another client. A period archive carries the whole tickmark library, and (desktop sync, owner
+  2026-11-19) the other periods and bank transactions its own rows name, as plain rows without their data:
+  a variance note's comparison period, a reconciliation item's earlier-period transaction and its period.
+  So restoring a period archive as new also makes the prior period, empty and marked `periods.is_reference`
+  (migration `20261001000003`); the manifest's `periodId` names the archive's own period. **A reference
+  period is not a period to work in:** it is left out of `GET /clients/:id/periods`, the MCP period list
+  and every prior-period lookup (`fsSource.ts`, the QuickBooks prior range), so statements read as if there
+  were no prior period; `assertPeriodUnlocked` (and the bank-transaction and reconciliation lock checks)
+  refuse writes into it as `PERIOD_LOCKED` with their own message. A new query that lists a client's
+  periods or looks for "the prior one" must add `is_reference: false`. `npm run test:backup-e2e` (root) walks the schema's foreign keys from `clients` and
+  compares every table after restore-as-new, replace and a period restore, so a NEW client table fails it
+  until the backup carries it or `NOT_COMPARED` in `test/backup-e2e.mjs` says why not.
+- **Rows a desktop sync must recognise carry `sync_uid` (S1, migration `20261001000001`).** `clients`,
+  `periods`, `chart_of_accounts` and `bank_transactions` have `sync_uid uuid NOT NULL DEFAULT
+  gen_random_uuid()` with a unique index; ids are re-keyed on every restore, the uid is not. Every
+  restore path inserts these four through `keepSyncUids` (`routes/backup.ts`): the archive's uid stays
+  unless a row here already holds it (a copy next to its original is a different client, so it gets new
+  ones); an archive from before S1 gets new ones. **Never copy a row of these tables with `...row` outside
+  that helper** — the unique index makes it a 500. Lead sheets (code), tax codes (resolver), the tickmark
+  library (symbol) and attachments (ref code) need no uid.
+  The **period stamp** (`lib/sync/periodStamp.ts`, pure; loader `periodStampLoad.ts`; `npm run sync:stamp
+  -- <periodId>`) is one SHA-256 over the period's SQ4 rows with every id replaced by its natural key
+  (uid, entry type+number, lead sheet code, tickmark symbol, attachment file SHA-256), user ids and
+  write times left out, DATE columns as calendar dates. It must not change across a restore of the same
+  period (`test:backup-e2e`) and must change when any of its rows does (`periodStamp.test.ts`, one test
+  per table). A new period-scoped table joins `STAMP_TABLES` with a spec, or the desktop's send-back
+  will not notice changes to it.
+- **Desktop sync devices (S2, migration `20261002000001`).** A paired desktop holds a device token
+  (`vtbsync_` + 32 random bytes; only its SHA-256 is in `sync_devices`), made by `POST /api/v1/sync/pair`
+  from a one-time code (`sync_pairing_codes`, hashed, 10 minutes, one use, row-locked; 8 characters with
+  no look-alikes, `lib/sync/deviceTokens.ts`). The code is made from a signed-in session
+  (`POST /api/v1/desktop-sync/codes`), so pairing works under any sign-in, `oidc_only` included, and is not a
+  local sign-in path (no `localLoginRefusal`). **The device token works ONLY on `/api/v1/sync/*`**
+  (`syncAuthMiddleware`, `lib/sync/syncAuth.ts`): every other route's `authMiddleware` refuses it as a bad
+  JWT, and the sync routes refuse a JWT. A device acts as its user: deactivated user or revoked device →
+  401 at once; a reviewer's device reads only (`blockReviewerWrites`). **A device token ends** (owner
+  2026-11-19, `lib/sync/deviceRevoke.ts`) on Remove, on deactivation (revoked then, so reactivating does
+  not revive them: Users PATCH, Vibe Auth `setActive`), after 90 days unused (`SYNC_DEVICE_EXPIRED`), and on
+  a password RESET (admin PATCH `/users/:id`, Vibe Auth `setLocalPassword`, an emailed reset or invite
+  link): `revokeUserDevices`, which also deletes unused codes and, on a reset, stamps
+  `app_users.sync_reset_at` (migration `20261002000002`) so a session issued before it gets 401
+  `SIGN_IN_AGAIN` from `POST /desktop-sync/codes` (an emailed reset leaves old sessions working). Not on a
+  user's own password change or sign-out. Audit: every
+  sync write, every refusal, and a GET only when the route sets `res.locals.syncAudit = true` (it hands out
+  client data); polling reads are not audited. Making a code retires the user's unused ones.
+  `POST /pair` has its own limiter (10 failed tries per 15 min per ADDRESS, not `rateLimitKey`, whose JWT
+  claim is unverified). `npm run test:sync-e2e`;
+  the `oidc_only` pairing step is in `sso-e2e.mjs`. The global reviewer gate in `app.ts` lets reviewers write
+  to `/auth/*` (their own password, factors, passkeys, browsers) and `/desktop-sync/*` (their own desktops):
+  without it a new reviewer could never finish the forced password change.
+- **Desktop sync check-outs (S3, migration `20261003000001`).** `POST /api/v1/sync/periods/:uid/pull`
+  `{ checkout }` takes a `period_checkouts` row (one live per period) and runs a job (`sync_jobs`,
+  `lib/sync/jobs.ts`: in-process, one at a time per client, a restart fails open jobs) that writes the
+  period `.tbak` with files into `backups/sync/<job>` (no `backup_history` row; `createBackup` options
+  `outDir`, `recordHistory: false`, `manifestExtra` computed inside the archive's REPEATABLE READ
+  snapshot: `manifest.sync { stamp, checkoutId, periodUid, clientUid }`). **While a period is checked
+  out, every write to its data refuses with 409 `PERIOD_CHECKED_OUT` naming the user and device**:
+  `assertPeriodUnlocked` (lock-gated writes) and `assertNotCheckedOut(trx, periodIds)` (writes the lock
+  does not gate: Statement Writer reports, sign-offs, notes, tickmarks, engagement tasks, variance notes,
+  reconciliations, bank rows by their OWN period, period name/dates, lock, delete, restore replace, and
+  the lead sheet / tickmark / document deletes that cascade into a held period). Both take the period
+  row FOR UPDATE **inside the write's transaction**; lock behaviour itself is unchanged. Guard errors
+  carry `expose: true`, which `sendServerError`, the restore handler and the MCP tool wrapper pass
+  through (so a route that maps only PERIOD_LOCKED still answers 409). **A new write route or MCP tool
+  must be classified in `lib/__tests__/periodWriteRoutes.test.ts`** (the test reads the route list from
+  the source) and, if it writes period data, guarded and added to the held-period walk in
+  `test/sync-e2e.mjs`, which fires every period route and tool at a held period and checks the stamp
+  did not move. Release: the holder (`DELETE /sync/checkouts/:id`) or an admin with a reason
+  (`POST /periods/:id/checkout/release`, Periods page). Nothing releases automatically; older than
+  `settings['sync.checkout_warn_days']` (14) is flagged stale (Periods page, dashboard for admins via
+  `GET /desktop-sync/checkouts`). The web TB, JE and bank pages show `CheckoutBanner`.
+- **Desktop sync send-back (S4, migrations `20261004000001`/`…02`).** Uploads in parts
+  (`lib/sync/uploads.ts`: `POST /sync/uploads`, `PUT …/parts/:n`, `…/complete` checks the SHA-256; 50 MB
+  parts, `SYNC_PART_BYTES`). `POST /sync/periods/:uid/push`, `POST /sync/clients/:uid/periods/push` (a new
+  period, or a reference filled in) and `POST /sync/clients/push` (a new client, `restoreAsNew` with
+  `keepName`) run as jobs. **`lib/sync/mergePeriod.ts`** replaces one period's SQ4 rows in one
+  transaction, ids remapped by the stamp's `stampRefs`; bank rows in place by uid, Statement Writer
+  versions kept by number, journal entries relinked by type + number; SQ3 for accounts and layouts by
+  `updated_at` (a trigger stamps it on every changing UPDATE; restores `SET LOCAL vtb.keep_updated_at`).
+  Accepted only if the period's stamp equals the archive's own (`archiveStamp`), every other period's
+  stamp is unchanged and `sync.totals` tie; the server log names the differing tables. **A new foreign key
+  into a period table** must be classified in the `sync-e2e` FK step and handled in the merge. What a
+  desktop's archive must be is in `desktop-sync-addendum.md`.
 - Variance notes (per account per period, TB Report inline editing)
 - **Every FK into `periods` must carry a delete action.** `DELETE /periods/:id` is a bare delete that
   trusts cascades; five references shipped with none (bank_transactions, document_imports,

@@ -136,19 +136,29 @@ export async function appliedMigrations(knex: Knex): Promise<string[]> {
   return rows.map((r) => r.name);
 }
 
+/** The most an archive may inflate to while its entries are hashed (a zip bomb stops here). */
+const MAX_HASHED_BYTES = 4 * 1024 * 1024 * 1024;
+
 /** Hash every entry of a zip, streaming one at a time. */
 export async function hashArchive(filePath: string): Promise<ActualEntry[]> {
   const dir = await unzipper.Open.file(filePath);
   const out: ActualEntry[] = [];
+  let total = 0;
   for (const file of dir.files) {
     if (file.type === 'Directory' || file.path === MANIFEST_PATH) continue;
     const hash = crypto.createHash('sha256');
     let size = 0;
     await new Promise<void>((resolve, reject) => {
-      file.stream()
+      const stream = file.stream();
+      stream
         .on('data', (c: Buffer) => {
           hash.update(c);
           size += c.length;
+          total += c.length;
+          if (total > MAX_HASHED_BYTES) {
+            stream.destroy();
+            reject(new BackupRefusal(DAMAGED_MESSAGE, 'BACKUP_DAMAGED', ['the archive inflates past its limit']));
+          }
         })
         .on('end', () => resolve())
         .on('error', reject);
@@ -183,4 +193,25 @@ export async function checkArchive(filePath: string, manifest: Record<string, un
   if (compareSchema(manifest.schemaVersion, await appliedMigrations(knex)) === 'newer') {
     throw new BackupRefusal(TOO_NEW_MESSAGE, 'BACKUP_SCHEMA_TOO_NEW');
   }
+}
+
+// ─── Desktop sync (S0) ───────────────────────────────────────────────────
+
+export const SYNC_FORMAT_MESSAGE =
+  'This backup was made by an older version and cannot be sent between the desktop and the server. Make a new backup with both on the current version and try again.';
+
+/**
+ * Sync accepts only archives that say what they are: format 2 or later, with
+ * the schema version that wrote them and a checksum for every entry. Unlike a
+ * restore, which still takes a format-1 archive, sync compares schema versions
+ * and checksums before it merges anything, so an archive without them is
+ * refused outright. Returns null when the archive may be synced.
+ */
+export function syncManifestProblem(manifest: Record<string, unknown>): string | null {
+  const format = manifest.formatVersion;
+  if (typeof format !== 'number' || !Number.isInteger(format) || format < FORMAT_VERSION) return SYNC_FORMAT_MESSAGE;
+  if (typeof manifest.schemaVersion !== 'string' || manifest.schemaVersion === '') return SYNC_FORMAT_MESSAGE;
+  const entries = manifest.entries;
+  if (!entries || typeof entries !== 'object' || Array.isArray(entries) || Object.keys(entries).length === 0) return SYNC_FORMAT_MESSAGE;
+  return null;
 }

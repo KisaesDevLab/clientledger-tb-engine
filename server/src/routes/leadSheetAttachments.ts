@@ -22,7 +22,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
-import { assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
+import { assertNotCheckedOut, assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
 import { nextRefCode, refPrefix } from '../lib/leadSheetRef';
 import {
   burnAnnotation, imageToPdf, isConvertibleImage, pdfPageCount,
@@ -187,7 +187,11 @@ leadSheetAttachmentCollectionRouter.post('/', uploadSingle('file'), async (req: 
       });
 
       try {
-        const [row] = await db('lead_sheet_attachments').insert({
+        // Again under the period row lock: a desktop may have checked the
+        // period out while the bytes were stored (the catch removes them).
+        const [row] = await db.transaction(async (trx) => {
+          await assertNotCheckedOut(trx, [periodId]);
+          return trx('lead_sheet_attachments').insert({
           client_id: period.client_id,
           period_id: periodId,
           lead_sheet_id: leadSheetId,
@@ -195,9 +199,10 @@ leadSheetAttachmentCollectionRouter.post('/', uploadSingle('file'), async (req: 
           account_id: parsed.data.accountId ?? null,
           ref_code: refCode,
           document_id: doc.id,
-          source_file_name: req.file.originalname,
+          source_file_name: req.file!.originalname,
           created_by: req.user?.userId ?? null,
         }).returning('*');
+        });
 
         await logAudit({
           userId: req.user?.userId ?? null, periodId, clientId: period.client_id as number,
@@ -365,6 +370,8 @@ leadSheetAttachmentItemRouter.post('/annotations', async (req: AuthRequest, res:
 
     await db.transaction(async (trx) => {
       await trx('lead_sheet_attachments').where({ id }).forUpdate().first('id');
+      // Again under the period row lock: the stamp was burned in meanwhile.
+      await assertNotCheckedOut(trx, [att.row.period_id as number]);
 
       // Re-read inside the lock: a concurrent stamp may have replaced the bytes
       // (and the row's size/hash) since loadAttachment ran.
@@ -419,11 +426,24 @@ leadSheetAttachmentItemRouter.delete('/', async (req: AuthRequest, res: Response
 
     // Remove the bytes and the document row, but keep this row as a tombstone
     // so its ref code stays reserved. document_id is SET NULL by the FK.
-    await removeDocument(att.doc);
-    await db('lead_sheet_attachments').where({ id }).update({
-      deleted_at: db.fn.now(),
-      deleted_by: req.user?.userId ?? null,
+    // The attachment row changes under the period lock (desktop sync: a pull
+    // cannot slip in between and take a row that is about to change); the
+    // storage delete, which no transaction can undo, follows. If it fails the
+    // row is put back, so nothing is hidden while its file still exists.
+    await db.transaction(async (trx) => {
+      await assertNotCheckedOut(trx, [att.row.period_id as number]);
+      await trx('lead_sheet_attachments').where({ id }).update({
+        deleted_at: trx.fn.now(),
+        deleted_by: req.user?.userId ?? null,
+        document_id: null,
+      });
     });
+    try {
+      await removeDocument(att.doc);
+    } catch (err) {
+      await db('lead_sheet_attachments').where({ id }).update({ deleted_at: null, deleted_by: null, document_id: att.doc.id });
+      throw err;
+    }
     await logAudit({
       userId: req.user?.userId ?? null, periodId: att.row.period_id as number, clientId: att.row.client_id as number,
       entityType: 'lead_sheet_attachment', entityId: id, action: 'delete',

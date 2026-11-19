@@ -15,6 +15,10 @@
  * A locked period does NOT gate any of this: statements are prepared after
  * the books are locked more often than before. What protects an issued
  * version is the freeze plus the stale check, not the lock.
+ *
+ * A period a DESKTOP holds (desktop sync) does gate every write here: its
+ * send-back replaces the period's statements, so a change made meanwhile
+ * would be lost (`assertNotCheckedOut`, inside each write's transaction).
  */
 
 import crypto from 'crypto';
@@ -36,7 +40,7 @@ import { FsError } from './fsLibrary';
 import { renderFsPdf } from './fsRender';
 import { buildFsDocx } from './fsDocx';
 import { buildFsXlsx } from './fsXlsx';
-import { logAudit } from '../periodGuard';
+import { assertNotCheckedOut, logAudit } from '../periodGuard';
 
 // Rows come back untyped from knex.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -307,6 +311,7 @@ export async function createReport(periodId: number, input: FsCreateReportInput,
   const period = await loadFsPeriodContext(db, periodId);
   const defaultLetter = await library.getDefaultLetterRow();
   return db.transaction(async (trx) => {
+    await assertNotCheckedOut(trx, [periodId]);
     let layoutId: number;
     if (input.layoutSource.kind === 'client_layout') {
       const l = await getLayoutRow(input.layoutSource.clientLayoutId, trx);
@@ -350,6 +355,7 @@ export async function updateReport(id: number, input: FsUpdateReportInput, userI
   return db.transaction(async (trx) => {
     const before = await trx('fs_reports').where({ id }).forUpdate().first();
     if (!before) throw new FsError('NOT_FOUND', 404, 'Financial statements not found.');
+    await assertNotCheckedOut(trx, [before.period_id as number]);
     assertDraft(before);
     const s = input.settings;
     const [row] = await trx('fs_reports').where({ id }).update({
@@ -370,6 +376,7 @@ export async function updateReport(id: number, input: FsUpdateReportInput, userI
 export async function archiveReport(id: number, userId: number | null): Promise<void> {
   const before = await getReportRow(id);
   await db.transaction(async (trx) => {
+    await assertNotCheckedOut(trx, [before.period_id as number]);
     await trx('fs_reports').where({ id }).update({ archived_at: trx.fn.now(), updated_by: userId, updated_at: trx.fn.now() });
     await logAudit({
       userId, periodId: before.period_id, clientId: before.client_id, entityType: 'fs_report', entityId: id, action: 'delete',
@@ -387,6 +394,7 @@ export async function rollForward(id: number, input: { periodId: number; name?: 
   const fm = frontMatterOf(src);
   const year = isoDate(target.end_date)?.slice(0, 4);
   return db.transaction(async (trx) => {
+    await assertNotCheckedOut(trx, [target.id as number]);
     const [row] = await trx('fs_reports').insert({
       client_id: src.client_id, period_id: target.id, client_layout_id: src.client_layout_id,
       name: input.name ?? (year ? String(src.name).replace(/\b(19|20)\d{2}\b/, year) : src.name),
@@ -519,6 +527,7 @@ export async function finalize(id: number, input: { overrideValidation?: boolean
     // Re-check under the lock: of two concurrent finalizes, one loses.
     const fresh = await trx('fs_reports').where({ id }).forUpdate().first('status');
     if (fresh?.status === 'final') throw new FsError('FS_FINAL_LOCKED', 423, 'These statements were finalized by someone else.');
+    await assertNotCheckedOut(trx, [report.period_id as number]);
     const last = await trx('fs_report_versions').where({ report_id: id }).max<{ n: number | null }>('version_no as n').first();
     const versionNo = (last?.n ?? 0) + 1;
     await trx('fs_report_versions').where({ report_id: id, status: 'final' }).update({ status: 'superseded', superseded_at: trx.fn.now() });
@@ -553,6 +562,7 @@ export async function reopen(id: number, userId: number | null): Promise<void> {
   await db.transaction(async (trx) => {
     const report = await trx('fs_reports').where({ id }).forUpdate().first();
     if (!report) throw new FsError('NOT_FOUND', 404, 'Financial statements not found.');
+    await assertNotCheckedOut(trx, [report.period_id as number]);
     if (report.status !== 'final') throw new FsError('FS_NOT_FINAL', 400, 'Only final statements can be reopened.');
     if (report.current_version_id) {
       await trx('fs_report_versions').where({ id: report.current_version_id }).update({ reopened_by: userId, reopened_at: trx.fn.now() });

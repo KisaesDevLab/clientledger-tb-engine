@@ -174,17 +174,15 @@ comparisonRouter.put('/variance-notes/:accountId', async (req: AuthRequest, res:
   }
 
   try {
-    await assertPeriodUnlocked(periodId);
-
-    if (!result.data.note.trim()) {
-      await db('variance_notes')
-        .where({ period_id: periodId, account_id: accountId, compare_period_id: comparePeriodId })
-        .delete();
-      res.json({ data: { deleted: true }, error: null });
-      return;
-    }
-
-    const [row] = await db('variance_notes')
+    const row = await db.transaction(async (trx) => {
+      await assertPeriodUnlocked(periodId, trx);
+      if (!result.data.note.trim()) {
+        await trx('variance_notes')
+          .where({ period_id: periodId, account_id: accountId, compare_period_id: comparePeriodId })
+          .delete();
+        return null;
+      }
+      const [r] = await trx('variance_notes')
       .insert({
         period_id:         periodId,
         account_id:        accountId,
@@ -195,8 +193,10 @@ comparisonRouter.put('/variance-notes/:accountId', async (req: AuthRequest, res:
       .onConflict(['period_id', 'account_id', 'compare_period_id'])
       .merge({ note: result.data.note.trim() })
       .returning('*');
+      return r;
+    });
 
-    res.json({ data: row, error: null });
+    res.json({ data: row ?? { deleted: true }, error: null });
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };
     if (e.code === 'PERIOD_LOCKED') {

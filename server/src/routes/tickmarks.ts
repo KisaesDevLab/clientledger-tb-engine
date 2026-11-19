@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
+import { assertClientKeysFrozen, assertNotCheckedOut } from '../lib/periodGuard';
 
 // Tickmark library (per client)
 export const tickmarkLibraryCollectionRouter = Router({ mergeParams: true });
@@ -76,7 +77,14 @@ tickmarkLibraryItemRouter.patch('/', async (req: AuthRequest, res: Response): Pr
   if (d.color       !== undefined) updates.color       = d.color;
   if (d.sortOrder   !== undefined) updates.sort_order  = d.sortOrder;
   try {
-    const [updated] = await db('tickmark_library').where({ id }).update(updates).returning('*');
+    const [updated] = await db.transaction(async (trx) => {
+      // A send-back matches tickmarks by symbol (owner 2026-11-19).
+      if (d.symbol !== undefined) {
+        const was = await trx('tickmark_library').where({ id }).first('symbol', 'client_id');
+        if (was && was.symbol !== d.symbol) await assertClientKeysFrozen(trx, Number(was.client_id), "a tickmark's symbol");
+      }
+      return trx('tickmark_library').where({ id }).update(updates).returning('*');
+    });
     if (!updated) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Tickmark not found' } }); return; }
     res.json({ data: updated, error: null });
   } catch (err: unknown) {
@@ -89,7 +97,13 @@ tickmarkLibraryItemRouter.delete('/', async (req: AuthRequest, res: Response): P
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ data: null, error: { code: 'INVALID_ID', message: 'Invalid ID' } }); return; }
   try {
-    const deleted = await db('tickmark_library').where({ id }).delete();
+    const deleted = await db.transaction(async (trx): Promise<number> => {
+      // Desktop sync: the delete cascades to the tickmarks placed in every
+      // period; not while a desktop holds one of them.
+      await assertNotCheckedOut(trx, await trx('tb_tickmarks').where({ tickmark_id: id }).distinct().pluck('period_id'));
+      const n: number = await trx('tickmark_library').where({ id }).delete();
+      return n;
+    });
     if (!deleted) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Tickmark not found' } }); return; }
     res.json({ data: { id }, error: null });
   } catch (err: unknown) {
@@ -244,14 +258,18 @@ tbTickmarkRouter.post('/toggle', async (req: AuthRequest, res: Response): Promis
   if (!result.success) { res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: result.error.message } }); return; }
   const { accountId, tickmarkId } = result.data;
   try {
-    const existing = await db('tb_tickmarks').where({ period_id: periodId, account_id: accountId, tickmark_id: tickmarkId }).first('id');
-    if (existing) {
-      await db('tb_tickmarks').where({ id: existing.id }).delete();
-      res.json({ data: { action: 'removed' }, error: null });
-    } else {
-      await db('tb_tickmarks').insert({ period_id: periodId, account_id: accountId, tickmark_id: tickmarkId, created_by: req.user!.userId });
-      res.json({ data: { action: 'assigned' }, error: null });
-    }
+    const action = await db.transaction(async (trx) => {
+      // Desktop sync: not in a period a desktop holds.
+      await assertNotCheckedOut(trx, [periodId]);
+      const existing = await trx('tb_tickmarks').where({ period_id: periodId, account_id: accountId, tickmark_id: tickmarkId }).first('id');
+      if (existing) {
+        await trx('tb_tickmarks').where({ id: existing.id }).delete();
+        return 'removed';
+      }
+      await trx('tb_tickmarks').insert({ period_id: periodId, account_id: accountId, tickmark_id: tickmarkId, created_by: req.user!.userId });
+      return 'assigned';
+    });
+    res.json({ data: { action }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'tickmarks');
   }

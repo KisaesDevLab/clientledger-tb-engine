@@ -14,6 +14,7 @@ import { PasswordInput } from '../components/PasswordInput';
 import { FirmIdentityCard } from '../components/FirmIdentityCard';
 import { PdfEngineCard } from '../components/PdfEngineCard';
 import { AccountSecurityCard } from '../components/security/AccountSecurityCard';
+import { DesktopSyncCard } from '../components/DesktopSyncCard';
 import { SecurityPolicyCard } from '../components/security/SecurityPolicyCard';
 import { ROUTER_BASENAME } from '../lib/baseConfig';
 import { RefreshButton } from '../components/RefreshButton';
@@ -555,6 +556,9 @@ export function SettingsPage() {
 
       {/* Account & security: password, authenticator app, passkeys, trusted browsers — every user */}
       <AccountSecurityCard />
+
+      {/* Desktop sync: pair ClientLedger Trial Balance on a computer — every user */}
+      <DesktopSyncCard />
 
       {/* Firm identity: PDF headers + the public legal pages (admin) */}
       {isAdmin && <FirmIdentityCard />}

@@ -6,7 +6,8 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { logAudit } from '../lib/periodGuard';
+import { assertNotCheckedOut, checkedOutBy, logAudit } from '../lib/periodGuard';
+import { checkoutApi, checkoutWarnDays } from '../lib/sync/checkouts';
 import { sendServerError } from '../lib/safeError';
 import { isForeignKeyViolation, foreignKeyBlockMessage, isRaisedException } from '../lib/pgErrors';
 
@@ -34,10 +35,19 @@ periodCollectionRouter.get('/', async (req: AuthRequest, res: Response): Promise
     return;
   }
   try {
-    const periods = await db('periods')
-      .where({ client_id: clientId })
-      .orderBy('end_date', 'desc');
-    res.json({ data: periods, error: null, meta: { count: periods.length } });
+    // A period that came along only as a reference (desktop sync) is not
+    // one to open.
+    const periods = (await db('periods')
+      .where({ client_id: clientId, is_reference: false })
+      .orderBy('end_date', 'desc')) as Array<Record<string, unknown> & { id: number }>;
+    // Desktop sync: who holds each period, if anyone (banner, Periods page).
+    const warnDays = await checkoutWarnDays();
+    const withCheckout = [];
+    for (const p of periods) {
+      const holder = await checkedOutBy(db, p.id);
+      withCheckout.push({ ...p, checkout: holder ? checkoutApi(holder, warnDays) : null });
+    }
+    res.json({ data: withCheckout, error: null, meta: { count: periods.length, checkoutWarnDays: warnDays } });
   } catch (err: unknown) {
     sendServerError(res, err, 'periods');
   }
@@ -102,6 +112,12 @@ periodItemRouter.patch('/:id', async (req: AuthRequest, res: Response): Promise<
           await trx('periods').where({ client_id: period.client_id }).update({ is_current: false });
         }
       }
+      // Desktop sync: the name, folder year and dates of a held period wait
+      // for its send-back; is_current (flipped on every sibling when a new
+      // period is made current) stays open.
+      if (d.periodName !== undefined || d.folderYear !== undefined || d.startDate !== undefined || d.endDate !== undefined) {
+        await assertNotCheckedOut(trx, [id]);
+      }
       const updates: Record<string, unknown> = {};
       if (d.periodName !== undefined) updates.period_name = d.periodName;
       if (d.folderYear !== undefined) updates.folder_year = d.folderYear;
@@ -123,6 +139,50 @@ periodItemRouter.patch('/:id', async (req: AuthRequest, res: Response): Promise<
 });
 
 // POST /api/v1/periods/:id/lock
+/**
+ * POST /api/v1/periods/:id/checkout/release — admin only (desktop sync S3).
+ * Ends a desktop's hold with a reason, for a desktop that is gone or a user
+ * who left. The desktop's unsent work is not sent; it can send it back only
+ * if the period has not changed since (S4).
+ */
+const releaseSchema = z.object({ reason: z.string().trim().min(3).max(500) });
+periodItemRouter.post('/:id/checkout/release', async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ data: null, error: { code: 'INVALID_ID', message: 'Invalid period ID' } });
+    return;
+  }
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ data: null, error: { code: 'FORBIDDEN', message: 'Only an admin can release a check-out.' } });
+    return;
+  }
+  const body = releaseSchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'Say why it is being released (at least 3 characters).' } });
+    return;
+  }
+  try {
+    const released = await db.transaction(async (trx) => {
+      await trx('periods').where({ id }).forUpdate().first('id');
+      const holder = await checkedOutBy(trx, id);
+      if (!holder) return null;
+      await trx('period_checkouts').where({ id: holder.id }).update({ released_at: trx.fn.now(), released_by: req.user!.userId, release_reason: body.data.reason });
+      await logAudit({
+        userId: req.user!.userId, periodId: id, entityType: 'period_checkout', entityId: holder.id, action: 'release',
+        description: `Released the check-out held by ${holder.user} on "${holder.device}": ${body.data.reason}`,
+      }, trx);
+      return holder;
+    });
+    if (!released) {
+      res.status(404).json({ data: null, error: { code: 'NOT_CHECKED_OUT', message: 'This period is not checked out.' } });
+      return;
+    }
+    res.json({ data: { released: true, user: released.user, device: released.device }, error: null });
+  } catch (err: unknown) {
+    sendServerError(res, err, 'periods');
+  }
+});
+
 periodItemRouter.post('/:id/lock', async (req: AuthRequest, res: Response): Promise<void> => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
@@ -136,6 +196,9 @@ periodItemRouter.post('/:id/lock', async (req: AuthRequest, res: Response): Prom
     const result = await db.transaction(async (trx) => {
       const existing = await trx('periods').where({ id }).forUpdate().first('id', 'locked_at', 'period_name');
       if (!existing) return { kind: 'not_found' as const };
+      // Desktop sync: a send-back is refused into a locked period, so locking
+      // a held one would strand the desktop's work. Release it first.
+      await assertNotCheckedOut(trx, [id]);
       if (existing.locked_at) {
         // Already locked — return current state idempotently
         const full = await trx('periods').where({ id }).first();
@@ -229,6 +292,8 @@ periodItemRouter.delete('/:id', async (req: AuthRequest, res: Response): Promise
     // so a refused delete leaves no "Deleted period" entry behind.
     let deleted: number | undefined;
     await db.transaction(async (trx) => {
+      // Desktop sync: deleting would erase the check-out with the period.
+      await assertNotCheckedOut(trx, [id]);
       await logAudit({ userId: req.user!.userId, periodId: null, entityType: 'period', entityId: id, action: 'delete', description: `Deleted period "${period.period_name ?? id}"` }, trx);
       const rows = await trx('periods').where({ id }).delete().returning('id');
       deleted = rows[0] ? Number((rows[0] as { id: number }).id ?? rows[0]) : undefined;

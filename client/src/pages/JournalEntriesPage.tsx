@@ -23,6 +23,7 @@ import { confirmAction } from '../components/ConfirmDialog';
 import { useJeLineEditing } from '../hooks/useJeLineEditing';
 import { invalidateAfterJournalEntry } from '../lib/queryInvalidation';
 import { RefreshButton } from '../components/RefreshButton';
+import { CheckoutBanner } from '../components/CheckoutBanner';
 
 function fmt(cents: number): string {
   if (cents === 0) return '—';
@@ -507,6 +508,7 @@ export function JournalEntriesPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {bookCount} book · {taxCount} tax · {transCount} trans
           </p>
+          <CheckoutBanner className="mt-2" />
         </div>
         <div className="flex items-center gap-3">
           <select

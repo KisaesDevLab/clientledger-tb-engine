@@ -39,6 +39,7 @@ import { engagementFilename } from '../utils/reportFilename';
 import { TickmarkPickerModal } from '../components/TickmarkPickerModal';
 import { invalidateAfterBalanceChange, invalidateAfterJournalEntry, invalidateAfterTickmarkToggle } from '../lib/queryInvalidation';
 import { RefreshButton } from '../components/RefreshButton';
+import { CheckoutBanner } from '../components/CheckoutBanner';
 import {
   listTickmarks,
   getTBTickmarks,
@@ -289,7 +290,8 @@ export function TrialBalancePage() {
   });
 
   const currentPeriod = periods?.find((p) => p.id === selectedPeriodId);
-  const isPeriodLocked = !!(currentPeriod?.locked_at);
+  // A period a desktop holds (desktop sync) is as read-only here as a locked one.
+  const isPeriodLocked = !!(currentPeriod?.locked_at || currentPeriod?.checkout);
 
   const { data: periodImports } = useQuery({
     queryKey: ['period-imports', selectedPeriodId],
@@ -1255,6 +1257,7 @@ export function TrialBalancePage() {
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Trial Balance<RefreshButton /></h2>
           {data && <p className="text-xs text-gray-500 dark:text-gray-400">{data.length} accounts · click to select · double-click or F2 to edit · Tab/Enter/arrows to navigate</p>}
+          <CheckoutBanner className="mt-2" />
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -1434,7 +1437,8 @@ export function TrialBalancePage() {
         </div>
       )}
 
-      {isPeriodLocked && (
+      {/* A checked-out period says so in the header banner instead. */}
+      {isPeriodLocked && !currentPeriod?.checkout && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-400 px-4 py-2 text-sm shrink-0 flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>

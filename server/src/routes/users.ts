@@ -10,6 +10,7 @@ import rateLimit from 'express-rate-limit';
 import { db } from '../db';
 import { authMiddleware, AuthRequest, invalidateAuthCache } from '../middleware/auth';
 import { logAudit } from '../lib/periodGuard';
+import { revokeUserDevices } from '../lib/sync/deviceRevoke';
 import { sendServerError } from '../lib/safeError';
 import { passwordSchema } from '../lib/passwordPolicy';
 import { sendUserInvite, type InviteFailureReason, type InviteResult } from '../lib/inviteService';
@@ -254,6 +255,10 @@ usersRouter.patch('/:id', adminOnly, async (req: AuthRequest, res: Response): Pr
     invalidateAuthCache(id);
     const changedFields = Object.keys(updates).filter(k => k !== 'updated_at');
     const hasPasswordChange = changedFields.includes('password_hash');
+    // A password reset ends the desktops the account paired (owner 2026-11-19).
+    if (hasPasswordChange) await revokeUserDevices(id, req.user!.userId, `an admin reset the password of "${updated.username}"`, { reset: true });
+    // Deactivation ends them for good: reactivating does not bring them back.
+    if (parsed.data.isActive === false) await revokeUserDevices(id, req.user!.userId, `"${updated.username}" was deactivated`);
     await logAudit({ userId: req.user!.userId, periodId: null, entityType: 'user', entityId: id, action: 'update', description: `Updated user "${updated.username}" — ${hasPasswordChange ? 'password changed' : changedFields.join(', ')}` });
     res.json({ data: updated, error: null });
   } catch (err: unknown) {

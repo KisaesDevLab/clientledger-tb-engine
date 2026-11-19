@@ -125,9 +125,15 @@ export async function restoreFsClientTables(trx: Trx, tables: Record<string, unk
   const keep = (set: Set<number>, id: unknown): number | null => (typeof id === 'number' && set.has(id) ? id : null);
 
   const layoutMap = new Map<number, number>();
+  const hasUid = await trx.schema.hasColumn('fs_client_layouts', 'sync_uid');
   for (const row of layouts) {
     const clean = ctx.sanitizeUserFks('fs_client_layouts', row);
+    // Desktop sync: keep the archive's layout uid unless a layout here holds
+    // it already (as keepSyncUids does for the other synced tables).
+    const uid = typeof row.sync_uid === 'string' && /^[0-9a-f-]{36}$/i.test(row.sync_uid) ? row.sync_uid : null;
+    const keepUid = hasUid && uid !== null && !(await trx('fs_client_layouts').where({ sync_uid: uid }).first('id'));
     const [ins] = await trx('fs_client_layouts').insert({
+      ...(keepUid ? { sync_uid: uid } : {}),
       client_id: ctx.clientId,
       name: clean.name,
       layout_json: json(remapFsLayoutIds(clean.layout_json, ctx)),

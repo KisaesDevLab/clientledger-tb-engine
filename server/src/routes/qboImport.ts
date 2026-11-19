@@ -171,7 +171,7 @@ qboImportRouter.post('/preview', async (req: AuthRequest, res: Response): Promis
     let priorRange: PriorRange | undefined;
     if (target === 'prior') {
       const others = (await db('periods')
-        .where({ client_id: clientId })
+        .where({ client_id: clientId, is_reference: false })
         .whereNot('id', periodId)
         .whereNotNull('start_date')
         .whereNotNull('end_date')

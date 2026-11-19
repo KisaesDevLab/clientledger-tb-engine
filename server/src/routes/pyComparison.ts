@@ -6,7 +6,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
+import { assertNotCheckedOut, assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
 import { ensureTrialBalanceRows } from '../lib/ensureTrialBalanceRows';
 import { sendServerError } from '../lib/safeError';
 import { reconcilePyTieOut, sumTrueUpLines, type TrueUpLine } from '../lib/pyTieOut';
@@ -274,6 +274,8 @@ pyComparisonRouter.post('/manual', async (req: AuthRequest, res: Response): Prom
     }
 
     await db.transaction(async (trx) => {
+      // Again under the period row lock (desktop sync): the parse above took time.
+      await assertNotCheckedOut(trx, [periodId]);
       // Clear existing PY data for this period
       await trx('py_comparison_data').where({ period_id: periodId }).delete();
 
@@ -364,6 +366,8 @@ pyComparisonRouter.post('/confirm-csv', async (req: AuthRequest, res: Response):
     }
 
     const stats = await db.transaction(async (trx) => {
+      // Again under the period row lock (desktop sync): the parse above took time.
+      await assertNotCheckedOut(trx, [periodId]);
       // Clear existing PY data
       await trx('py_comparison_data').where({ period_id: periodId }).delete();
 
@@ -513,6 +517,8 @@ pyComparisonRouter.post('/confirm-pdf', async (req: AuthRequest, res: Response):
     }
 
     const stats = await db.transaction(async (trx) => {
+      // Again under the period row lock (desktop sync): the parse above took time.
+      await assertNotCheckedOut(trx, [periodId]);
       await trx('py_comparison_data').where({ period_id: periodId }).delete();
 
       let imported = 0;
@@ -619,8 +625,11 @@ pyComparisonRouter.delete('/', async (req: AuthRequest, res: Response): Promise<
   }
 
   try {
-    await assertPeriodUnlocked(periodId);
-    const deleted = await db('py_comparison_data').where({ period_id: periodId }).delete();
+    const deleted = await db.transaction(async (trx): Promise<number> => {
+      await assertPeriodUnlocked(periodId, trx);
+      const n: number = await trx('py_comparison_data').where({ period_id: periodId }).delete();
+      return n;
+    });
     await logAudit({
       userId: req.user!.userId,
       periodId,

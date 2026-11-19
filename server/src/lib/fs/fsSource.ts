@@ -295,7 +295,7 @@ export async function loadFsSource(
   const period = await loadFsPeriodContext(q, periodId);
 
   const others = (await q('periods')
-    .where({ client_id: period.clientId })
+    .where({ client_id: period.clientId, is_reference: false })
     .whereNot({ id: periodId })
     .whereNotNull('start_date')
     .whereNotNull('end_date')

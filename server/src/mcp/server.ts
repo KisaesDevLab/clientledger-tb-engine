@@ -19,7 +19,7 @@ import { getJournalEntries, createJournalEntry } from './services/journalEntrySe
 import { getChartOfAccounts } from './services/coaService';
 import { getTaxMappingStatus, confirmTaxAssignments } from './services/taxService';
 import { runDiagnostics } from './services/diagnosticsService';
-import { logAudit } from '../lib/periodGuard';
+import { assertNotCheckedOut, logAudit } from '../lib/periodGuard';
 import { getMcpAgentUserId, generateMcpAgentJwt } from './auth';
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -656,10 +656,14 @@ export function createMcpServer(rateLimitKey = 'default'): Server {
             return { content: [{ type: 'text', text: 'periodId, accountId, and note are required' }], isError: true };
           }
 
-          await db('variance_notes')
-            .insert({ period_id: periodId, account_id: accountId, compare_period_id: 0, note, created_by: mcpUserId })
-            .onConflict(['account_id', 'period_id', 'compare_period_id'])
-            .merge(['note']);
+          await db.transaction(async (trx) => {
+            // Desktop sync: not in a period a desktop holds.
+            await assertNotCheckedOut(trx, [periodId]);
+            await trx('variance_notes')
+              .insert({ period_id: periodId, account_id: accountId, compare_period_id: 0, note, created_by: mcpUserId })
+              .onConflict(['account_id', 'period_id', 'compare_period_id'])
+              .merge(['note']);
+          });
 
           await auditMcpTool('add_variance_note', `Added variance note for period ${periodId}, account ${accountId}`, mcpUserId);
           return { content: [{ type: 'text', text: JSON.stringify({ success: true, periodId, accountId }) }] };
@@ -702,7 +706,10 @@ export function createMcpServer(rateLimitKey = 'default'): Server {
           }
           if (typeof a.notes === 'string') updates.notes = a.notes;
 
-          const [updated] = await db('engagement_tasks').where({ id: taskId }).update(updates).returning('*');
+          const [updated] = await db.transaction(async (trx) => {
+            await assertNotCheckedOut(trx, [(await trx('engagement_tasks').where({ id: taskId }).first('period_id'))?.period_id]);
+            return trx('engagement_tasks').where({ id: taskId }).update(updates).returning('*');
+          });
           if (!updated) return { content: [{ type: 'text', text: `Task ${taskId} not found` }], isError: true };
 
           await auditMcpTool('update_engagement_task', `Updated engagement task ${taskId} status: ${a.status ?? 'notes only'}`, mcpUserId);
@@ -744,6 +751,10 @@ export function createMcpServer(rateLimitKey = 'default'): Server {
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }
     } catch (err: unknown) {
+      // A guard's refusal (PERIOD_CHECKED_OUT, PERIOD_LOCKED) is for the caller to read.
+      if ((err as { expose?: unknown })?.expose === true && err instanceof Error) {
+        return { content: [{ type: 'text', text: err.message }], isError: true };
+      }
       const internal = err instanceof Error ? err.message : String(err);
       console.error('[mcp-server]', internal);
       return { content: [{ type: 'text', text: 'An internal error occurred. Please try again.' }], isError: true };

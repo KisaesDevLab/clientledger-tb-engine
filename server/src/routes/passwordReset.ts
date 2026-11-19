@@ -12,6 +12,7 @@ import { invalidateAuthCache } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
 import { passwordSchema } from '../lib/passwordPolicy';
 import { logAudit } from '../lib/periodGuard';
+import { revokeUserDevices } from '../lib/sync/deviceRevoke';
 import { getMailer } from '../lib/mailService';
 import { actionButton, buildTokenUrl, escapeHtml, fallbackLink } from '../lib/mailTemplates';
 import { selfServiceResetRefusal } from '../lib/accountGuards';
@@ -285,6 +286,9 @@ router.post('/password-reset/confirm', verifyLimiter, async (req: Request, res: 
       if (purpose === 'invite') updates.invite_accepted_at = trx.fn.now();
 
       await trx('app_users').where({ id: user.id }).update(updates);
+      // A new password from a link (a reset, or an invite re-sent to an
+      // account in use) ends its paired desktops (owner 2026-11-19).
+      await revokeUserDevices(user.id, null, `the password was set from an emailed ${purpose} link`, { reset: true, trx });
 
       // Mark this token consumed and invalidate every other unconsumed token for this user.
       await trx('password_reset_tokens')

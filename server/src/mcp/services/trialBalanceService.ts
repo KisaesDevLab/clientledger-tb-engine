@@ -87,18 +87,22 @@ export async function upsertTrialBalance(
   userId: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await assertPeriodUnlocked(periodId);
-    await db('trial_balance')
-      .insert({
-        period_id: periodId,
-        account_id: accountId,
-        unadjusted_debit: debitCents,
-        unadjusted_credit: creditCents,
-        updated_by: userId,
-        updated_at: db.fn.now(),
-      })
-      .onConflict(['period_id', 'account_id'])
-      .merge(['unadjusted_debit', 'unadjusted_credit', 'updated_by', 'updated_at']);
+    // In one transaction, so the guard's row lock holds until the write is in
+    // (a desktop's check-out cannot slip between them).
+    await db.transaction(async (trx) => {
+      await assertPeriodUnlocked(periodId, trx);
+      await trx('trial_balance')
+        .insert({
+          period_id: periodId,
+          account_id: accountId,
+          unadjusted_debit: debitCents,
+          unadjusted_credit: creditCents,
+          updated_by: userId,
+          updated_at: trx.fn.now(),
+        })
+        .onConflict(['period_id', 'account_id'])
+        .merge(['unadjusted_debit', 'unadjusted_credit', 'updated_by', 'updated_at']);
+    });
     return { success: true };
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };

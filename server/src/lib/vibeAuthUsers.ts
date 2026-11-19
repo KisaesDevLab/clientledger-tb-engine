@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import type { AuditSink, CreateLocalUserInput, CreateUserInput, UserAdapter, VibeUser } from '@kisaesdevlab/vibe-auth';
 import { db } from '../db';
 import { logAudit } from './periodGuard';
+import { revokeUserDevices } from './sync/deviceRevoke';
 import { ADMIN_ROLE, roleSyncRefusal } from './accountGuards';
 
 /** audit_log.action for a role the identity provider pushed and this app declined to apply. */
@@ -206,12 +207,16 @@ export function createVibeUsers(opts: VibeUsersOptions = {}): UserAdapter {
         sso_only_since: null,
         updated_at: db.fn.now(),
       });
+      // A password set by an admin is a reset: paired desktops end (owner 2026-11-19).
+      await revokeUserDevices(n, null, 'the password was set from single sign-on administration', { reset: true });
       changed(n);
     },
 
     async setActive(id, active) {
       const n = userId(id);
       await db('app_users').where({ id: n }).update({ is_active: active, updated_at: db.fn.now() });
+      // Deactivation ends paired desktops for good (owner 2026-11-19).
+      if (!active) await revokeUserDevices(n, null, 'the account was deactivated from single sign-on administration');
       changed(n);
     },
   };

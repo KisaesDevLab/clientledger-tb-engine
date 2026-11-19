@@ -7,6 +7,8 @@ import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
+import { assertNotCheckedOut } from '../lib/periodGuard';
+import type { Knex } from 'knex';
 
 // ── Collection: /api/v1/clients/:clientId/reconciliations ────────────────────
 export const reconciliationCollectionRouter = Router({ mergeParams: true });
@@ -17,12 +19,23 @@ reconciliationCollectionRouter.use(authMiddleware);
  * true iff the caller should abort (already replied 409). Locked reconciliations
  * must remain read-only once their period is closed.
  */
+/**
+ * Desktop sync: refuses (PERIOD_CHECKED_OUT) a write to a reconciliation
+ * whose period a desktop holds. Inside the write's transaction, so it
+ * orders against a pull's check-out.
+ */
+async function assertReconNotCheckedOut(trx: Knex.Transaction, recId: number): Promise<void> {
+  const r = await trx('bank_reconciliations').where({ id: recId }).first('period_id');
+  await assertNotCheckedOut(trx, [r?.period_id as number | null | undefined]);
+}
+
 async function reconciliationPeriodLocked(recId: number, res: Response): Promise<boolean> {
   const row = await db('bank_reconciliations as br')
     .leftJoin('periods as p', 'p.id', 'br.period_id')
     .where('br.id', recId)
-    .first('p.locked_at');
-  if (row?.locked_at) {
+    .first('p.locked_at', 'p.is_reference');
+  // A reference period (desktop sync) is as read-only as a locked one.
+  if (row?.locked_at || row?.is_reference) {
     res.status(409).json({
       data: null,
       error: { code: 'PERIOD_LOCKED', message: 'This reconciliation is in a locked period and cannot be modified.' },
@@ -87,7 +100,9 @@ reconciliationCollectionRouter.post('/', async (req: AuthRequest, res: Response)
   }
   const { sourceAccountId, periodId, statementDate, statementEndingBalance, beginningBookBalance, notes } = result.data;
   try {
-    const [rec] = await db('bank_reconciliations').insert({
+    const [rec] = await db.transaction(async (trx) => {
+      await assertNotCheckedOut(trx, [periodId]);
+      return trx('bank_reconciliations').insert({
       client_id: clientId,
       source_account_id: sourceAccountId,
       period_id: periodId ?? null,
@@ -98,6 +113,7 @@ reconciliationCollectionRouter.post('/', async (req: AuthRequest, res: Response)
       notes: notes ?? null,
       created_by: req.user!.userId,
     }).returning('*');
+    });
     res.status(201).json({ data: { ...rec, statement_ending_balance: Number(rec.statement_ending_balance), beginning_book_balance: Number(rec.beginning_book_balance) }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'reconciliations');
@@ -211,7 +227,10 @@ reconciliationItemRouter.patch('/', async (req: AuthRequest, res: Response): Pro
       res.status(409).json({ data: null, error: { code: 'LOCKED', message: 'Reconciliation is completed' } });
       return;
     }
-    const [updated] = await db('bank_reconciliations').where({ id }).update(updates).returning('*');
+    const [updated] = await db.transaction(async (trx) => {
+      await assertReconNotCheckedOut(trx, id);
+      return trx('bank_reconciliations').where({ id }).update(updates).returning('*');
+    });
     res.json({ data: { ...updated, statement_ending_balance: Number(updated.statement_ending_balance), beginning_book_balance: Number(updated.beginning_book_balance) }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'reconciliations');
@@ -237,14 +256,17 @@ reconciliationItemRouter.post('/toggle-item', async (req: AuthRequest, res: Resp
       res.status(409).json({ data: null, error: { code: 'LOCKED', message: 'Reconciliation is completed' } });
       return;
     }
-    const existing = await db('reconciliation_items').where({ reconciliation_id: id, transaction_id: transactionId }).first('id');
-    if (existing) {
-      await db('reconciliation_items').where({ reconciliation_id: id, transaction_id: transactionId }).delete();
-      res.json({ data: { cleared: false, transactionId }, error: null });
-    } else {
-      await db('reconciliation_items').insert({ reconciliation_id: id, transaction_id: transactionId });
-      res.json({ data: { cleared: true, transactionId }, error: null });
-    }
+    const cleared = await db.transaction(async (trx) => {
+      await assertReconNotCheckedOut(trx, id);
+      const existing = await trx('reconciliation_items').where({ reconciliation_id: id, transaction_id: transactionId }).first('id');
+      if (existing) {
+        await trx('reconciliation_items').where({ reconciliation_id: id, transaction_id: transactionId }).delete();
+        return false;
+      }
+      await trx('reconciliation_items').insert({ reconciliation_id: id, transaction_id: transactionId });
+      return true;
+    });
+    res.json({ data: { cleared, transactionId }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'reconciliations');
   }
@@ -303,10 +325,13 @@ reconciliationItemRouter.post('/complete', async (req: AuthRequest, res: Respons
       }
     }
 
-    const [updated] = await db('bank_reconciliations')
-      .where({ id })
-      .update({ status: 'completed', completed_by: req.user!.userId, completed_at: db.fn.now() })
-      .returning('*');
+    const [updated] = await db.transaction(async (trx) => {
+      await assertReconNotCheckedOut(trx, id);
+      return trx('bank_reconciliations')
+        .where({ id })
+        .update({ status: 'completed', completed_by: req.user!.userId, completed_at: trx.fn.now() })
+        .returning('*');
+    });
     res.json({ data: { ...updated, statement_ending_balance: Number(updated.statement_ending_balance), beginning_book_balance: Number(updated.beginning_book_balance) }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'reconciliations');
@@ -334,10 +359,13 @@ reconciliationItemRouter.post('/reopen', async (req: AuthRequest, res: Response)
       res.status(409).json({ data: null, error: { code: 'NOT_COMPLETED', message: 'Reconciliation is not completed' } });
       return;
     }
-    const [updated] = await db('bank_reconciliations')
-      .where({ id })
-      .update({ status: 'open', completed_by: null, completed_at: null })
-      .returning('*');
+    const [updated] = await db.transaction(async (trx) => {
+      await assertReconNotCheckedOut(trx, id);
+      return trx('bank_reconciliations')
+        .where({ id })
+        .update({ status: 'open', completed_by: null, completed_at: null })
+        .returning('*');
+    });
     res.json({ data: { ...updated, statement_ending_balance: Number(updated.statement_ending_balance), beginning_book_balance: Number(updated.beginning_book_balance) }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'reconciliations');
@@ -361,8 +389,11 @@ reconciliationItemRouter.delete('/', async (req: AuthRequest, res: Response): Pr
       res.status(409).json({ data: null, error: { code: 'LOCKED', message: 'Cannot delete a completed reconciliation' } });
       return;
     }
-    await db('reconciliation_items').where({ reconciliation_id: id }).delete();
-    await db('bank_reconciliations').where({ id }).delete();
+    await db.transaction(async (trx) => {
+      await assertReconNotCheckedOut(trx, id);
+      await trx('reconciliation_items').where({ reconciliation_id: id }).delete();
+      await trx('bank_reconciliations').where({ id }).delete();
+    });
     res.json({ data: { id }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'reconciliations');

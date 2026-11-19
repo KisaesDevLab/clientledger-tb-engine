@@ -3,6 +3,7 @@
 // Use is limited to qualifying small businesses. See LICENSE for terms.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { StaleCheckoutsNotice } from '../components/StaleCheckoutsNotice';
 import { getDashboard, type AuditEntry } from '../api/dashboard';
 import { lockPeriod, unlockPeriod } from '../api/periods';
 import { useUIStore } from '../store/uiStore';
@@ -114,6 +115,7 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 max-w-4xl space-y-6">
+      <StaleCheckoutsNotice />
       {/* Period header */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center justify-between">
         <div>

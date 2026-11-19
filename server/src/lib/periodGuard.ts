@@ -15,25 +15,150 @@ import { db } from '../db';
  *  When called without a trx, performs a plain read — acceptable only for read-only paths
  *  (reports / comparisons) where a stale answer is fine.
  */
-export async function assertPeriodUnlocked(periodId: number, trx?: Knex.Transaction): Promise<void> {
+export async function assertPeriodUnlocked(
+  periodId: number,
+  trx?: Knex.Transaction,
+  opts: {
+    /**
+     * Desktop sync S4's merge, writing for the device that holds this
+     * check-out: the one caller a checked-out period lets through.
+     */
+    syncCheckoutId?: number;
+  } = {},
+): Promise<void> {
   const q = trx ?? db;
   let query = q('periods').where({ id: periodId });
   if (trx) {
     query = query.forUpdate();
   }
-  const period = await query.first('id', 'locked_at');
+  const period = await query.first('id', 'locked_at', 'is_reference');
   if (!period) {
     throw Object.assign(
       new Error('Period not found.'),
       { code: 'PERIOD_NOT_FOUND', status: 404 },
     );
   }
+  if (period.is_reference) {
+    // PERIOD_LOCKED, so every route that maps a locked period (about twenty)
+    // answers 409 with this message rather than a 500; `reference` tells why.
+    throw Object.assign(
+      new Error('This period came along only as a reference for another period: it holds no data here and cannot be changed.'),
+      { code: 'PERIOD_LOCKED', status: 409, reference: true, expose: true },
+    );
+  }
   if (period.locked_at) {
     throw Object.assign(
       new Error('This period is locked and cannot be modified. Unlock it first.'),
-      { code: 'PERIOD_LOCKED', status: 409 },
+      // expose: a route that does not map PERIOD_LOCKED answers 409, not 500.
+      { code: 'PERIOD_LOCKED', status: 409, expose: true },
     );
   }
+  // Desktop sync (S3): a period a desktop has checked out is that desktop's
+  // until it sends it back or an admin releases it. `expose` lets the code
+  // and message through `sendServerError`, so a route that only maps
+  // PERIOD_LOCKED still answers 409 PERIOD_CHECKED_OUT.
+  const out = await checkedOutBy(q, periodId);
+  if (out && out.id !== opts.syncCheckoutId) throw checkedOutError(out);
+}
+
+/** The refusal for a period a desktop holds: 409 PERIOD_CHECKED_OUT, naming who. */
+export function checkedOutError(out: PeriodCheckoutHolder): Error {
+  return Object.assign(
+    new Error(`This period is checked out to ${out.user} on "${out.device}" since ${out.since.toISOString().slice(0, 10)}. It can be changed once they send it back, or an admin releases it.`),
+    { code: 'PERIOD_CHECKED_OUT', status: 409, expose: true, checkout: out },
+  );
+}
+
+/**
+ * Desktop sync S3: refuses a write into any of these periods that a desktop
+ * holds, for writes the lock does not cover (lock behaviour is unchanged).
+ * Takes each period row FOR UPDATE, in id order, inside the write's
+ * transaction, which orders the write against a pull's check-out. Null ids
+ * (rows that belong to no period) are skipped.
+ */
+export async function assertNotCheckedOut(
+  trx: Knex.Transaction,
+  periodIds: Iterable<number | string | null | undefined>,
+  opts: { syncCheckoutId?: number } = {},
+): Promise<void> {
+  const ids = [...new Set([...periodIds].map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+  for (const id of ids) {
+    const row = await trx('periods').where({ id }).forUpdate().first('id', 'is_reference');
+    // A reference period (desktop sync) holds no data here: no write of any kind.
+    if (row?.is_reference) throw referenceError();
+    const out = await checkedOutBy(trx, id);
+    if (out && out.id !== opts.syncCheckoutId) throw checkedOutError(out);
+  }
+}
+
+/** The refusal for a period that came along only as a reference. */
+export function referenceError(): Error {
+  return Object.assign(
+    new Error('This period came along only as a reference for another period: it holds no data here and cannot be changed.'),
+    { code: 'PERIOD_LOCKED', status: 409, reference: true, expose: true },
+  );
+}
+
+/**
+ * For writes that should SKIP rows of a held period instead of refusing the
+ * batch (AI suggestions): locks the periods, as `assertNotCheckedOut`, and
+ * returns the ids a desktop holds.
+ */
+export async function lockAndListHeld(trx: Knex.Transaction, periodIds: Iterable<number | string | null | undefined>): Promise<Set<number>> {
+  const ids = [...new Set([...periodIds].map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+  const refs: number[] = [];
+  for (const id of ids) {
+    const row = await trx('periods').where({ id }).forUpdate().first('id', 'is_reference');
+    if (row?.is_reference) refs.push(id);
+  }
+  if (ids.length === 0) return new Set();
+  const held = (await trx('period_checkouts').whereIn('period_id', ids).whereNull('released_at').pluck('period_id')) as number[];
+  // A reference period is skipped like a held one.
+  return new Set([...held.map(Number), ...refs]);
+}
+
+/**
+ * Owner 2026-11-19: while any period of a client is checked out, a lead
+ * sheet's code and a tickmark's symbol stay as they are (a send-back matches
+ * by them). 409 PERIOD_CHECKED_OUT naming the first holder.
+ */
+export async function assertClientKeysFrozen(trx: Knex.Transaction, clientId: number, what: string): Promise<void> {
+  const row = await trx('period_checkouts as c').join('periods as p', 'p.id', 'c.period_id')
+    .where('p.client_id', clientId).whereNull('c.released_at').orderBy('c.id').first('c.period_id');
+  if (!row) return;
+  const holder = await checkedOutBy(trx, Number(row.period_id));
+  if (!holder) return;
+  throw Object.assign(
+    new Error(`A period of this client is checked out to ${holder.user} on "${holder.device}", so ${what} cannot change until it is sent back or released.`),
+    { code: 'PERIOD_CHECKED_OUT', status: 409, expose: true, checkout: holder },
+  );
+}
+
+/** Refuses when any period of the client is held (a restore that replaces the client). */
+export async function assertClientNotCheckedOut(trx: Knex.Transaction, clientId: number): Promise<void> {
+  const ids = (await trx('period_checkouts as c').join('periods as p', 'p.id', 'c.period_id')
+    .where('p.client_id', clientId).whereNull('c.released_at').pluck('c.period_id')) as number[];
+  await assertNotCheckedOut(trx, ids);
+}
+
+export interface PeriodCheckoutHolder {
+  id: number;
+  user: string;
+  device: string;
+  deviceId: number;
+  since: Date;
+}
+
+/** The live check-out of a period, if any (desktop sync S3). */
+export async function checkedOutBy(q: Knex | Knex.Transaction, periodId: number): Promise<PeriodCheckoutHolder | null> {
+  const row = await q('period_checkouts as c')
+    .join('sync_devices as d', 'd.id', 'c.device_id')
+    .join('app_users as u', 'u.id', 'c.user_id')
+    .where('c.period_id', periodId)
+    .whereNull('c.released_at')
+    .first('c.id', 'c.created_at', 'd.id as device_id', 'd.name as device', 'u.display_name', 'u.username');
+  if (!row) return null;
+  return { id: row.id, user: row.display_name ?? row.username, device: row.device, deviceId: row.device_id, since: new Date(row.created_at) };
 }
 
 interface AuditEntry {

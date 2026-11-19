@@ -15,6 +15,13 @@ export function sendServerError(
   code = 'SERVER_ERROR',
   status = 500,
 ): void {
+  // An error a guard raised for the caller to see (`expose: true`, a 4xx
+  // status and a code), such as PERIOD_CHECKED_OUT: send it as it is.
+  const e = err as { expose?: unknown; status?: unknown; code?: unknown; message?: unknown } | null;
+  if (e && e.expose === true && typeof e.status === 'number' && e.status >= 400 && e.status < 500 && typeof e.code === 'string') {
+    res.status(e.status).json({ data: null, error: { code: e.code, message: String(e.message ?? '') } });
+    return;
+  }
   const internal = err instanceof Error ? err.message : String(err);
   console.error(`[${context}]`, internal);
   res.status(status).json({

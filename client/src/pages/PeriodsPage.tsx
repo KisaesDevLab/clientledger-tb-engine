@@ -11,6 +11,7 @@ import {
   deletePeriod,
   lockPeriod,
   unlockPeriod,
+  releaseCheckout,
   rollForwardPeriod,
   type Period,
   type PeriodInput,
@@ -22,6 +23,7 @@ import { useUIStore, useAuthStore } from '../store/uiStore';
 import { DateInput } from '../components/DateInput';
 import { confirmAction } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
+import { checkoutSentence } from '../components/CheckoutBanner';
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
@@ -295,6 +297,9 @@ export function PeriodsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [rollForwardSource, setRollForwardSource] = useState<Period | null>(null);
   const [lockError, setLockError] = useState<string | null>(null);
+  /** Desktop sync: the period an admin is releasing, and why. */
+  const [releaseFor, setReleaseFor] = useState<Period | null>(null);
+  const [releaseReason, setReleaseReason] = useState('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['periods', selectedClientId],
@@ -341,6 +346,17 @@ export function PeriodsPage() {
     onSuccess: (res) => {
       if (res.error) { setLockError(res.error.message); return; }
       setLockError(null);
+      invalidate();
+    },
+  });
+
+  const releaseMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => releaseCheckout(id, reason),
+    onSuccess: (res) => {
+      if (res.error) { setLockError(res.error.message); return; }
+      setLockError(null);
+      setReleaseFor(null);
+      setReleaseReason('');
       invalidate();
     },
   });
@@ -433,7 +449,25 @@ export function PeriodsPage() {
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      {p.locked_at ? (
+                      {p.checkout ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${p.checkout.stale ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'}`}>
+                              {p.checkout.stale ? 'Checked out (stale)' : 'Checked out'}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                onClick={() => { setReleaseFor(p); setReleaseReason(''); }}
+                                title="End this desktop's check-out"
+                                className="text-xs text-gray-400 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400"
+                              >
+                                Release
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{checkoutSentence(p.checkout)}</span>
+                        </div>
+                      ) : p.locked_at ? (
                         <div className="flex items-center gap-2">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">Locked</span>
                           {isAdmin && (
@@ -471,16 +505,16 @@ export function PeriodsPage() {
                       </button>
                       <button
                         onClick={() => { setEditPeriod(p); setFormError(null); }}
-                        disabled={!!p.locked_at}
-                        title={p.locked_at ? 'Period is locked. Unlock it to edit.' : 'Edit period'}
+                        disabled={!!p.locked_at || !!p.checkout}
+                        title={p.checkout ? 'A desktop has this period checked out.' : p.locked_at ? 'Period is locked. Unlock it to edit.' : 'Edit period'}
                         className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Edit
                       </button>
                       <button
                         onClick={async () => { if (await confirmAction({ message: `Delete "${p.period_name}"?`, tone: 'danger' })) deleteMutation.mutate(p.id); }}
-                        disabled={!!p.locked_at}
-                        title={p.locked_at ? 'Period is locked. Unlock it to delete.' : 'Delete period'}
+                        disabled={!!p.locked_at || !!p.checkout}
+                        title={p.checkout ? 'A desktop has this period checked out.' : p.locked_at ? 'Period is locked. Unlock it to delete.' : 'Delete period'}
                         className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Delete
@@ -502,6 +536,41 @@ export function PeriodsPage() {
             saving={createMutation.isPending}
             error={formError}
           />
+        </Modal>
+      )}
+
+      {releaseFor && (
+        <Modal title={`Release "${releaseFor.period_name}"?`} onClose={() => setReleaseFor(null)}>
+          <form
+            onSubmit={(e) => { e.preventDefault(); releaseMutation.mutate({ id: releaseFor.id, reason: releaseReason.trim() }); }}
+            className="space-y-3"
+          >
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {releaseFor.checkout ? checkoutSentence(releaseFor.checkout) : ''} Releasing lets this period be changed here again.
+              Work not yet sent back from that desktop stays on it, and can be sent back only if the period has not changed here since.
+            </p>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+              Why (kept in the audit log)
+              <input
+                autoFocus
+                value={releaseReason}
+                onChange={(e) => setReleaseReason(e.target.value)}
+                maxLength={500}
+                placeholder="e.g. the laptop was lost"
+                className="mt-1 w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-sm dark:bg-gray-700 dark:text-white"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setReleaseFor(null)} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300">Cancel</button>
+              <button
+                type="submit"
+                disabled={releaseReason.trim().length < 3 || releaseMutation.isPending}
+                className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+              >
+                {releaseMutation.isPending ? 'Releasing…' : 'Release'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 

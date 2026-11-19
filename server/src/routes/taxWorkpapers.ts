@@ -82,8 +82,9 @@ m1CollectionRouter.post('/', async (req: AuthRequest, res: Response): Promise<vo
   const d = result.data;
   try {
     // M-1 amounts feed the period's taxable income — locked periods are immutable.
-    await assertPeriodUnlocked(periodId);
-    const [row] = await db('m1_adjustments').insert({
+    const [row] = await db.transaction(async (trx) => {
+      await assertPeriodUnlocked(periodId, trx);
+      return trx('m1_adjustments').insert({
       period_id:   periodId,
       description: d.description,
       category:    d.category ?? null,
@@ -93,6 +94,7 @@ m1CollectionRouter.post('/', async (req: AuthRequest, res: Response): Promise<vo
       notes:       d.notes ?? null,
       created_by:  req.user!.userId,
     }).returning('*');
+    });
     await logAudit({ userId: req.user!.userId, periodId, entityType: 'm1_adjustment', entityId: (row as { id: number }).id, action: 'create', description: `Added M-1 adjustment: ${d.description}` });
     res.status(201).json({ data: parseRow(row as Record<string, unknown>), error: null });
   } catch (err: unknown) {
@@ -118,8 +120,10 @@ m1ItemRouter.patch('/', async (req: AuthRequest, res: Response): Promise<void> =
   try {
     const existing = await db('m1_adjustments').where({ id }).first('period_id');
     if (!existing) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Adjustment not found' } }); return; }
-    await assertPeriodUnlocked(Number(existing.period_id));
-    const [updated] = await db('m1_adjustments').where({ id }).update(updates).returning('*');
+    const [updated] = await db.transaction(async (trx) => {
+      await assertPeriodUnlocked(Number(existing.period_id), trx);
+      return trx('m1_adjustments').where({ id }).update(updates).returning('*');
+    });
     if (!updated) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Adjustment not found' } }); return; }
     await logAudit({ userId: req.user!.userId, periodId: Number(existing.period_id), entityType: 'm1_adjustment', entityId: id, action: 'update', description: 'Updated M-1 adjustment' });
     res.json({ data: parseRow(updated as Record<string, unknown>), error: null });
@@ -136,8 +140,11 @@ m1ItemRouter.delete('/', async (req: AuthRequest, res: Response): Promise<void> 
   try {
     const existing = await db('m1_adjustments').where({ id }).first('period_id', 'description');
     if (!existing) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Adjustment not found' } }); return; }
-    await assertPeriodUnlocked(Number(existing.period_id));
-    const deleted = await db('m1_adjustments').where({ id }).delete();
+    const deleted = await db.transaction(async (trx): Promise<number> => {
+      await assertPeriodUnlocked(Number(existing.period_id), trx);
+      const n: number = await trx('m1_adjustments').where({ id }).delete();
+      return n;
+    });
     if (!deleted) { res.status(404).json({ data: null, error: { code: 'NOT_FOUND', message: 'Adjustment not found' } }); return; }
     await logAudit({ userId: req.user!.userId, periodId: Number(existing.period_id), entityType: 'm1_adjustment', entityId: id, action: 'delete', description: `Deleted M-1 adjustment: ${existing.description}` });
     res.json({ data: { id }, error: null });

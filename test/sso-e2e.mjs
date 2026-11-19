@@ -745,6 +745,19 @@ async function main() {
     assert.equal(bg.status, 200, bg.text);
     assert.equal((await api('/auth/oidc/start')).status, 302);
   });
+  await step('oidc_only: a desktop pairs from a single-sign-on session (desktop sync S2)', async () => {
+    idp.user = KURT;
+    const sso = await ssoLogin();
+    assert.ok(sso.token, 'an SSO session');
+    const c = await api('/api/v1/desktop-sync/codes', { method: 'POST', token: sso.token });
+    assert.equal(c.status, 201, c.text);
+    // Pairing is not a sign-in: no password, so oidc_only does not refuse it.
+    const p = await api('/api/v1/sync/pair', { method: 'POST', json: { code: c.json.data.code, deviceName: 'Example SSO laptop' } });
+    assert.equal(p.status, 201, p.text);
+    const list = await api('/api/v1/sync/clients', { token: p.json.data.token });
+    assert.equal(list.status, 200, list.text);
+    assert.equal(p.json.data.user.username, 'kurt', 'the device acts as the SSO user');
+  });
   await stopServer();
 }
 

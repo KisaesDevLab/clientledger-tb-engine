@@ -11,7 +11,7 @@ import type { Knex } from 'knex';
 import { createHash } from 'crypto';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
+import { assertNotCheckedOut, assertPeriodUnlocked, lockAndListHeld, logAudit } from '../lib/periodGuard';
 import { aiComplete, markAiUsageParseError } from '../lib/aiComplete';
 import { ensureTrialBalanceRows } from '../lib/ensureTrialBalanceRows';
 import { getLLMProvider } from '../lib/aiClient';
@@ -303,8 +303,9 @@ btCollectionRouter.post('/', async (req: AuthRequest, res: Response): Promise<vo
     // any downstream classification would then try to post into a locked
     // period and the user sees a cascade of surprise errors.
     if (periodId) {
-      const periodRow = await db('periods').where({ id: periodId }).first('locked_at');
-      if (periodRow?.locked_at) {
+      const periodRow = await db('periods').where({ id: periodId }).first('locked_at', 'is_reference');
+      // A reference period (desktop sync) holds no data here either.
+      if (periodRow?.locked_at || periodRow?.is_reference) {
         res.status(409).json({
           data: null,
           error: { code: 'PERIOD_LOCKED', message: 'Cannot add transactions to a locked period.' },
@@ -312,16 +313,21 @@ btCollectionRouter.post('/', async (req: AuthRequest, res: Response): Promise<vo
         return;
       }
     }
-    const [row] = await db('bank_transactions').insert({
-      client_id: clientId,
-      period_id: periodId ?? null,
-      source_account_id: sourceAccountId ?? null,
-      transaction_date: transactionDate,
-      description: description ?? null,
-      amount,
-      check_number: checkNumber ?? null,
-      classification_status: 'unclassified',
-    }).returning('*');
+    const row = await db.transaction(async (trx) => {
+      // Desktop sync: not into a period a desktop holds.
+      await assertNotCheckedOut(trx, [periodId]);
+      const [inserted] = await trx('bank_transactions').insert({
+        client_id: clientId,
+        period_id: periodId ?? null,
+        source_account_id: sourceAccountId ?? null,
+        transaction_date: transactionDate,
+        description: description ?? null,
+        amount,
+        check_number: checkNumber ?? null,
+        classification_status: 'unclassified',
+      }).returning('*');
+      return inserted;
+    });
     res.status(201).json({ data: row, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'bank-tx');
@@ -579,6 +585,8 @@ btCollectionRouter.post('/import', upload.single('file'), async (req: AuthReques
     let importedCount = 0;
     let duplicateCount = 0;
     await db.transaction(async (trx) => {
+      // Desktop sync: not into a period a desktop holds.
+      await assertNotCheckedOut(trx, hashedRows.map((h) => (h.row as { period_id?: number | null }).period_id));
       // Rows imported before the v2 hash carry the legacy format; match first
       // occurrences against it so re-importing an overlapping statement after
       // the upgrade does not duplicate existing data.
@@ -717,7 +725,10 @@ btCollectionRouter.post('/batch-delete', async (req: AuthRequest, res: Response)
       const txs = await trx('bank_transactions')
         .where({ client_id: clientId })
         .whereIn('id', result.data.ids)
-        .select('id', 'journal_entry_id');
+        .select('id', 'journal_entry_id', 'period_id');
+      // Desktop sync: the rows' own periods, held or not (the JE check below
+      // covers the entries' periods).
+      await assertNotCheckedOut(trx, txs.map((t: { period_id: number | null }) => t.period_id));
 
       const jeIds = txs.map((t: { journal_entry_id: number | null }) => t.journal_entry_id).filter(Boolean) as number[];
       if (jeIds.length > 0) {
@@ -818,6 +829,8 @@ btCollectionRouter.post('/batch-update-source', async (req: AuthRequest, res: Re
   const { ids, sourceAccountId } = result.data;
   try {
     await db.transaction(async (trx) => {
+      // Desktop sync: unclassified rows too, by their own period.
+      await assertNotCheckedOut(trx, await trx('bank_transactions').where({ client_id: clientId }).whereIn('id', ids).pluck('period_id'));
       await trx('bank_transactions')
         .where({ client_id: clientId })
         .whereIn('id', ids)
@@ -923,6 +936,8 @@ btCollectionRouter.post('/ai-classify', async (req: AuthRequest, res: Response):
       .where({ client_id: clientId })
       .whereIn('id', result.data.ids)
       .whereNotIn('classification_status', ['confirmed', 'manual'])
+      // Desktop sync: rows of a period a desktop holds are left alone.
+      .where((w) => w.whereNull('period_id').orWhereNotIn('period_id', db('period_checkouts').whereNull('released_at').select('period_id')))
       .select('id', 'description', 'amount', 'transaction_date');
 
     if (transactions.length === 0) {
@@ -993,17 +1008,25 @@ Respond with a JSON array and nothing else. Each element: { "id": number, "accou
 
     const accountIdSet = new Set((accounts as AccountRow[]).map((a) => a.id));
     let classified = 0;
-    for (const s of suggestions) {
-      if (!accountIdSet.has(s.accountId)) continue;
-      await db('bank_transactions')
-        .where({ id: s.id, client_id: clientId })
-        .update({
-          ai_suggested_account_id: s.accountId,
-          ai_confidence: Math.min(1, Math.max(0, Number(s.confidence))),
-          classification_status: 'ai_suggested',
-        });
-      classified++;
-    }
+    await db.transaction(async (trx) => {
+      // A period checked out while the model was answering is skipped too.
+      const rows = (await trx('bank_transactions').where({ client_id: clientId }).whereIn('id', suggestions.map((s) => s.id)).select('id', 'period_id')) as Array<{ id: number; period_id: number | null }>;
+      const held = await lockAndListHeld(trx, rows.map((r) => r.period_id));
+      const periodOf = new Map(rows.map((r) => [r.id, r.period_id]));
+      for (const s of suggestions) {
+        if (!accountIdSet.has(s.accountId)) continue;
+        const pid = periodOf.get(s.id);
+        if (pid && held.has(pid)) continue;
+        await trx('bank_transactions')
+          .where({ id: s.id, client_id: clientId })
+          .update({
+            ai_suggested_account_id: s.accountId,
+            ai_confidence: Math.min(1, Math.max(0, Number(s.confidence))),
+            classification_status: 'ai_suggested',
+          });
+        classified++;
+      }
+    });
 
     res.json({ data: { classified, results: suggestions }, error: null });
   } catch (err: unknown) {
@@ -1058,6 +1081,8 @@ btCollectionRouter.patch('/:id', async (req: AuthRequest, res: Response): Promis
     await db.transaction(async (trx) => {
       // Fetch existing transaction before update for reclassification audit
       const existingTx = await trx('bank_transactions').where({ id, client_id: clientId }).first();
+      // Desktop sync: neither out of nor into a period a desktop holds.
+      await assertNotCheckedOut(trx, [existingTx?.period_id, updates.period_id as number | null | undefined]);
 
       const updated = await trx('bank_transactions')
         .where({ id, client_id: clientId })
@@ -1129,8 +1154,10 @@ btCollectionRouter.delete('/:id', async (req: AuthRequest, res: Response): Promi
   }
   try {
     await db.transaction(async (trx) => {
-      const tx = await trx('bank_transactions').where({ id, client_id: clientId }).first('journal_entry_id');
+      const tx = await trx('bank_transactions').where({ id, client_id: clientId }).first('journal_entry_id', 'period_id');
       if (!tx) throw Object.assign(new Error('NOT_FOUND'), { status: 404 });
+      // Desktop sync: the row's own period (the JE check below covers the entry's).
+      await assertNotCheckedOut(trx, [tx.period_id]);
       if (tx.journal_entry_id) {
         const existingJe = await trx('journal_entries').where({ id: tx.journal_entry_id }).first('period_id');
         if (existingJe?.period_id) {

@@ -57,3 +57,13 @@ jobs:
         run: npm run test:sso-e2e
         env:
           E2E_PG_ADMIN_URL: postgres://vibetb:localdev123@127.0.0.1:5432/postgres
+
+      - name: Backup round trip (desktop sync S0, S1)
+        run: npm run test:backup-e2e
+        env:
+          E2E_PG_ADMIN_URL: postgres://vibetb:localdev123@127.0.0.1:5432/postgres
+
+      - name: Desktop pairing (desktop sync S2)
+        run: npm run test:sync-e2e
+        env:
+          E2E_PG_ADMIN_URL: postgres://vibetb:localdev123@127.0.0.1:5432/postgres

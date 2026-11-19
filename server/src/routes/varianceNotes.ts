@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
+import { assertNotCheckedOut } from '../lib/periodGuard';
 
 export const varianceNotesRouter = Router({ mergeParams: true });
 varianceNotesRouter.use(authMiddleware);
@@ -32,17 +33,21 @@ varianceNotesRouter.put('/:accountId', async (req: AuthRequest, res: Response): 
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: result.error.message } }); return; }
   try {
-    if (!result.data.note.trim()) {
-      await db('variance_notes').where({ period_id: periodId, account_id: accountId }).delete();
-      res.json({ data: { deleted: true }, error: null });
-      return;
-    }
-    const [row] = await db('variance_notes')
-      .insert({ period_id: periodId, account_id: accountId, compare_period_id: 0, note: result.data.note.trim(), created_by: req.user!.userId })
-      .onConflict(['period_id', 'account_id', 'compare_period_id'])
-      .merge({ note: result.data.note.trim() })
-      .returning('*');
-    res.json({ data: row, error: null });
+    const row = await db.transaction(async (trx) => {
+      // Desktop sync: not in a period a desktop holds.
+      await assertNotCheckedOut(trx, [periodId]);
+      if (!result.data.note.trim()) {
+        await trx('variance_notes').where({ period_id: periodId, account_id: accountId }).delete();
+        return null;
+      }
+      const [r] = await trx('variance_notes')
+        .insert({ period_id: periodId, account_id: accountId, compare_period_id: 0, note: result.data.note.trim(), created_by: req.user!.userId })
+        .onConflict(['period_id', 'account_id', 'compare_period_id'])
+        .merge({ note: result.data.note.trim() })
+        .returning('*');
+      return r;
+    });
+    res.json({ data: row ?? { deleted: true }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'varianceNotes');
   }
