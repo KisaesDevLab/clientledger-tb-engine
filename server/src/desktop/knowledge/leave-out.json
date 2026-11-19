@@ -1,0 +1,15 @@
+{
+  "why": "Knowledge files about the web app only, left out of the desktop engine's knowledge base (owner 2026-11-19, Q82). 00-clientledger-desktop.md says what the desktop has instead. desktopKnowledge.test.ts fails when one of these is renamed or removed upstream.",
+  "files": [
+    "getting-started.md",
+    "user-management.md",
+    "quickbooks.md",
+    "mcp-integration.md",
+    "ai-providers.md",
+    "backup-restore.md",
+    "audit-log.md",
+    "custom-reports.md",
+    "py-tieout.md",
+    "coa-templates.md"
+  ]
+}

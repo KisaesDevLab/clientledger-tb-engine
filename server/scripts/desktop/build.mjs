@@ -100,7 +100,16 @@ console.log(`[desktop:build] bundle ${(fs.statSync(bundle).size / 1e6).toFixed(1
 
 // Resource folders the engine reads at run time.
 const resources = path.join(out, 'resources');
-fs.cpSync(path.join(server, 'knowledge'), path.join(resources, 'knowledge'), { recursive: true });
+// The knowledge base for the support chat: upstream's, less the pages about
+// the web app only, with the desktop's own page first (Q82).
+const knowledgeOut = path.join(resources, 'knowledge');
+const leaveOut = new Set(JSON.parse(fs.readFileSync(path.join(server, 'src/desktop/knowledge/leave-out.json'), 'utf8')).files);
+fs.rmSync(knowledgeOut, { recursive: true, force: true });
+fs.mkdirSync(knowledgeOut, { recursive: true });
+for (const f of fs.readdirSync(path.join(server, 'knowledge'))) {
+  if (f.endsWith('.md') && !leaveOut.has(f)) fs.copyFileSync(path.join(server, 'knowledge', f), path.join(knowledgeOut, f));
+}
+fs.copyFileSync(path.join(server, 'src/desktop/knowledge/00-clientledger-desktop.md'), path.join(knowledgeOut, '00-clientledger-desktop.md'));
 fs.cpSync(path.join(server, 'assets/fs-fonts'), path.join(resources, 'fs-fonts'), { recursive: true });
 
 if (bundleOnly) process.exit(0);
