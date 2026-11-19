@@ -270,9 +270,8 @@ export const wpPaths: Record<string, Schema> = {
       }, 'The file as field `file`'),
       responses: {
         '201': ok('Stored', ref('Document')),
-        '400': err('No file, a type not allowed (INVALID_FILE_TYPE) or content that does not match (CONTENT_MISMATCH)'),
+        '400': err('No file, a type not allowed (INVALID_FILE_TYPE), content that does not match (CONTENT_MISMATCH) or larger than 25 MB (LIMIT_FILE_SIZE)'),
         '409': err('CLIENT_NOT_LINKED: the client has no folder'),
-        '413': err('Larger than 25 MB'),
         ...common,
       },
     },
@@ -441,9 +440,8 @@ export const wpPaths: Record<string, Schema> = {
       }, 'The file as field `file`'),
       responses: {
         '201': ok('Attached', ref('LeadSheetAttachment')),
-        '400': err('No file or not a PDF, PNG or JPEG (INVALID_FILE_TYPE)'),
+        '400': err('No file, not a PDF, PNG or JPEG (INVALID_FILE_TYPE) or larger than 10 MB (LIMIT_FILE_SIZE)'),
         '409': err('CLIENT_NOT_LINKED: the client has no folder'),
-        '413': err('Larger than 10 MB'),
         '423': err('The period is locked'),
         ...common,
       },

@@ -12424,7 +12424,7 @@
             }
           },
           "400": {
-            "description": "No file, a type not allowed (INVALID_FILE_TYPE) or content that does not match (CONTENT_MISMATCH)",
+            "description": "No file, a type not allowed (INVALID_FILE_TYPE), content that does not match (CONTENT_MISMATCH) or larger than 25 MB (LIMIT_FILE_SIZE)",
             "content": {
               "application/json": {
                 "schema": {
@@ -12445,16 +12445,6 @@
           },
           "409": {
             "description": "CLIENT_NOT_LINKED: the client has no folder",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Larger than 25 MB",
             "content": {
               "application/json": {
                 "schema": {
@@ -14460,7 +14450,7 @@
             }
           },
           "400": {
-            "description": "No file or not a PDF, PNG or JPEG (INVALID_FILE_TYPE)",
+            "description": "No file, not a PDF, PNG or JPEG (INVALID_FILE_TYPE) or larger than 10 MB (LIMIT_FILE_SIZE)",
             "content": {
               "application/json": {
                 "schema": {
@@ -14481,16 +14471,6 @@
           },
           "409": {
             "description": "CLIENT_NOT_LINKED: the client has no folder",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Larger than 10 MB",
             "content": {
               "application/json": {
                 "schema": {
