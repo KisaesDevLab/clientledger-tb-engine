@@ -91,6 +91,13 @@ export const MIGRATIONS: ReadonlyArray<readonly [string, ModuleThunk]> = [
   ['20260920000001_sso_only_marker.js', () => require('../../migrations/20260920000001_sso_only_marker.js')],
   ['20260925000001_sync_system_coa_templates_with_mybooks.js', () => require('../../migrations/20260925000001_sync_system_coa_templates_with_mybooks.js')],
   ['20260930000001_financial_statements.js', () => require('../../migrations/20260930000001_financial_statements.js')],
+  ['20261001000001_sync_uid.js', () => require('../../migrations/20261001000001_sync_uid.js')],
+  ['20261001000003_period_reference.js', () => require('../../migrations/20261001000003_period_reference.js')],
+  ['20261002000001_sync_devices.js', () => require('../../migrations/20261002000001_sync_devices.js')],
+  ['20261002000002_sync_reset_at.js', () => require('../../migrations/20261002000002_sync_reset_at.js')],
+  ['20261003000001_sync_checkouts_jobs.js', () => require('../../migrations/20261003000001_sync_checkouts_jobs.js')],
+  ['20261004000001_sync_uploads_layout_uid.js', () => require('../../migrations/20261004000001_sync_uploads_layout_uid.js')],
+  ['20261004000002_sync_updated_at_triggers.js', () => require('../../migrations/20261004000002_sync_updated_at_triggers.js')],
 ];
 
 export const SEEDS: ReadonlyArray<readonly [string, ModuleThunk]> = [
