@@ -89,9 +89,27 @@ const REPORT_SEGMENT: Record<string, string> = {
   'tax-return-order': 'tax-return-order',
 };
 
-/** Where saved reports go: the app's own folder for opened copies. */
+/**
+ * Where saved reports go: CLTB_REPORTS_DIR, the app's own folder for opened
+ * copies, which it empties when it starts (the engine's TEMP is another).
+ */
 export function reportFolder(): string {
-  return path.join(os.tmpdir(), 'ClientLedger TB', 'open', 'claude');
+  return process.env.CLTB_REPORTS_DIR || path.join(os.tmpdir(), 'ClientLedger TB', 'open', 'claude');
+}
+
+/** Wait until the private API answers its health check. */
+async function untilHealthy(port: number, ms = 60_000): Promise<void> {
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/api/v1/health`);
+      if (r.ok) return;
+    } catch {
+      // not listening yet
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error('the private API did not start');
 }
 
 function safeName(name: string): string {
@@ -198,6 +216,8 @@ export async function runMcp(): Promise<void> {
   const { setDesktopUser } = require('./session') as typeof import('./session');
   setDesktopUser(await desktopDb.bootstrapDesktopUser(db));
   require('../app');
+  // Tools that call the API must find it listening.
+  await untilHealthy(port);
 
   const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js') as { StdioServerTransport: new () => Transport };
   const { createMcpServer } = require('../mcp/server') as typeof import('../mcp/server');
