@@ -355,8 +355,11 @@ app.use('/api/v1/periods/:id/roll-forward', rollForwardRouter);
 app.use('/api/v1/users', usersRouter);
 // Desktop sync (S2): a paired desktop's routes, on its own device token; and
 // the signed-in user's pairing codes and devices.
-app.use('/api/v1/sync', syncRouter);
-app.use('/api/v1/desktop-sync', desktopSyncRouter);
+// Desktop: off (P12 QS1): the desktop syncs as a client, never as a server.
+if (!isDesktopMode()) {
+  app.use('/api/v1/sync', syncRouter);
+  app.use('/api/v1/desktop-sync', desktopSyncRouter);
+}
 app.use('/api/v1/journal-entries', jeItemRouter);
 app.use('/api/v1/periods/:periodId/journal-entries', jeCollectionRouter);
 app.use('/api/v1/clients/:clientId/bank-transactions', btCollectionRouter);
