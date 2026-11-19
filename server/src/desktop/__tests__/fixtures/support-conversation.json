@@ -1,0 +1,37 @@
+{
+  "data": {
+    "created_at": "2026-11-19T15:53:14.657Z",
+    "id": 2,
+    "is_bookmarked": false,
+    "messages": [
+      {
+        "content": "How do I post an adjusting entry?",
+        "created_at": "2026-11-19T15:53:14.670Z",
+        "id": 1,
+        "role": "user"
+      },
+      {
+        "content": "Debits equal credits.",
+        "created_at": "2026-11-19T15:53:14.670Z",
+        "id": 2,
+        "role": "assistant"
+      },
+      {
+        "content": "And a reversing one?",
+        "created_at": "2026-11-19T15:53:14.697Z",
+        "id": 3,
+        "role": "user"
+      },
+      {
+        "content": "Debits equal credits.",
+        "created_at": "2026-11-19T15:53:14.697Z",
+        "id": 4,
+        "role": "assistant"
+      }
+    ],
+    "title": "How do I post an adjusting entry?",
+    "updated_at": "2026-11-19T15:53:14.657Z",
+    "user_id": 2
+  },
+  "error": null
+}

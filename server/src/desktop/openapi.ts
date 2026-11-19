@@ -16,6 +16,7 @@ import { desktopMeRouter } from './me';
 import { desktopDraftRouter } from './draftStamp';
 import { fsPaths, fsSchemas } from './openapiFs';
 import { wpPaths, wpSchemas } from './openapiWp';
+import { aiPaths, aiSchemas } from './openapiAi';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -1174,11 +1175,12 @@ export function buildOpenApiSpec(): Schema {
       securitySchemes: {
         desktopSession: { type: 'apiKey', in: 'header', name: 'X-CLTB-Session', description: 'Per-launch token from the launcher' },
       },
-      schemas: { ...schemas, ...fsSchemas, ...wpSchemas },
+      schemas: { ...schemas, ...fsSchemas, ...wpSchemas, ...aiSchemas },
     },
     paths: {
       ...fsPaths,
       ...wpPaths,
+      ...aiPaths,
       '/api/v1/ping': {
         get: {
           operationId: 'ping', tags: ['system'], security: [],

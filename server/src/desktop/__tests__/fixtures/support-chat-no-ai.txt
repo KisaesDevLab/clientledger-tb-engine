@@ -1,0 +1,4 @@
+data: {"type":"start","conversationId":1}
+
+data: {"type":"error","message":"An internal error occurred. Please try again."}
+

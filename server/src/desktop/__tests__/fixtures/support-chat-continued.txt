@@ -1,0 +1,10 @@
+data: {"type":"start","conversationId":2}
+
+data: {"type":"delta","text":"Debits "}
+
+data: {"type":"delta","text":"equal "}
+
+data: {"type":"delta","text":"credits."}
+
+data: {"type":"done","fullText":"Debits equal credits.","conversationId":2}
+

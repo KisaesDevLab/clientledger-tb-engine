@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "String must contain at least 1 character(s)"
+  }
+}

@@ -61,6 +61,8 @@ for (const [pathKey, file] of [
   ['/api/v1/clients/{clientId}/reconciliations', 'reconciliations.json'],
   ['/api/v1/reconciliations/{id}', 'reconciliation.json'],
   ['/api/v1/features', 'features.json'],
+  ['/api/v1/features', 'features-ai.json'],
+  ['/api/v1/features', 'features-no-ai.json'],
   ['/api/v1/settings/llm-provider', 'llm-provider.json'],
 ] as const) {
   test(`recorded ${file} matches GET ${pathKey}`, () => {
@@ -221,10 +223,40 @@ for (const [pathKey, method, status, file] of [
   ['/api/v1/lead-sheet-attachments/{id}', 'delete', '200', 'lead-sheet-attachment-deleted.json'],
   ['/api/v1/reports/periods/{periodId}/workpaper-merged/save', 'post', '201', 'workpaper-merged-saved.json'],
   ['/api/v1/reports/periods/{periodId}/workpaper-merged/save', 'post', '400', 'workpaper-merged-refused.json'],
+  // P10: AI diagnostics and the support chat (record_p10.rs: no AI, then a fake Ollama on loopback).
+  ['/api/v1/periods/{periodId}/diagnostics', 'post', '200', 'diagnostics.json'],
+  ['/api/v1/periods/{periodId}/diagnostics', 'post', '500', 'diagnostics-no-ai.json'],
+  ['/api/v1/periods/{periodId}/diagnostics', 'post', '404', 'diagnostics-not-found.json'],
+  ['/api/v1/support/chat', 'post', '400', 'support-chat-refused.json'],
+  ['/api/v1/support/conversations', 'get', '200', 'support-conversations.json'],
+  ['/api/v1/support/conversations/{id}', 'get', '200', 'support-conversation.json'],
+  ['/api/v1/support/conversations/{id}', 'get', '404', 'support-conversation-not-found.json'],
+  ['/api/v1/support/conversations/{id}', 'put', '200', 'support-conversation-renamed.json'],
+  ['/api/v1/support/conversations/{id}', 'put', '400', 'support-conversation-refused.json'],
+  ['/api/v1/support/conversations/{id}', 'delete', '200', 'support-conversation-deleted.json'],
+  ['/api/v1/support/conversations/{id}/bookmark', 'post', '200', 'support-conversation-bookmark.json'],
 ] as const) {
   test(`recorded ${file} matches ${method.toUpperCase()} ${pathKey} ${status}`, () => {
     const validate = responseValidator(pathKey, method, status);
     assert.ok(validate(fixture(file)), JSON.stringify(validate.errors, null, 2));
+  });
+}
+
+// The chat answers as server-sent events: every `data:` line of each recorded
+// stream is a ChatEvent, and the stream ends in done or error.
+for (const file of ['support-chat.txt', 'support-chat-continued.txt', 'support-chat-no-ai.txt', 'support-chat-unknown-conversation.txt']) {
+  test(`recorded ${file} is a stream of ChatEvent`, () => {
+    const spec = buildOpenApiSpec() as { paths: Record<string, Record<string, { responses: Record<string, { content: Record<string, { schema: unknown }> }> }>> };
+    const ajv = new Ajv2020({ strict: false, allErrors: true, validateFormats: false });
+    ajv.addSchema(spec, 'spec');
+    const schema = spec.paths['/api/v1/support/chat'].post.responses['200'].content['text/event-stream'].schema;
+    const validate = ajv.compile(JSON.parse(JSON.stringify(schema).replaceAll('"#/components/', '"spec#/components/')));
+    const events = fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8')
+      .split(/\r?\n\r?\n/).map((b) => b.trim()).filter(Boolean)
+      .map((b) => JSON.parse(b.replace(/^data: /, '')) as { type: string });
+    assert.ok(events.length > 0);
+    for (const e of events) assert.ok(validate(e), `${JSON.stringify(e)}: ${JSON.stringify(validate.errors)}`);
+    assert.ok(['done', 'error'].includes(events[events.length - 1].type), 'ends in done or error');
   });
 }
 

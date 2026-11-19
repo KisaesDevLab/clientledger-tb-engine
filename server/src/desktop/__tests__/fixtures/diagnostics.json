@@ -1,0 +1,23 @@
+{
+  "data": {
+    "observations": [
+      {
+        "category": "Balance Check",
+        "message": "The trial balance is out by $10.00.",
+        "severity": "error"
+      },
+      {
+        "category": "Prior Year Variance",
+        "message": "Rent expense rose 45% from the prior year.",
+        "severity": "warning"
+      },
+      {
+        "category": "Unclassified Items",
+        "message": "No bank transactions wait for an account.",
+        "severity": "info"
+      }
+    ],
+    "periodId": 1
+  },
+  "error": null
+}
