@@ -125,6 +125,12 @@ async function upgradeClient(): Promise<void> {
 
 async function serve(): Promise<void> {
   requireEnv(['DATABASE_URL', 'PORT', 'JWT_SECRET', 'ENCRYPTION_KEY', 'CLTB_SESSION_TOKEN', 'UPLOADS_DIR', 'BACKUPS_DIR']);
+  // A PDF browser's temporary profile that Windows will not let go of yet
+  // must not stop the engine; earlier runs' leftovers are removed here.
+  const { installPdfProfileGuard, sweepPdfProfiles } = require('./pdfProfileGuard') as typeof import('./pdfProfileGuard');
+  installPdfProfileGuard();
+  const swept = sweepPdfProfiles();
+  if (swept > 0) console.log(`[desktop] PDF browser profiles left by an earlier run removed: ${swept}`);
   const desktopDb = require('./database') as typeof import('./database');
   const { setDesktopUser } = require('./session') as typeof import('./session');
 
