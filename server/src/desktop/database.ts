@@ -38,6 +38,14 @@ export async function migrateLatest(db: Knex): Promise<string[]> {
   return applied;
 }
 
+/** Migrations this engine has that the database has not had yet. */
+export async function pendingMigrations(db: Knex): Promise<number> {
+  const [, pending] = (await db.migrate.list({
+    migrationSource: staticSource(MIGRATIONS),
+  })) as [unknown[], unknown[]];
+  return pending.length;
+}
+
 /**
  * Seeds run only on a brand-new database: no admin user yet. (Not "no users":
  * a migration creates the `mcp_agent` system user.) Upstream seeds are written

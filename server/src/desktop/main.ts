@@ -7,6 +7,8 @@
 //   clientledger-tb-engine [serve]   migrate, seed a new database, start the API
 //   clientledger-tb-engine migrate   apply pending migrations and exit
 //   clientledger-tb-engine version   print the engine version and exit
+//   clientledger-tb-engine mcp       the MCP server on stdin/stdout for Claude
+//                                    Desktop (desktop/mcp.ts), while the app runs
 //   clientledger-tb-engine restore-full <file>
 //                                    load a desktop full backup into a NEW,
 //                                    empty database and documents folder
@@ -164,12 +166,17 @@ async function main(): Promise<void> {
       await restoreFull();
       process.exit(0);
       return;
+    case 'mcp': {
+      const { runMcp } = require('./mcp') as typeof import('./mcp');
+      await runMcp();
+      return;
+    }
     case 'upgrade-client':
       await upgradeClient();
       process.exit(0);
       return;
     default:
-      fatal(`unknown command "${command}" (expected serve, migrate, restore-full, upgrade-client or version)`);
+      fatal(`unknown command "${command}" (expected serve, migrate, mcp, restore-full, upgrade-client or version)`);
   }
 }
 
