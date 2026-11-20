@@ -8866,6 +8866,173 @@
             "type": "boolean"
           }
         }
+      },
+      "SyncVersion": {
+        "type": "object",
+        "required": [
+          "formatVersion",
+          "schemaVersion"
+        ],
+        "properties": {
+          "formatVersion": {
+            "type": "integer"
+          },
+          "schemaVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The newest migration (a firm server must be on the same one)"
+          }
+        }
+      },
+      "SyncClientIds": {
+        "type": "object",
+        "required": [
+          "clientId",
+          "clientUid",
+          "periods"
+        ],
+        "properties": {
+          "clientId": {
+            "type": "integer"
+          },
+          "clientUid": {
+            "type": "string"
+          },
+          "periods": {
+            "type": "array",
+            "description": "Its periods (reference periods left out)",
+            "items": {
+              "type": "object",
+              "required": [
+                "periodId",
+                "periodUid"
+              ],
+              "properties": {
+                "periodId": {
+                  "type": "integer"
+                },
+                "periodUid": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SyncStamp": {
+        "type": "object",
+        "required": [
+          "periodId",
+          "stamp"
+        ],
+        "properties": {
+          "periodId": {
+            "type": "integer"
+          },
+          "stamp": {
+            "type": "string"
+          }
+        }
+      },
+      "SyncExportPeriod": {
+        "type": "object",
+        "required": [
+          "periodId"
+        ],
+        "properties": {
+          "periodId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "checkoutId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The firm server check-out it goes back under"
+          },
+          "stampAtPull": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The period stamp in the firm server's pull result"
+          }
+        }
+      },
+      "SyncExportClient": {
+        "type": "object",
+        "required": [
+          "clientId"
+        ],
+        "properties": {
+          "clientId": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "SyncImport": {
+        "type": "object",
+        "required": [
+          "mode",
+          "clientId",
+          "periodId"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "new",
+              "merged"
+            ],
+            "description": "new: the client was not here (restored as new, its uids kept); merged: the period put into the client here"
+          },
+          "clientId": {
+            "type": "integer"
+          },
+          "periodId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stamp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The period's stamp here after opening it (new mode)"
+          },
+          "filesPlaced": {
+            "type": "integer"
+          },
+          "filesNotPlaced": {
+            "type": "integer"
+          },
+          "totalsBefore": {
+            "type": "object"
+          },
+          "totalsAfter": {
+            "type": "object"
+          },
+          "differences": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Client-level rows here that differ from the firm server (kept as they are here)"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "description": "What opening a pulled period did. A merge also carries upstream mergePeriod's result fields."
       }
     }
   },
@@ -15878,6 +16045,436 @@
           },
           "500": {
             "description": "Server error (also: no AI set up, or the AI could not be reached)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/sync/version": {
+      "get": {
+        "operationId": "syncVersion",
+        "tags": [
+          "sync"
+        ],
+        "summary": "This engine's archive format and schema version",
+        "responses": {
+          "200": {
+            "description": "The versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SyncVersion"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/sync/ids": {
+      "get": {
+        "operationId": "syncIds",
+        "tags": [
+          "sync"
+        ],
+        "summary": "Every client's and period's sync_uid (the same on every computer)",
+        "responses": {
+          "200": {
+            "description": "The ids",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SyncClientIds"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/sync/periods/{id}/stamp": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "syncPeriodStamp",
+        "tags": [
+          "sync"
+        ],
+        "summary": "A period's stamp now (it changes with any of the period's rows)",
+        "responses": {
+          "200": {
+            "description": "The stamp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SyncStamp"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/sync/export-period": {
+      "post": {
+        "operationId": "syncExportPeriod",
+        "tags": [
+          "sync"
+        ],
+        "summary": "A period archive to send back to the firm server: its manifest names the period and client by uid, the check-out, the stamp it started from and its book totals",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncExportPeriod"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The .tbak (header X-Period-Stamp: the stamp written into it)",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: no such period, or a reference period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/sync/export-client": {
+      "post": {
+        "operationId": "syncExportClient",
+        "tags": [
+          "sync"
+        ],
+        "summary": "A client archive to send to the firm server as a new client",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncExportClient"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The .tbak",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desktop/sync/import": {
+      "post": {
+        "operationId": "syncImport",
+        "tags": [
+          "sync"
+        ],
+        "summary": "Open a period pulled from the firm server: a client not here is restored as new keeping its uids; one here gets the period merged in",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What it did",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SyncImport"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SYNC_ARCHIVE_INVALID, SYNC_ARCHIVE_DAMAGED, SYNC_UID_TAKEN, SYNC_PERIOD_ELSEWHERE, PERIOD_OVERLAPS, PERIOD_LOCKED and the merge's other refusals, in words for this computer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SYNC_SCHEMA_MISMATCH: made by a different version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
             "content": {
               "application/json": {
                 "schema": {
