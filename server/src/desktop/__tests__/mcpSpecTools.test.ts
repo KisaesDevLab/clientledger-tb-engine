@@ -35,7 +35,9 @@ test('every operation in the API description is a tool or excluded with a reason
 });
 
 test('no tool name is taken twice, nor one of upstream\'s', () => {
-  const names = [...UPSTREAM, ...DESKTOP_TOOLS.map((t) => t.name), ...specTools(folder).map((t) => t.name)];
+  // A desktop tool that replaces upstream's broken one takes its name.
+  const kept = UPSTREAM.filter((n) => !DESKTOP_TOOLS.some((t) => t.replacesUpstream && t.name === n));
+  const names = [...kept, ...DESKTOP_TOOLS.map((t) => t.name), ...specTools(folder).map((t) => t.name)];
   const twice = names.filter((n, i) => names.indexOf(n) !== i);
   assert.deepEqual(twice, []);
 });
@@ -56,7 +58,7 @@ test('the areas the owner asked for are all tools (Q105)', () => {
     // The Statement Writer: create and edit.
     'create_fs_report', 'update_fs_report', 'save_fs_layout', 'compute_fs_report', 'finalize_fs_report', 'reopen_fs_report',
     // Reports as PDF, the workpaper package, documents, the checklist.
-    'get_draft_report', 'workpaper_package_pdf', 'upload_document', 'download_document', 'create_engagement_task',
+    'save_report', 'workpaper_package_pdf', 'list_m1_adjustments', 'create_m1_adjustment', 'stamp_attachment', 'upload_document', 'download_document', 'create_engagement_task',
   ]) {
     assert.ok(names.has(n), `missing tool ${n}`);
   }

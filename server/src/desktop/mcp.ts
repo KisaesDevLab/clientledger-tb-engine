@@ -173,6 +173,9 @@ export class DesktopTransport implements Transport {
   async send(message: Message): Promise<void> {
     const tools = (message.result as { tools?: Array<{ name: string; description?: string }> } | undefined)?.tools;
     if (tools && this.ctx) {
+      // Upstream's tools a desktop one replaces are taken out first.
+      const replaced = new Set(this.own.filter((t) => t.replacesUpstream).map((t) => t.name));
+      for (let i = tools.length - 1; i >= 0; i--) if (replaced.has(tools[i].name)) tools.splice(i, 1);
       // The desktop's own tools after upstream's (P10b, Q105).
       for (const t of this.own) tools.push({ name: t.name, description: t.description, inputSchema: t.inputSchema } as never);
     }

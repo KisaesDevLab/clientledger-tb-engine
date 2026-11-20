@@ -48,11 +48,12 @@ export const EXCLUDED: Record<string, string> = {
   syncVersion: 'firm server sync (owner: not through Claude)',
   // Backups and restores are the app's (encryption, second copy, safety
   // backup, engine restart): through the running app, a later slice.
-  backupClient: 'backups are made by the app, not the engine (later slice)',
-  extractClient: 'restores are run by the app, not the engine (later slice)',
-  stageRestore: 'restores are run by the app, not the engine (later slice)',
-  executeRestore: 'restores are run by the app, not the engine (later slice)',
-  placeClientFiles: 'restores are run by the app, not the engine (later slice)',
+  writeFullBackup: "the engine's raw writer: back_up_now makes the app's backup (history, second copy, passphrase, check)",
+  backupClient: 'backups are made by the app: back_up_now, list_backups, restore_backup (the relay)',
+  extractClient: 'restores are run by the app: restore_backup (the relay)',
+  stageRestore: 'restores are run by the app: restore_backup (the relay)',
+  executeRestore: 'restores are run by the app: restore_backup (the relay)',
+  placeClientFiles: 'restores are run by the app: restore_backup (the relay)',
   // The app's own assistant.
   supportChat: "the app's own assistant",
   listConversations: "the app's own assistant",
@@ -85,6 +86,7 @@ export const EXCLUDED: Record<string, string> = {
   listEngagementTasks: "upstream's list_engagement_tasks",
   updateEngagementTask: "upstream's update_engagement_task",
   listTaxCodes: 'list_tax_codes (the codes a client can use, with ids)',
+  getDraftReport: 'save_report (every report, final or DRAFT, with its options)',
 };
 
 /** `classifyBankTransactions` → `classify_bank_transactions`. */
@@ -94,6 +96,15 @@ export function toolName(operationId: string): string {
 
 /** Bytes past which a referenced object is named rather than written out. */
 const INLINE_LIMIT = 2500;
+
+/** A large object named rather than written out: Claude reads one with the
+    matching get tool, changes it and sends it back; the engine checks it. */
+function named(name: string, s: Schema): Schema {
+  return {
+    type: s.type ?? 'object',
+    description: `A ${name} object in the shape the engine returns it (read one first with the matching get tool, change it and send it back); the engine checks it and says what is wrong.`,
+  };
+}
 
 /** A schema with its `$ref`s written out (to a depth; deeper ones become plain objects). */
 function inline(s: unknown, components: Record<string, Schema>, depth = 0): unknown {
@@ -109,13 +120,17 @@ function inline(s: unknown, components: Record<string, Schema>, depth = 0): unkn
     // its full grammar would make every conversation carry tens of thousands
     // of tokens. Claude reads one with the matching get tool, changes it and
     // sends it back; the engine checks it and says what is wrong.
-    if (JSON.stringify(full).length > INLINE_LIMIT) {
-      return {
-        type: target.type ?? 'object',
-        description: `A ${name} object in the shape the engine returns it (read one first with the matching get or list tool and send it back changed); the engine checks it.`,
-      };
+    if (JSON.stringify(full).length <= INLINE_LIMIT) return full;
+    // Too large whole: its own fields kept, the large ones inside named.
+    const props = (full as Schema).properties as Record<string, Schema> | undefined;
+    if (props && depth < 2) {
+      const kept: Record<string, Schema> = {};
+      for (const [k, v] of Object.entries(props)) {
+        kept[k] = JSON.stringify(v).length <= INLINE_LIMIT / 2 ? v : named(k, v);
+      }
+      return { ...(full as Schema), properties: kept };
     }
-    return full;
+    return named(name, full as Schema);
   }
   const out: Schema = {};
   for (const [k, v] of Object.entries(o)) out[k] = inline(v, components, depth);
@@ -131,6 +146,8 @@ interface Operation {
   summary: string;
   params: Param[];
   jsonBody?: Schema;
+  /** The route requires its body (otherwise it may be left out). */
+  bodyRequired: boolean;
   multipart?: Schema;
   fileAnswer: boolean;
 }
@@ -154,6 +171,7 @@ export function operations(spec: Schema = buildOpenApiSpec() as Schema): Operati
         summary: String(o.summary ?? ''),
         params: [...shared, ...((o.parameters ?? []) as Param[])].map((x) => inline(x, components) as Param),
         jsonBody: content['application/json']?.schema ? (inline(content['application/json'].schema, components) as Schema) : undefined,
+        bodyRequired: (o.requestBody as Schema | undefined)?.required === true,
         multipart: content['multipart/form-data']?.schema ? (inline(content['multipart/form-data'].schema, components) as Schema) : undefined,
         fileAnswer: answerTypes.length > 0 && !answerTypes.includes('application/json'),
       });
@@ -167,6 +185,17 @@ function saveFolder(args: Json, fallback: string): string {
   const dir = typeof args.saveToFolder === 'string' && args.saveToFolder.trim() ? args.saveToFolder.trim() : fallback;
   if (!path.isAbsolute(dir)) throw new ToolError('saveToFolder must be a full path on this computer.');
   return dir;
+}
+
+/** A file's type by its extension, as a browser would send it. */
+export function mimeOf(file: string): string {
+  const types: Record<string, string> = {
+    '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.csv': 'text/csv', '.txt': 'text/plain',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls': 'application/vnd.ms-excel',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  };
+  return types[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
 }
 
 function fileNameFrom(disposition: string | null, fallback: string): string {
@@ -187,7 +216,7 @@ function makeTool(op: Operation, reportFolder: () => string): DesktopTool {
   }
   if (op.jsonBody) {
     properties.body = op.jsonBody;
-    required.push('body');
+    if (op.bodyRequired) required.push('body');
   }
   if (op.multipart) {
     const fields = ((op.multipart.properties ?? {}) as Record<string, Schema>);
@@ -227,15 +256,16 @@ function makeTool(op: Operation, reportFolder: () => string): DesktopTool {
       if (query.size > 0) url += `?${query}`;
       if (!ctx.fetch) throw new ToolError('This tool needs the app running.');
       let init: RequestInit = { method: op.method };
-      if (op.jsonBody) {
-        if (args.body === undefined) throw new ToolError('body is required.');
+      if (op.jsonBody && args.body !== undefined) {
         init = { ...init, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args.body) };
+      } else if (op.jsonBody && op.bodyRequired) {
+        throw new ToolError('body is required.');
       } else if (op.multipart) {
         const form = new FormData();
         const file = String(args.filePath ?? '');
         if (!path.isAbsolute(file) || !fs.existsSync(file)) throw new ToolError('filePath must be the full path of a file on this computer.');
         for (const [k, v] of Object.entries((op.multipart.properties ?? {}) as Record<string, Schema>)) {
-          if (v.format === 'binary') form.set(k, new Blob([fs.readFileSync(file)]), path.basename(file));
+          if (v.format === 'binary') form.set(k, new Blob([fs.readFileSync(file)], { type: mimeOf(file) }), path.basename(file));
           else if (args[k] !== undefined) form.set(k, typeof args[k] === 'string' ? (args[k] as string) : JSON.stringify(args[k]));
         }
         init = { ...init, body: form };

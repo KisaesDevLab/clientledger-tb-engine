@@ -37,6 +37,8 @@ export interface ToolResult {
 /** A tool as `tools/list` shows it, and its handler. */
 export interface DesktopTool {
   name: string;
+  /** Upstream's tool of this name is broken on the desktop: this one replaces it. */
+  replacesUpstream?: boolean;
   description: string;
   inputSchema: Json;
   run(ctx: ToolContext, args: Json): Promise<ToolResult>;
@@ -549,6 +551,226 @@ const loadTrialBalance: DesktopTool = {
   },
 };
 
+// ---------------------------------------------------------------- M-1 adjustments
+
+const M1_FIELDS = {
+  description: { type: 'string', description: 'What the difference is' },
+  category: { type: 'string', description: "One of the engine's M-1 categories (e.g. Meals & Entertainment, Depreciation Difference); optional" },
+  bookAmountCents: { type: 'number', description: 'The book amount, in cents' },
+  taxAmountCents: { type: 'number', description: 'The tax amount, in cents' },
+  notes: { type: 'string' },
+};
+
+function m1Body(args: Json, all: boolean): Json {
+  const body: Json = {};
+  if (args.description !== undefined || all) body.description = str(args, 'description');
+  if (args.category !== undefined) body.category = args.category === null ? null : String(args.category);
+  if (args.bookAmountCents !== undefined || all) body.bookAmount = num(args, 'bookAmountCents');
+  if (args.taxAmountCents !== undefined || all) body.taxAmount = num(args, 'taxAmountCents');
+  if (args.notes !== undefined) body.notes = args.notes === null ? null : String(args.notes);
+  return body;
+}
+
+const listM1: DesktopTool = {
+  name: 'list_m1_adjustments',
+  description: "A period's M-1 (book-to-tax) adjustments: description, category, book and tax amounts in cents, notes. The reconciliation itself is save_report with report m1.",
+  inputSchema: { type: 'object', properties: { periodId: { type: 'number' } }, required: ['periodId'] },
+  async run(ctx, args) {
+    return ok(await expect(ctx, 'GET', `/api/v1/periods/${num(args, 'periodId')}/m1-adjustments`));
+  },
+};
+
+const createM1: DesktopTool = {
+  name: 'create_m1_adjustment',
+  description: 'Add an M-1 (book-to-tax) adjustment to a period. Refused in a locked period.',
+  inputSchema: { type: 'object', properties: { periodId: { type: 'number' }, ...M1_FIELDS }, required: ['periodId', 'description', 'bookAmountCents', 'taxAmountCents'] },
+  async run(ctx, args) {
+    return ok(await expect(ctx, 'POST', `/api/v1/periods/${num(args, 'periodId')}/m1-adjustments`, m1Body(args, true)));
+  },
+};
+
+const updateM1: DesktopTool = {
+  name: 'update_m1_adjustment',
+  description: 'Change an M-1 adjustment (by id); only the fields given change. Refused in a locked period.',
+  inputSchema: { type: 'object', properties: { id: { type: 'number' }, ...M1_FIELDS }, required: ['id'] },
+  async run(ctx, args) {
+    const body = m1Body(args, false);
+    if (Object.keys(body).length === 0) throw new ToolError('Give at least one field to change.');
+    return ok(await expect(ctx, 'PATCH', `/api/v1/m1-adjustments/${num(args, 'id')}`, body));
+  },
+};
+
+const deleteM1: DesktopTool = {
+  name: 'delete_m1_adjustment',
+  description: 'Delete an M-1 adjustment (by id). Refused in a locked period.',
+  inputSchema: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
+  async run(ctx, args) {
+    return ok(await expect(ctx, 'DELETE', `/api/v1/m1-adjustments/${num(args, 'id')}`));
+  },
+};
+
+// ---------------------------------------------------------------- reports
+
+/** The reports the Statements screen offers, as the engine names them (cltb-api reports.rs). */
+const REPORTS: Record<string, { prior?: boolean; leadSheets?: boolean; basis?: boolean }> = {
+  'income-statement': { prior: true, leadSheets: true, basis: true },
+  'balance-sheet': { prior: true, leadSheets: true, basis: true },
+  'equity-statement': { prior: true, basis: true },
+  'cash-flow': { basis: true },
+  'tax-basis-pl': {},
+  flux: { leadSheets: true, basis: true },
+  'trial-balance': { basis: true },
+  'general-ledger': { basis: true },
+  'journal-entries': {},
+  'aje-listing': {},
+  'bookkeeper-letter': {},
+  'tax-code-report': {},
+  'tax-return-order': {},
+  'tax-basis-schedule': {},
+  m1: {},
+};
+
+/** Where saved files go when Claude names no folder (as generate_report_url). */
+export function defaultSaveFolder(): string {
+  return process.env.CLTB_REPORTS_DIR || require('node:path').join(require('node:os').tmpdir(), 'ClientLedger TB', 'open', 'claude');
+}
+
+/** A file answer saved under the engine's name in `dir`; its full path. */
+export async function saveAnswer(res: Response, dir: string, fallback: string): Promise<string> {
+  const path = require('node:path') as typeof import('node:path');
+  const fs = require('node:fs') as typeof import('node:fs');
+  if (!path.isAbsolute(dir)) throw new ToolError('saveToFolder must be a full path on this computer.');
+  const disposition = res.headers.get('content-disposition');
+  const star = disposition?.match(/filename\*=UTF-8''([^;]+)/i);
+  const plain = disposition?.match(/filename="?([^";]+)"?/i);
+  const raw = star ? decodeURIComponent(star[1]) : plain?.[1] ?? fallback;
+  const name = path.basename(raw).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || fallback;
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, name);
+  fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+  return file;
+}
+
+/** The engine's refusal of a file request, in its words. */
+async function refusal(res: Response): Promise<ToolError> {
+  const text = await res.text();
+  try {
+    const env = JSON.parse(text) as { error?: { code?: string; message?: string } };
+    if (env.error?.message) return new ToolError(env.error.code ? `${env.error.message} (${env.error.code})` : env.error.message);
+  } catch {
+    // not JSON
+  }
+  return new ToolError(`The engine answered ${res.status}.`);
+}
+
+const saveReport: DesktopTool = {
+  name: 'save_report',
+  description:
+    "Save one of the app's reports as the engine's PDF, as the Statements screen does: income-statement, balance-sheet, equity-statement, cash-flow, tax-basis-pl, flux (with comparePeriodId), trial-balance, general-ledger, journal-entries (entries: all, book, tax, trans), aje-listing, bookkeeper-letter, tax-code-report, tax-return-order, tax-basis-schedule, m1. Options where the report takes them: basis (unadjusted, book, tax), priorYear (true/false; left out, the engine decides), byLeadSheet. draft: true puts DRAFT across every page. Saved under the engine's file name in saveToFolder (a full path) or the app's folder for opened copies; the place is returned.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      periodId: { type: 'number' },
+      report: { type: 'string', enum: Object.keys(REPORTS) },
+      comparePeriodId: { type: 'number', description: 'flux only: the period compared with' },
+      basis: { type: 'string', enum: ['unadjusted', 'book', 'tax'] },
+      priorYear: { type: 'boolean' },
+      byLeadSheet: { type: 'boolean' },
+      entries: { type: 'string', enum: ['all', 'book', 'tax', 'trans'] },
+      draft: { type: 'boolean' },
+      saveToFolder: { type: 'string' },
+    },
+    required: ['periodId', 'report'],
+  },
+  async run(ctx, args) {
+    const periodId = num(args, 'periodId')!;
+    const report = str(args, 'report')!;
+    const spec = REPORTS[report];
+    if (!spec) throw new ToolError(`report must be one of ${Object.keys(REPORTS).join(', ')}.`);
+    let route: string;
+    if (report === 'bookkeeper-letter') route = `/api/v1/periods/${periodId}/exports/bookkeeper-letter`;
+    else if (report === 'flux') route = `/api/v1/reports/periods/${periodId}/flux/${num(args, 'comparePeriodId')}`;
+    else route = `/api/v1/reports/periods/${periodId}/${report}`;
+    const q = new URLSearchParams();
+    const basis = str(args, 'basis', false);
+    if (basis && !['unadjusted', 'book', 'tax'].includes(basis)) throw new ToolError('basis is unadjusted, book or tax.');
+    if (report === 'tax-code-report') q.set('columns', basis && basis !== 'book' ? 'tax' : 'book');
+    else if (spec.basis && basis) q.set('basis', basis);
+    if (spec.prior && typeof args.priorYear === 'boolean') q.set('priorYear', String(args.priorYear));
+    if (spec.leadSheets && args.byLeadSheet === true) q.set('groupByLeadSheet', 'true');
+    if (report === 'journal-entries') q.set('type', str(args, 'entries', false) ?? 'all');
+    if (args.draft === true) route = route.replace('/api/v1/', '/api/v1/desktop/draft/');
+    if (q.size > 0) route += `?${q}`;
+    if (!ctx.fetch) throw new ToolError('This tool needs the app running.');
+    const res = await ctx.fetch(route, { method: 'GET' });
+    if (!res.ok || (res.headers.get('content-type') ?? '').includes('application/json')) throw await refusal(res);
+    const dir = typeof args.saveToFolder === 'string' && args.saveToFolder.trim() ? args.saveToFolder.trim() : defaultSaveFolder();
+    return ok({ file: await saveAnswer(res, dir, `${report}.pdf`) });
+  },
+};
+
+// ---------------------------------------------------------------- stamping attachments
+
+const stampAttachment: DesktopTool = {
+  name: 'stamp_attachment',
+  description:
+    "PERMANENT: burn a mark into a lead sheet attachment's PDF (owner: allowed, Q105). It cannot be removed afterwards, so stamp only when the user asks. kind tickmark (tickmarkId from list_tickmarks, optional note), note (text, optional color, optional widthPct of the page) or line (to x2Pct, y2Pct, optional strokeWidth and color). page from 1; xPct and yPct place it as fractions of the page from the top left. Colors: gray, blue, green, red, purple, amber.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      attachmentId: { type: 'number' },
+      kind: { type: 'string', enum: ['tickmark', 'note', 'line'] },
+      page: { type: 'number' },
+      xPct: { type: 'number' },
+      yPct: { type: 'number' },
+      tickmarkId: { type: 'number' },
+      note: { type: 'string', description: 'tickmark: a caption (up to 200 characters)' },
+      text: { type: 'string', description: 'note: its text' },
+      widthPct: { type: 'number' },
+      x2Pct: { type: 'number' },
+      y2Pct: { type: 'number' },
+      strokeWidth: { type: 'number' },
+      color: { type: 'string', enum: ['gray', 'blue', 'green', 'red', 'purple', 'amber'] },
+    },
+    required: ['attachmentId', 'kind', 'page', 'xPct', 'yPct'],
+  },
+  async run(ctx, args) {
+    const id = num(args, 'attachmentId')!;
+    const body: Json = { kind: str(args, 'kind'), page: num(args, 'page'), xPct: Number(args.xPct), yPct: Number(args.yPct) };
+    for (const k of ['tickmarkId', 'note', 'text', 'widthPct', 'x2Pct', 'y2Pct', 'strokeWidth', 'color']) {
+      if (args[k] !== undefined && args[k] !== null && args[k] !== '') body[k] = args[k];
+    }
+    return ok(await expect(ctx, 'POST', `/api/v1/lead-sheet-attachments/${id}/annotations`, body));
+  },
+};
+
+// ---------------------------------------------------------------- variance notes
+
+/** Upstream's add_variance_note writes compare_period_id 0, which no period
+    has, so it always fails (found 2026-11-20, P10b QA; for upstream). */
+const addVarianceNote: DesktopTool = {
+  name: 'add_variance_note',
+  replacesUpstream: true,
+  description:
+    "Add or change the variance note on an account: why its balance moved between this period and the one compared with (comparePeriodId, usually the prior year's period; list_periods gives ids). Refused in a locked period.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      periodId: { type: 'number' },
+      comparePeriodId: { type: 'number', description: 'The period compared with' },
+      accountId: { type: 'number' },
+      note: { type: 'string' },
+    },
+    required: ['periodId', 'comparePeriodId', 'accountId', 'note'],
+  },
+  async run(ctx, args) {
+    const p = num(args, 'periodId')!;
+    const c = num(args, 'comparePeriodId')!;
+    const a = num(args, 'accountId')!;
+    return ok(await expect(ctx, 'PUT', `/api/v1/periods/${p}/compare/${c}/variance-notes/${a}`, { note: str(args, 'note') }));
+  },
+};
+
 /** Every desktop tool, in the order `tools/list` shows them. */
 export const DESKTOP_TOOLS: DesktopTool[] = [
   listTaxCodes,
@@ -560,6 +782,13 @@ export const DESKTOP_TOOLS: DesktopTool[] = [
   setBankAccount,
   createAccount,
   loadTrialBalance,
+  listM1,
+  createM1,
+  updateM1,
+  deleteM1,
+  saveReport,
+  stampAttachment,
+  addVarianceNote,
 ];
 
 /** Run a desktop tool: its answer, or its refusal in words (never a thrown error). */
