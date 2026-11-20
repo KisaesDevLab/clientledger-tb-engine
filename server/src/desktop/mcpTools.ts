@@ -39,6 +39,8 @@ export interface DesktopTool {
   name: string;
   /** Upstream's tool of this name is broken on the desktop: this one replaces it. */
   replacesUpstream?: boolean;
+  /** Only reads (nothing changes): not written to the audit trail. */
+  reads?: boolean;
   description: string;
   inputSchema: Json;
   run(ctx: ToolContext, args: Json): Promise<ToolResult>;
@@ -100,6 +102,7 @@ export function dayOf(v: unknown): string {
 
 const listTaxCodes: DesktopTool = {
   name: 'list_tax_codes',
+  reads: true,
   description:
     "The tax codes a client's return can use (its return form and activity), with each code's id, which confirm_tax_assignments and the account tools need. Optional search narrows by code or description words.",
   inputSchema: {
@@ -130,6 +133,7 @@ const STATUSES = ['unclassified', 'ai_suggested', 'confirmed', 'manual'];
 
 const listBankTransactions: DesktopTool = {
   name: 'list_bank_transactions',
+  reads: true,
   description:
     "A client's bank transactions, newest first: date, description, amount in cents (positive money in, negative money out), check number, bank account (source_account_id), category account (account_id), period and status. Filter by period, bank account and status (unclassified, ai_suggested, confirmed, manual). Pages of up to 500.",
   inputSchema: {
@@ -573,6 +577,7 @@ function m1Body(args: Json, all: boolean): Json {
 
 const listM1: DesktopTool = {
   name: 'list_m1_adjustments',
+  reads: true,
   description: "A period's M-1 (book-to-tax) adjustments: description, category, book and tax amounts in cents, notes. The reconciliation itself is save_report with report m1.",
   inputSchema: { type: 'object', properties: { periodId: { type: 'number' } }, required: ['periodId'] },
   async run(ctx, args) {
@@ -665,6 +670,7 @@ async function refusal(res: Response): Promise<ToolError> {
 
 const saveReport: DesktopTool = {
   name: 'save_report',
+  reads: true,
   description:
     "Save one of the app's reports as the engine's PDF, as the Statements screen does: income-statement, balance-sheet, equity-statement, cash-flow, tax-basis-pl, flux (with comparePeriodId), trial-balance, general-ledger, journal-entries (entries: all, book, tax, trans), aje-listing, bookkeeper-letter, tax-code-report, tax-return-order, tax-basis-schedule, m1. Options where the report takes them: basis (unadjusted, book, tax), priorYear (true/false; left out, the engine decides), byLeadSheet. draft: true puts DRAFT across every page. Saved under the engine's file name in saveToFolder (a full path) or the app's folder for opened copies; the place is returned.",
   inputSchema: {

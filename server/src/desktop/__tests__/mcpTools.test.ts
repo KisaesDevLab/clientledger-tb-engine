@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DESKTOP_TOOLS, runTool, type ApiAnswer, type ToolContext } from '../mcpTools';
-import { DesktopTransport } from '../mcp';
+import { DesktopTransport, auditText } from '../mcp';
 
 type Call = { method: string; path: string; body?: unknown };
 
@@ -154,4 +154,19 @@ test('the transport lists the desktop tools after upstream\'s and answers their 
   await new Promise((r) => setImmediate(r));
   assert.equal(server.length, 0, 'not passed to upstream');
   assert.match(JSON.stringify(inner.sent[1].result), /Gross receipts/);
+});
+
+test('a change Claude makes is written to the audit trail; a read is not', async () => {
+  const inner = new Inner();
+  const { ctx } = fake((c) => (c.path.includes('/available') ? okData([]) : okData({ updated: 1 })));
+  const audited: Array<{ tool: string; args: Record<string, unknown> }> = [];
+  const t = new DesktopTransport(inner as never, async () => ({ text: '' }), ctx, DESKTOP_TOOLS, async (tool, args) => {
+    audited.push({ tool, args });
+  });
+  await t.start();
+  inner.onmessage!({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_tax_codes', arguments: { clientId: 1 } } });
+  inner.onmessage!({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'categorize_bank_transactions', arguments: { clientId: 1, assignments: [{ transactionId: 5, accountId: 6 }] } } });
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  assert.deepEqual(audited.map((a) => a.tool), ['categorize_bank_transactions']);
+  assert.match(auditText('categorize_bank_transactions', audited[0].args), /^Claude Desktop: categorize_bank_transactions \{"clientId":1/);
 });

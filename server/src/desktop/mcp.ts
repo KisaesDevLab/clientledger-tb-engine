@@ -161,6 +161,9 @@ export class DesktopTransport implements Transport {
     // Every tool the desktop adds: its own, then those made from its API
     // description (mcpSpecTools.ts).
     private readonly own: DesktopTool[] = DESKTOP_TOOLS,
+    // Writes a change Claude made to the audit trail (P10b): the tool and
+    // what it was given.
+    private readonly audit?: (tool: string, args: Json) => Promise<void>,
   ) {}
 
   async start(): Promise<void> {
@@ -195,7 +198,13 @@ export class DesktopTransport implements Transport {
     const called = m.method === 'tools/call' && m.id !== undefined ? String((m.params as Json | undefined)?.name ?? '') : '';
     const own = this.ctx ? this.own.find((t) => t.name === called) : undefined;
     if (own && this.ctx) {
-      const answer = await runTool(own, this.ctx, ((m.params as Json).arguments ?? {}) as Json);
+      const args = ((m.params as Json).arguments ?? {}) as Json;
+      const answer = await runTool(own, this.ctx, args);
+      if (!own.reads && !answer.isError && this.audit) {
+        await this.audit(own.name, args).catch((e: unknown) => {
+          console.error('[mcp] audit', e instanceof Error ? e.message : String(e));
+        });
+      }
       await this.inner.send({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: answer.text }], ...(answer.isError ? { isError: true } : {}) } });
       return;
     }
@@ -238,6 +247,12 @@ export function apiContext(port: number): ToolContext {
   };
 }
 
+/** "Claude Desktop: <tool> <what it was given>", short: a file's path, never its contents. */
+export function auditText(tool: string, args: Json): string {
+  const given = JSON.stringify(args);
+  return `Claude Desktop: ${tool} ${given.length > 400 ? `${given.slice(0, 400)}…` : given}`;
+}
+
 /** Run the MCP server until Claude Desktop closes stdin. */
 export async function runMcp(): Promise<void> {
   quietStdout();
@@ -271,7 +286,19 @@ export async function runMcp(): Promise<void> {
   const { createMcpServer } = require('../mcp/server') as typeof import('../mcp/server');
   const server = createMcpServer('stdio');
   const tools = [...DESKTOP_TOOLS, ...specTools(reportFolder)];
-  await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args), apiContext(port), tools) as never);
+  const { logAudit } = require('../lib/periodGuard') as typeof import('../lib/periodGuard');
+  const { currentUserId } = require('./currentUser') as typeof import('./currentUser');
+  const audit = (tool: string, args: Json): Promise<void> =>
+    logAudit({
+      userId: currentUserId(),
+      periodId: typeof args.periodId === 'number' ? args.periodId : null,
+      clientId: typeof args.clientId === 'number' ? args.clientId : undefined,
+      entityType: 'mcp_tool',
+      entityId: null,
+      action: tool,
+      description: auditText(tool, args),
+    });
+  await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args), apiContext(port), tools, audit) as never);
   process.stdin.on('close', () => process.exit(0));
   process.stdin.on('end', () => process.exit(0));
   console.error(`[mcp] ready (private API on 127.0.0.1:${port})`);

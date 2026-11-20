@@ -239,6 +239,7 @@ function makeTool(op: Operation, reportFolder: () => string): DesktopTool {
   ].filter(Boolean);
   return {
     name: toolName(op.operationId),
+    reads: op.method === 'GET',
     description: notes.join(' '),
     inputSchema: { type: 'object', properties, required },
     async run(ctx: ToolContext, args: Json): Promise<ToolResult> {
