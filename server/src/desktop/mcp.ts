@@ -28,6 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import util from 'node:util';
 import type { Knex } from 'knex';
+import { DESKTOP_TOOLS, runTool, type ApiAnswer, type ToolContext } from './mcpTools';
 
 type Json = Record<string, unknown>;
 interface Message { jsonrpc: '2.0'; id?: string | number; method?: string; params?: Json; result?: Json; error?: unknown }
@@ -151,7 +152,12 @@ export class DesktopTransport implements Transport {
   onerror?: (error: Error) => void;
   onmessage?: (message: Message) => void;
 
-  constructor(private readonly inner: Transport, private readonly report: (args: Json) => Promise<{ text: string; isError?: boolean }>) {}
+  constructor(
+    private readonly inner: Transport,
+    private readonly report: (args: Json) => Promise<{ text: string; isError?: boolean }>,
+    // The desktop's own tools (mcpTools.ts) reach the engine through this.
+    private readonly ctx?: ToolContext,
+  ) {}
 
   async start(): Promise<void> {
     this.inner.onmessage = (m) => { void this.receive(m); };
@@ -162,6 +168,10 @@ export class DesktopTransport implements Transport {
 
   async send(message: Message): Promise<void> {
     const tools = (message.result as { tools?: Array<{ name: string; description?: string }> } | undefined)?.tools;
+    if (tools && this.ctx) {
+      // The desktop's own tools after upstream's (P10b, Q105).
+      for (const t of DESKTOP_TOOLS) tools.push({ name: t.name, description: t.description, inputSchema: t.inputSchema } as never);
+    }
     for (const t of tools ?? []) {
       if (t.name === 'generate_report_url') {
         t.description = 'Save a report (trial balance, general ledger, adjusting entries, income statement, balance sheet, cash flow, tax-basis P&L, tax return order) as a PDF on this computer and return where it is. ClientLedger Trial Balance has no web address.';
@@ -175,6 +185,13 @@ export class DesktopTransport implements Transport {
   }
 
   private async receive(m: Message): Promise<void> {
+    const called = m.method === 'tools/call' && m.id !== undefined ? String((m.params as Json | undefined)?.name ?? '') : '';
+    const own = this.ctx ? DESKTOP_TOOLS.find((t) => t.name === called) : undefined;
+    if (own && this.ctx) {
+      const answer = await runTool(own, this.ctx, ((m.params as Json).arguments ?? {}) as Json);
+      await this.inner.send({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: answer.text }], ...(answer.isError ? { isError: true } : {}) } });
+      return;
+    }
     if (m.method === 'tools/call' && m.id !== undefined && (m.params as Json | undefined)?.name === 'generate_report_url') {
       let answer: { text: string; isError?: boolean };
       try {
@@ -188,6 +205,27 @@ export class DesktopTransport implements Transport {
     }
     this.onmessage?.(m);
   }
+}
+
+/** The desktop tools' way to the private API (its token added by signOwnRequests). */
+export function apiContext(port: number): ToolContext {
+  return {
+    async call(method, path, body): Promise<ApiAnswer> {
+      const res = await fetch(`http://127.0.0.1:${port}${path}`, {
+        method,
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const text = await res.text();
+      let env: { data?: unknown; error?: ApiAnswer['error']; meta?: unknown } = {};
+      try {
+        env = text ? (JSON.parse(text) as typeof env) : {};
+      } catch {
+        env = { error: { message: `the engine answered ${res.status} with something that was not JSON` } };
+      }
+      return { status: res.status, data: env.data ?? null, error: env.error ?? null, ...(env.meta !== undefined ? { meta: env.meta } : {}) };
+    },
+  };
 }
 
 /** Run the MCP server until Claude Desktop closes stdin. */
@@ -222,7 +260,7 @@ export async function runMcp(): Promise<void> {
   const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js') as { StdioServerTransport: new () => Transport };
   const { createMcpServer } = require('../mcp/server') as typeof import('../mcp/server');
   const server = createMcpServer('stdio');
-  await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args)) as never);
+  await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args), apiContext(port)) as never);
   process.stdin.on('close', () => process.exit(0));
   process.stdin.on('end', () => process.exit(0));
   console.error(`[mcp] ready (private API on 127.0.0.1:${port})`);
