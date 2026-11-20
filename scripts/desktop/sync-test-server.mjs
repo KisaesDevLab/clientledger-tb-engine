@@ -55,7 +55,10 @@ function childEnv(extra) {
   const env = {};
   for (const k of keep) if (process.env[k] !== undefined) env[k] = process.env[k];
   for (const k of ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'APP_BASE_URL', 'ALLOWED_ORIGIN', 'VIBE_AI_MODE', 'MAIL_TRANSPORT', 'DESKTOP_MODE']) env[k] = '';
-  return { ...env, ...extra };
+  // On UTC, as the appliance runs (and the desktop engine, main.ts): DATE
+  // columns travel in archives as timestamps at local midnight, so a server
+  // on this PC's own zone reads a desktop's dates a day early (Q104).
+  return { ...env, TZ: 'UTC', ...extra };
 }
 
 function run(cmd, args, env) {
