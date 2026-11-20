@@ -46,7 +46,10 @@ function fullBackupOfTwoClients(): Tables {
     tb_tickmarks: [{ id: 1, period_id: 10 }, { id: 2, period_id: 20 }],
     engagement_tasks: [{ id: 1, period_id: 10 }, { id: 2, period_id: 20 }],
     m1_adjustments: [{ id: 1, period_id: 10 }, { id: 2, period_id: 20 }],
-    bank_reconciliations: [{ id: 7, period_id: 10 }, { id: 8, period_id: 20 }],
+    bank_reconciliations: [{ id: 7, client_id: 1, period_id: 10 }, { id: 8, client_id: 2, period_id: 20 }],
+    py_comparison_data: [{ id: 1, period_id: 10 }, { id: 2, period_id: 20 }],
+    saved_reports: [{ id: 1, client_id: 1 }, { id: 2, client_id: 2 }],
+    export_consolidation_settings: [{ id: 1, client_id: 1 }, { id: 2, client_id: 2 }],
     reconciliation_items: [{ id: 1, reconciliation_id: 7 }, { id: 2, reconciliation_id: 8 }],
     // Never in a client backup.
     app_users: [{ id: 1 }],
@@ -74,10 +77,10 @@ test('the tables are exactly the client backup\'s, never firm-wide ones', () => 
   assert.deepEqual(Object.keys(out).sort(), [
     'bank_reconciliations', 'bank_transactions', 'chart_of_accounts', 'classification_rules',
     'client_documents', 'client_folder_links', 'clients', 'document_imports', 'engagement_tasks',
-    'fs_cash_flow_overrides', 'fs_client_layouts', 'fs_equity_roles', 'fs_report_versions', 'fs_reports',
+    'export_consolidation_settings', 'fs_cash_flow_overrides', 'fs_client_layouts', 'fs_equity_roles', 'fs_report_versions', 'fs_reports',
     'journal_entries', 'journal_entry_lines', 'lead_sheet_attachments', 'lead_sheet_notes',
-    'lead_sheet_signoffs', 'lead_sheets', 'm1_adjustments', 'periods', 'qbo_connections',
-    'reconciliation_items', 'tax_code_software_maps', 'tax_codes', 'tb_tickmarks', 'tickmark_library',
+    'lead_sheet_signoffs', 'lead_sheets', 'm1_adjustments', 'periods', 'py_comparison_data', 'qbo_connections',
+    'reconciliation_items', 'saved_reports', 'tax_code_software_maps', 'tax_codes', 'tb_tickmarks', 'tickmark_library',
     'trial_balance', 'variance_notes',
   ]);
 });
@@ -91,8 +94,12 @@ test('a client with no periods gets the period tables the way the engine writes 
     assert.deepEqual(out[k], [], k);
   }
   // …and left out when the client has no periods.
-  for (const k of ['lead_sheet_signoffs', 'tb_tickmarks', 'engagement_tasks', 'm1_adjustments', 'bank_reconciliations']) {
+  for (const k of ['lead_sheet_signoffs', 'tb_tickmarks', 'engagement_tasks', 'm1_adjustments', 'py_comparison_data']) {
     assert.equal(k in out, false, k);
+  }
+  // By client, as the engine writes them: a reconciliation need not name a period.
+  for (const k of ['bank_reconciliations', 'saved_reports', 'export_consolidation_settings']) {
+    assert.deepEqual(out[k], [], k);
   }
 });
 

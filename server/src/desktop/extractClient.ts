@@ -104,8 +104,17 @@ export function selectClientTables(tables: Tables, clientId: number): Tables {
     out.engagement_tasks = byCol(tables.engagement_tasks, 'period_id', periodIds);
   }
   if (has('m1_adjustments') && periodIds.size > 0) out.m1_adjustments = byCol(tables.m1_adjustments, 'period_id', periodIds);
-  if (has('bank_reconciliations') && periodIds.size > 0) {
-    const recons = byCol(tables.bank_reconciliations, 'period_id', periodIds);
+  if (has('py_comparison_data') && periodIds.size > 0) {
+    out.py_comparison_data = byCol(tables.py_comparison_data, 'period_id', periodIds);
+  }
+  // Client-level rows that a replace removes, so they ride along.
+  if (has('saved_reports')) out.saved_reports = ofClient(tables.saved_reports, clientId);
+  if (has('export_consolidation_settings')) {
+    out.export_consolidation_settings = ofClient(tables.export_consolidation_settings, clientId);
+  }
+  // By client, not by period: a reconciliation need not name a period.
+  if (has('bank_reconciliations')) {
+    const recons = ofClient(tables.bank_reconciliations, clientId);
     out.bank_reconciliations = recons;
     const reconIds = ids(recons);
     if (reconIds.size > 0 && has('reconciliation_items')) {
