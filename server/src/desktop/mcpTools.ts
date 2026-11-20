@@ -24,6 +24,8 @@ export interface ApiAnswer {
 /** How a tool reaches the engine. */
 export interface ToolContext {
   call(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<ApiAnswer>;
+  /** The raw answer, for files and form uploads (the private API, its token added). */
+  fetch?(path: string, init: RequestInit): Promise<Response>;
 }
 
 /** What a tool answers Claude. */
@@ -399,6 +401,154 @@ const setBankAccount: DesktopTool = {
   },
 };
 
+// ---------------------------------------------------------------- accounts and balances
+
+const CATEGORIES = ['assets', 'liabilities', 'equity', 'revenue', 'expenses'];
+
+const createAccount: DesktopTool = {
+  name: 'create_account',
+  description:
+    "Add an account to a client's chart of accounts: accountNumber, accountName, category (assets, liabilities, equity, revenue, expenses) and normalBalance (debit or credit); optional subcategory, taxCodeId (from list_tax_codes), leadSheetId, workpaperRef, unit, cashFlowCategory (operating, investing, financing, non_cash, cash). Refused when the number is already used.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      clientId: { type: 'number' },
+      accountNumber: { type: 'string' },
+      accountName: { type: 'string' },
+      category: { type: 'string', enum: CATEGORIES },
+      normalBalance: { type: 'string', enum: ['debit', 'credit'] },
+      subcategory: { type: 'string' },
+      taxCodeId: { type: 'number' },
+      leadSheetId: { type: 'number' },
+      workpaperRef: { type: 'string' },
+      unit: { type: 'string' },
+      cashFlowCategory: { type: 'string', enum: ['operating', 'investing', 'financing', 'non_cash', 'cash'] },
+    },
+    required: ['clientId', 'accountNumber', 'accountName', 'category', 'normalBalance'],
+  },
+  async run(ctx, args) {
+    const clientId = num(args, 'clientId')!;
+    const body: Json = {};
+    for (const k of ['accountNumber', 'accountName', 'category', 'normalBalance', 'subcategory', 'workpaperRef', 'unit', 'cashFlowCategory']) {
+      if (args[k] !== undefined && args[k] !== null && args[k] !== '') body[k] = String(args[k]);
+    }
+    for (const k of ['taxCodeId', 'leadSheetId']) if (args[k] !== undefined && args[k] !== null) body[k] = num(args, k);
+    return ok(await expect(ctx, 'POST', `/api/v1/clients/${clientId}/chart-of-accounts`, body));
+  },
+};
+
+/** One line of a trial balance as Claude read it. */
+interface TbLine {
+  accountNumber: string;
+  accountName: string;
+  debitCents: number;
+  creditCents: number;
+  category?: string;
+  normalBalance?: string;
+}
+
+function readTbLines(v: unknown): TbLine[] {
+  if (!Array.isArray(v) || v.length === 0) throw new ToolError('accounts must list at least one account.');
+  if (v.length > 5000) throw new ToolError('Send at most 5,000 accounts at a time.');
+  const seen = new Set<string>();
+  return v.map((r, i) => {
+    const row = r as Json;
+    const accountNumber = String(row.accountNumber ?? '').trim();
+    const accountName = String(row.accountName ?? '').trim();
+    if (!accountNumber || !accountName) throw new ToolError(`Account ${i + 1}: accountNumber and accountName are required.`);
+    if (seen.has(accountNumber)) throw new ToolError(`Account number ${accountNumber} is listed twice.`);
+    seen.add(accountNumber);
+    const cents = (k: string): number => {
+      const x = row[k] === undefined || row[k] === null || row[k] === '' ? 0 : Number(row[k]);
+      if (!Number.isInteger(x) || x < 0) throw new ToolError(`Account ${accountNumber}: ${k} must be whole cents, 0 or more.`);
+      return x;
+    };
+    let debitCents = cents('debitCents');
+    let creditCents = cents('creditCents');
+    if (row.balanceCents !== undefined && row.balanceCents !== null && row.balanceCents !== '') {
+      const b = Number(row.balanceCents);
+      if (!Number.isInteger(b)) throw new ToolError(`Account ${accountNumber}: balanceCents must be whole cents.`);
+      if (debitCents || creditCents) throw new ToolError(`Account ${accountNumber}: give balanceCents or debitCents/creditCents, not both.`);
+      debitCents = b > 0 ? b : 0;
+      creditCents = b < 0 ? -b : 0;
+    }
+    const category = row.category ? String(row.category) : undefined;
+    if (category && !CATEGORIES.includes(category)) throw new ToolError(`Account ${accountNumber}: category must be one of ${CATEGORIES.join(', ')}.`);
+    const normalBalance = row.normalBalance ? String(row.normalBalance) : undefined;
+    if (normalBalance && normalBalance !== 'debit' && normalBalance !== 'credit') throw new ToolError(`Account ${accountNumber}: normalBalance is debit or credit.`);
+    return { accountNumber, accountName, debitCents, creditCents, category, normalBalance };
+  });
+}
+
+const loadTrialBalance: DesktopTool = {
+  name: 'load_trial_balance',
+  description:
+    "Load a trial balance read from a report (a PDF, a spreadsheet, a ledger) into a period as its unadjusted balances, through the app's own trial balance import. Each account: accountNumber, accountName, and its balance as debitCents and creditCents (or balanceCents: positive debit, negative credit); optional category (assets, liabilities, equity, revenue, expenses) and normalBalance (debit, credit) for accounts not on the chart yet. An account whose number is already on the client's chart gets the balance; any other is added to the chart first (its category, when not given, from the engine's own rule on the number's first digit). Accounts left out keep the balance they have. Check that debits equal credits before loading; the answer gives the totals written. Refused in a locked period.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      clientId: { type: 'number' },
+      periodId: { type: 'number' },
+      accounts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            accountNumber: { type: 'string' },
+            accountName: { type: 'string' },
+            debitCents: { type: 'number' },
+            creditCents: { type: 'number' },
+            balanceCents: { type: 'number', description: 'Instead of debit and credit: positive debit, negative credit' },
+            category: { type: 'string', enum: CATEGORIES },
+            normalBalance: { type: 'string', enum: ['debit', 'credit'] },
+          },
+          required: ['accountNumber', 'accountName'],
+        },
+      },
+    },
+    required: ['clientId', 'periodId', 'accounts'],
+  },
+  async run(ctx, args) {
+    const clientId = num(args, 'clientId')!;
+    const periodId = num(args, 'periodId')!;
+    const lines = readTbLines(args.accounts);
+    const chart = rowsOf(await expect(ctx, 'GET', `/api/v1/clients/${clientId}/chart-of-accounts`));
+    const byNumber = new Map(chart.map((a) => [String(a.account_number ?? '').trim(), a]));
+    let added = 0;
+    const matches = lines.map((l, i) => {
+      const here = byNumber.get(l.accountNumber);
+      if (!here) added++;
+      return {
+        csvRow: i,
+        csvAccountNumber: l.accountNumber,
+        csvAccountName: l.accountName,
+        csvDebit: (l.debitCents / 100).toFixed(2),
+        csvCredit: (l.creditCents / 100).toFixed(2),
+        matchedAccountId: here ? Number(here.id) : null,
+        matchedAccountNumber: here ? String(here.account_number) : null,
+        matchedAccountName: here ? String(here.account_name) : null,
+        confidence: 1,
+        matchType: here ? 'exact' : 'none',
+        action: here ? 'match' : 'create_new',
+        debitCents: l.debitCents,
+        creditCents: l.creditCents,
+        ...(here ? {} : { ...(l.category ? { newCategory: l.category } : {}), ...(l.normalBalance ? { newNormalBalance: l.normalBalance } : {}) }),
+      };
+    });
+    const written = await expect(ctx, 'POST', '/api/v1/import/csv/confirm', { clientId, periodId, matches });
+    const debits = lines.reduce((t, l) => t + l.debitCents, 0);
+    const credits = lines.reduce((t, l) => t + l.creditCents, 0);
+    return ok({
+      accounts: lines.length,
+      addedToChart: added,
+      debitsCents: debits,
+      creditsCents: credits,
+      inBalance: debits === credits,
+      engine: written,
+    });
+  },
+};
+
 /** Every desktop tool, in the order `tools/list` shows them. */
 export const DESKTOP_TOOLS: DesktopTool[] = [
   listTaxCodes,
@@ -408,6 +558,8 @@ export const DESKTOP_TOOLS: DesktopTool[] = [
   updateBankTransaction,
   deleteBankTransactions,
   setBankAccount,
+  createAccount,
+  loadTrialBalance,
 ];
 
 /** Run a desktop tool: its answer, or its refusal in words (never a thrown error). */

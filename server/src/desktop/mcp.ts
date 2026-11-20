@@ -28,7 +28,8 @@ import os from 'node:os';
 import path from 'node:path';
 import util from 'node:util';
 import type { Knex } from 'knex';
-import { DESKTOP_TOOLS, runTool, type ApiAnswer, type ToolContext } from './mcpTools';
+import { DESKTOP_TOOLS, runTool, type ApiAnswer, type DesktopTool, type ToolContext } from './mcpTools';
+import { specTools } from './mcpSpecTools';
 
 type Json = Record<string, unknown>;
 interface Message { jsonrpc: '2.0'; id?: string | number; method?: string; params?: Json; result?: Json; error?: unknown }
@@ -157,6 +158,9 @@ export class DesktopTransport implements Transport {
     private readonly report: (args: Json) => Promise<{ text: string; isError?: boolean }>,
     // The desktop's own tools (mcpTools.ts) reach the engine through this.
     private readonly ctx?: ToolContext,
+    // Every tool the desktop adds: its own, then those made from its API
+    // description (mcpSpecTools.ts).
+    private readonly own: DesktopTool[] = DESKTOP_TOOLS,
   ) {}
 
   async start(): Promise<void> {
@@ -170,7 +174,7 @@ export class DesktopTransport implements Transport {
     const tools = (message.result as { tools?: Array<{ name: string; description?: string }> } | undefined)?.tools;
     if (tools && this.ctx) {
       // The desktop's own tools after upstream's (P10b, Q105).
-      for (const t of DESKTOP_TOOLS) tools.push({ name: t.name, description: t.description, inputSchema: t.inputSchema } as never);
+      for (const t of this.own) tools.push({ name: t.name, description: t.description, inputSchema: t.inputSchema } as never);
     }
     for (const t of tools ?? []) {
       if (t.name === 'generate_report_url') {
@@ -186,7 +190,7 @@ export class DesktopTransport implements Transport {
 
   private async receive(m: Message): Promise<void> {
     const called = m.method === 'tools/call' && m.id !== undefined ? String((m.params as Json | undefined)?.name ?? '') : '';
-    const own = this.ctx ? DESKTOP_TOOLS.find((t) => t.name === called) : undefined;
+    const own = this.ctx ? this.own.find((t) => t.name === called) : undefined;
     if (own && this.ctx) {
       const answer = await runTool(own, this.ctx, ((m.params as Json).arguments ?? {}) as Json);
       await this.inner.send({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: answer.text }], ...(answer.isError ? { isError: true } : {}) } });
@@ -225,6 +229,9 @@ export function apiContext(port: number): ToolContext {
       }
       return { status: res.status, data: env.data ?? null, error: env.error ?? null, ...(env.meta !== undefined ? { meta: env.meta } : {}) };
     },
+    fetch(path, init) {
+      return fetch(`http://127.0.0.1:${port}${path}`, init);
+    },
   };
 }
 
@@ -260,7 +267,8 @@ export async function runMcp(): Promise<void> {
   const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js') as { StdioServerTransport: new () => Transport };
   const { createMcpServer } = require('../mcp/server') as typeof import('../mcp/server');
   const server = createMcpServer('stdio');
-  await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args), apiContext(port)) as never);
+  const tools = [...DESKTOP_TOOLS, ...specTools(reportFolder)];
+  await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args), apiContext(port), tools) as never);
   process.stdin.on('close', () => process.exit(0));
   process.stdin.on('end', () => process.exit(0));
   console.error(`[mcp] ready (private API on 127.0.0.1:${port})`);
