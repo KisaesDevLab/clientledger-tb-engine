@@ -185,6 +185,29 @@ const pulledUpload = multer({
 
 const SCHEMA_TEXT = 'This period was made by a different version of Vibe Trial Balance. Update the older one, then open it again.';
 
+/**
+ * Upstream's merge words its refusals for the server receiving a send-back
+ * ("locked on the server", "send it again", "tell your administrator");
+ * here the desktop is receiving the firm server's period, so they are said
+ * from this side. Codes stay as they are.
+ */
+function desktopSide(err: unknown): unknown {
+  if (!(err instanceof SyncJobError)) return err;
+  const unchanged = 'Nothing on this computer was changed.';
+  const words: Record<string, string> = {
+    SYNC_SCHEMA_MISMATCH: SCHEMA_TEXT,
+    PERIOD_LOCKED: `This period is locked on this computer. Unlock it here, then open it from the firm server again. ${unchanged}`,
+    SYNC_UID_EXISTS: `Part of this period belongs to another client on this computer, so it was not opened. ${unchanged}`,
+    SYNC_DUPLICATE_IMPORT: `A bank transaction in this period is already on this computer in another period. ${unchanged}`,
+    SYNC_DELETED_ON_SERVER: `The period uses something that was deleted on this computer. ${unchanged}`,
+    SYNC_ARCHIVE_CONFLICT: `The period from the firm server conflicts with what is on this computer. ${unchanged}`,
+    SYNC_MERGE_MISMATCH: `The period would not have matched the firm server's once opened here. ${unchanged} Open it again.`,
+    SYNC_TOTALS_MISMATCH: `The trial balance totals would not have matched the firm server's. ${unchanged} Open it again.`,
+  };
+  const text = words[err.code] ?? `The period from the firm server could not be opened here (${err.message}) ${unchanged}`;
+  return new SyncJobError(err.code, text);
+}
+
 /** The uids a pulled archive names (nothing checked yet). */
 async function namedUids(file: string): Promise<{ periodUid: string; clientUid: string }> {
   let manifest: Record<string, unknown>;
@@ -233,12 +256,24 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
       // QS2: not on this computer: a new client, keeping its sync_uids.
       const manifest = await checkedForNewClient(upload.path);
       const tables = await readZipContents(upload.path, 5000);
-      const r = await db.transaction((trx) => restoreAsNew(tables, trx, false, { keepName: true, untrusted: true }));
+      const r = await db.transaction(async (trx) => {
+        const restored = await restoreAsNew(tables, trx, false, { keepName: true, untrusted: true });
+        // The period restored from this archive, by the restore's own map (not
+        // by uid: a uid already held here is given a new one on restore).
+        const newPeriodId = restored.idMappings.periods?.[Number(manifest.periodId)];
+        const c = await trx('clients').where({ id: restored.newClientId }).first('sync_uid');
+        const p = newPeriodId ? await trx('periods').where({ id: newPeriodId }).first('sync_uid') : undefined;
+        // Both must keep the firm server's uids, or a later send-back would
+        // go to the wrong place: rolled back before any file is placed.
+        if (c?.sync_uid !== clientUid || p?.sync_uid !== periodUid) {
+          throw new SyncJobError('SYNC_UID_TAKEN', 'Part of this client is already on this computer under another client, so it was not opened again. Open that client instead.');
+        }
+        return { newClientId: restored.newClientId, idMappings: restored.idMappings, periodId: Number(newPeriodId) };
+      });
       const docs = Object.fromEntries(Object.entries(r.idMappings.client_documents ?? {}).map(([k, v]) => [k, Number(v)]));
       const files = await placeFiles(db, upload.path, manifest, r.newClientId, docs);
-      const period = await db('periods').where({ sync_uid: periodUid }).first('id');
       res.json({
-        data: { mode: 'new', clientId: r.newClientId, periodId: period?.id ?? null, filesPlaced: files.placed, filesNotPlaced: files.notPlaced, stamp: period ? await stampPeriod(db, period.id) : null },
+        data: { mode: 'new', clientId: r.newClientId, periodId: r.periodId, filesPlaced: files.placed, filesNotPlaced: files.notPlaced, stamp: await stampPeriod(db, r.periodId) },
         error: null,
       });
       return;
@@ -246,7 +281,8 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
     // QS2: on this computer: the period merged in, made first when it is new
     // here, as upstream's POST /sync/clients/:uid/periods/push does.
     const clientId = Number(client.id);
-    const { tables, manifest, files } = await readSendBack(upload.path, { periodUid, clientUid, checkoutId: null });
+    const { tables, manifest, files } = await readSendBack(upload.path, { periodUid, clientUid, checkoutId: null })
+      .catch((err: unknown) => { throw desktopSide(err); });
     const own = ((tables.periods ?? []) as Array<Record<string, unknown>>).find((p) => Number(p.id) === Number(manifest.periodId));
     if (!own) throw new SyncJobError('SYNC_ARCHIVE_INVALID', "The archive does not carry its own period's row.");
     const existing = await db('periods').where({ sync_uid: periodUid }).first('id', 'client_id', 'is_reference');
@@ -287,13 +323,11 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
     } catch (err) {
       if (staged) await removeDocuments(staged.created);
       if (!existing) await db('periods').where({ id: periodId }).delete().catch(() => undefined);
-      throw asSyncError(err);
+      throw desktopSide(asSyncError(err));
     }
   } catch (err: unknown) {
     if (err instanceof SyncJobError) {
-      const schema = err.code === 'SYNC_SCHEMA_MISMATCH';
-      // readSendBack words it for the server.
-      refuse(res, schema ? 409 : 400, err.code, schema ? SCHEMA_TEXT : err.message);
+      refuse(res, err.code === 'SYNC_SCHEMA_MISMATCH' ? 409 : 400, err.code, err.message);
     } else {
       sendServerError(res, err, 'desktop-sync/import');
     }
