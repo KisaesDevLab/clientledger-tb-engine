@@ -74,8 +74,7 @@ import { isMailerConfigured } from './lib/mailService';
 import { isRateLimitedAuthPath, startVibeAuth, vibeAuthMiddleware } from './lib/vibeAuth';
 import { desktopSessionMiddleware } from './desktop/session';
 import { isDesktopMode, skipRateLimit } from './desktop/env';
-import { desktopRouter } from './desktop/openapi';
-import { desktopAppSyncRouter } from './desktop/syncRoutes';
+import { desktopRouter } from './desktop/router';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -417,9 +416,6 @@ app.use('/api/v1/periods/:periodId/py-comparison', pyComparisonRouter);
 if (!isDesktopMode()) app.use('/mcp', mcpRouter); // desktop: MCP over stdio only
 
 if (isDesktopMode()) app.use('/api/v1', desktopRouter); // /api/v1/openapi.json
-// Desktop sync, the desktop's side (P12 D0): mounted here, not in the spec's
-// router, since it loads the backup and sync modules.
-if (isDesktopMode()) app.use('/api/v1', desktopAppSyncRouter);
 
 // 404 for any /api/* path not matched above.
 app.use('/api', (req, res) => {

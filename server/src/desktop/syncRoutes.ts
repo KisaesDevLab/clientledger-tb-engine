@@ -35,8 +35,9 @@ import { createBackup, readManifest, readZipContents, restoreAsNew } from '../ro
 import { BackupRefusal, FORMAT_VERSION, appliedMigrations, checkArchive, syncManifestProblem } from '../lib/backupManifest';
 import { stampPeriod } from '../lib/sync/periodStampLoad';
 import { SyncJobError } from '../lib/sync/jobs';
+import { MAX_UPLOAD_BYTES } from '../lib/sync/uploads';
 import { asSyncError, dropReplacedDocuments, mergePeriod, readSendBack, removeDocuments, stageAttachmentFiles } from '../lib/sync/mergePeriod';
-import { placeFilesForNewClient } from './clientFiles';
+import { placeFiles } from './clientFiles';
 
 export const desktopAppSyncRouter = Router();
 
@@ -44,17 +45,25 @@ const refuse = (res: Response, status: number, code: string, message: string): v
   res.status(status).json({ data: null, error: { code, message } });
 };
 
-/** An archive streamed back to the app, then removed from the temp folder. */
-function sendFile(res: Response, file: string, name: string, headers: Record<string, string>): void {
-  res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
-  res.setHeader('Content-Length', String(fs.statSync(file).size));
-  for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
-  const done = () => fs.promises.rm(path.dirname(file), { recursive: true, force: true }).catch(() => undefined);
-  fs.createReadStream(file).on('error', done).on('close', done).pipe(res);
+/**
+ * Make an archive in a temp folder and stream it back to the app; the
+ * folder is removed once sent, or when making it failed.
+ */
+async function sendArchive(
+  res: Response,
+  make: (outDir: string) => Promise<{ filename: string; storage_local?: string | null }>,
+): Promise<void> {
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'cltb-sync-'));
+  const drop = () => fs.promises.rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  let made: { filename: string; storage_local?: string | null };
+  try {
+    made = await make(dir);
+  } catch (err) {
+    await drop();
+    throw err;
+  }
+  res.download(made.storage_local!, made.filename, () => { void drop(); });
 }
-
-const tempDir = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'cltb-sync-'));
 
 desktopAppSyncRouter.get('/desktop/sync/version', async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -68,13 +77,16 @@ desktopAppSyncRouter.get('/desktop/sync/version', async (_req: AuthRequest, res:
 desktopAppSyncRouter.get('/desktop/sync/ids', async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const clients = (await db('clients').orderBy('id').select('id', 'sync_uid')) as Array<{ id: number; sync_uid: string }>;
-    const periods = (await db('periods').orderBy('id').select('id', 'client_id', 'sync_uid', 'is_reference')) as Array<{ id: number; client_id: number; sync_uid: string; is_reference: boolean }>;
+    const periods = (await db('periods').where({ is_reference: false }).orderBy('id')
+      .select('id', 'client_id', 'sync_uid')) as Array<{ id: number; client_id: number; sync_uid: string }>;
+    const byClient = new Map<number, Array<{ periodId: number; periodUid: string }>>();
+    for (const p of periods) {
+      const list = byClient.get(p.client_id) ?? [];
+      list.push({ periodId: p.id, periodUid: p.sync_uid });
+      byClient.set(p.client_id, list);
+    }
     res.json({
-      data: clients.map((c) => ({
-        clientId: c.id,
-        clientUid: c.sync_uid,
-        periods: periods.filter((p) => p.client_id === c.id && !p.is_reference).map((p) => ({ periodId: p.id, periodUid: p.sync_uid })),
-      })),
+      data: clients.map((c) => ({ clientId: c.id, clientUid: c.sync_uid, periods: byClient.get(c.id) ?? [] })),
       error: null,
     });
   } catch (err: unknown) {
@@ -117,27 +129,26 @@ desktopAppSyncRouter.post('/desktop/sync/export-period', async (req: AuthRequest
   }
   try {
     const period = await db('periods as p').join('clients as c', 'c.id', 'p.client_id').where('p.id', periodId)
-      .first('p.id', 'p.client_id', 'p.sync_uid as period_uid', 'p.is_reference', 'c.sync_uid as client_uid');
+      .first('p.client_id', 'p.sync_uid as period_uid', 'p.is_reference', 'c.sync_uid as client_uid');
     if (!period || period.is_reference) {
       refuse(res, 404, 'NOT_FOUND', 'No such period.');
       return;
     }
-    const dir = tempDir();
-    let stamp: string | null = null;
-    const made = await createBackup('period', {
-      clientId: period.client_id,
-      periodId,
-      includeFiles: true,
-      outDir: dir,
-      recordHistory: false,
-      manifestExtra: async (trx) => {
-        stamp = await stampPeriod(trx, periodId);
-        return { sync: { periodUid: period.period_uid, clientUid: period.client_uid, stamp, checkoutId, stampAtPull } };
-      },
-    }, req.user?.userId ?? null);
-    sendFile(res, made.storage_local!, path.basename(made.storage_local!), {
-      'X-Period-Stamp': stamp ?? '',
-      'X-Archive-Checksum': made.checksum ?? '',
+    await sendArchive(res, async (outDir) => {
+      let stamp: string | null = null;
+      const made = await createBackup('period', {
+        clientId: period.client_id,
+        periodId,
+        includeFiles: true,
+        outDir,
+        recordHistory: false,
+        manifestExtra: async (trx) => {
+          stamp = await stampPeriod(trx, periodId);
+          return { sync: { periodUid: period.period_uid, clientUid: period.client_uid, stamp, checkoutId, stampAtPull } };
+        },
+      }, req.user?.userId ?? null);
+      res.setHeader('X-Period-Stamp', stamp ?? '');
+      return made;
     });
   } catch (err: unknown) {
     sendServerError(res, err, 'desktop-sync/export-period');
@@ -156,9 +167,7 @@ desktopAppSyncRouter.post('/desktop/sync/export-client', async (req: AuthRequest
       refuse(res, 404, 'NOT_FOUND', 'No such client.');
       return;
     }
-    const dir = tempDir();
-    const made = await createBackup('client', { clientId, outDir: dir, recordHistory: false }, req.user?.userId ?? null);
-    sendFile(res, made.storage_local!, path.basename(made.storage_local!), { 'X-Archive-Checksum': made.checksum ?? '' });
+    await sendArchive(res, (outDir) => createBackup('client', { clientId, outDir, recordHistory: false }, req.user?.userId ?? null));
   } catch (err: unknown) {
     sendServerError(res, err, 'desktop-sync/export-client');
   }
@@ -166,17 +175,32 @@ desktopAppSyncRouter.post('/desktop/sync/export-client', async (req: AuthRequest
 
 const pulledUpload = multer({
   dest: path.join(os.tmpdir(), 'cltb-sync-import'),
-  limits: { fileSize: 2 * 1024 * 1024 * 1024, files: 1 },
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
 });
 
-/** Checks every pulled archive passes before anything is written. */
-async function checked(file: string): Promise<{ manifest: Record<string, unknown>; periodUid: string; clientUid: string }> {
+const SCHEMA_TEXT = 'This period was made by a different version of Vibe Trial Balance. Update the older one, then open it again.';
+
+/** The uids a pulled archive names (nothing checked yet). */
+async function namedUids(file: string): Promise<{ periodUid: string; clientUid: string }> {
   let manifest: Record<string, unknown>;
   try {
     manifest = await readManifest(file);
   } catch {
     throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'The file is not a Vibe Trial Balance archive.');
   }
+  const sync = (manifest.sync ?? {}) as Record<string, unknown>;
+  if (manifest.backupLevel !== 'period' || typeof sync.periodUid !== 'string' || typeof sync.clientUid !== 'string') {
+    throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'The file is not a period pulled from a firm server.');
+  }
+  return { periodUid: sync.periodUid, clientUid: sync.clientUid };
+}
+
+/**
+ * A new client's archive, checked as `readSendBack` checks a merge's (it
+ * keeps only the period's tables, so it is not used for this one).
+ */
+async function checkedForNewClient(file: string): Promise<Record<string, unknown>> {
+  const manifest = await readManifest(file);
   const problem = syncManifestProblem(manifest);
   if (problem) throw new SyncJobError('SYNC_ARCHIVE_INVALID', problem);
   try {
@@ -186,35 +210,27 @@ async function checked(file: string): Promise<{ manifest: Record<string, unknown
     throw err;
   }
   const applied = await appliedMigrations(db);
-  if (manifest.schemaVersion !== applied[applied.length - 1]) {
-    throw new SyncJobError('SYNC_SCHEMA_MISMATCH', 'This period was made by a different version of Vibe Trial Balance. Update the older one, then open it again.');
-  }
-  const sync = (manifest.sync ?? {}) as Record<string, unknown>;
-  if (manifest.backupLevel !== 'period' || typeof sync.periodUid !== 'string' || typeof sync.clientUid !== 'string') {
-    throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'The file is not a period pulled from a firm server.');
-  }
-  return { manifest, periodUid: sync.periodUid, clientUid: sync.clientUid };
+  if (manifest.schemaVersion !== applied[applied.length - 1]) throw new SyncJobError('SYNC_SCHEMA_MISMATCH', SCHEMA_TEXT);
+  return manifest;
 }
 
 desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
   const upload = (req as AuthRequest & { file?: Express.Multer.File }).file;
-  const remove = () => {
-    if (upload) fs.promises.unlink(upload.path).catch(() => undefined);
-  };
   if (!upload) {
     refuse(res, 400, 'VALIDATION_ERROR', 'file is needed.');
     return;
   }
   try {
-    const { manifest, periodUid, clientUid } = await checked(upload.path);
+    const { periodUid, clientUid } = await namedUids(upload.path);
     const userId = req.user!.userId;
     const client = await db('clients').where({ sync_uid: clientUid }).first('id');
     if (!client) {
       // QS2: not on this computer: a new client, keeping its sync_uids.
+      const manifest = await checkedForNewClient(upload.path);
       const tables = await readZipContents(upload.path, 5000);
       const r = await db.transaction((trx) => restoreAsNew(tables, trx, false, { keepName: true, untrusted: true }));
       const docs = Object.fromEntries(Object.entries(r.idMappings.client_documents ?? {}).map(([k, v]) => [k, Number(v)]));
-      const files = await placeFilesForNewClient(db, upload.path, r.newClientId, docs);
+      const files = await placeFiles(db, upload.path, manifest, r.newClientId, docs);
       const period = await db('periods').where({ sync_uid: periodUid }).first('id');
       res.json({
         data: { mode: 'new', clientId: r.newClientId, periodId: period?.id ?? null, filesPlaced: files.placed, filesNotPlaced: files.notPlaced, stamp: period ? await stampPeriod(db, period.id) : null },
@@ -222,18 +238,25 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
       });
       return;
     }
-    // QS2: on this computer: the period merged in (made first when it is new here).
+    // QS2: on this computer: the period merged in, made first when it is new
+    // here, as upstream's POST /sync/clients/:uid/periods/push does.
     const clientId = Number(client.id);
-    const { tables, files } = await readSendBack(upload.path, { periodUid, clientUid, checkoutId: null });
+    const { tables, manifest, files } = await readSendBack(upload.path, { periodUid, clientUid, checkoutId: null });
     const own = ((tables.periods ?? []) as Array<Record<string, unknown>>).find((p) => Number(p.id) === Number(manifest.periodId));
     if (!own) throw new SyncJobError('SYNC_ARCHIVE_INVALID', "The archive does not carry its own period's row.");
-    const existing = await db('periods').where({ sync_uid: periodUid }).first('id', 'client_id');
+    const existing = await db('periods').where({ sync_uid: periodUid }).first('id', 'client_id', 'is_reference');
     if (existing && Number(existing.client_id) !== clientId) {
       throw new SyncJobError('SYNC_PERIOD_ELSEWHERE', 'This period belongs to another client on this computer.');
     }
+    // New here, or only a reference so far: filled in by the merge.
+    const fill = !existing || existing.is_reference;
+    if (fill) {
+      const overlap = await db('periods').where({ client_id: clientId, is_reference: false })
+        .where('start_date', '<=', own.end_date as string).where('end_date', '>=', own.start_date as string).first('period_name');
+      if (overlap) throw new SyncJobError('PERIOD_OVERLAPS', `Its dates overlap "${overlap.period_name}" on this computer.`);
+    }
     let periodId = existing ? Number(existing.id) : 0;
-    const made = !existing;
-    if (made) {
+    if (!periodId) {
       const [ins] = await db('periods').insert({
         client_id: clientId, sync_uid: periodUid, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date,
         folder_year: own.folder_year ?? null, is_current: false, is_reference: true,
@@ -246,25 +269,30 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
     let staged: Awaited<ReturnType<typeof stageAttachmentFiles>> | null = null;
     try {
       staged = await stageAttachmentFiles(tables, files, target);
-      const docMap = staged.docMap;
+      const { docMap } = staged;
       const outcome = await db.transaction(async (trx) => {
-        if (made) await trx('periods').where({ id: periodId }).update({ is_reference: false });
+        if (fill) {
+          await trx('periods').where({ id: periodId })
+            .update({ is_reference: false, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date });
+        }
         return mergePeriod(trx, target, tables, manifest, docMap);
       });
       await dropReplacedDocuments(outcome.replacedDocs);
       res.json({ data: { mode: 'merged', clientId, periodId, ...outcome.result }, error: null });
     } catch (err) {
       if (staged) await removeDocuments(staged.created);
-      if (made) await db('periods').where({ id: periodId }).delete().catch(() => undefined);
+      if (!existing) await db('periods').where({ id: periodId }).delete().catch(() => undefined);
       throw asSyncError(err);
     }
   } catch (err: unknown) {
     if (err instanceof SyncJobError) {
-      refuse(res, err.code === 'SYNC_SCHEMA_MISMATCH' ? 409 : 400, err.code, err.message);
+      const schema = err.code === 'SYNC_SCHEMA_MISMATCH';
+      // readSendBack words it for the server.
+      refuse(res, schema ? 409 : 400, err.code, schema ? SCHEMA_TEXT : err.message);
     } else {
       sendServerError(res, err, 'desktop-sync/import');
     }
   } finally {
-    remove();
+    fs.promises.unlink(upload.path).catch(() => undefined);
   }
 });

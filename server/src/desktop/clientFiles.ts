@@ -57,8 +57,7 @@ export async function placeFilesForNewClient(
   const manifestFile = dir.files.find((f) => f.path === 'manifest.json');
   if (!manifestFile) throw new ClientFilesError('This is not a backup file.', 'NOT_A_CLIENT_BACKUP');
   const manifest = JSON.parse((await manifestFile.buffer()).toString('utf8')) as Record<string, unknown>;
-  // A client archive, or a period pulled from the firm server (P12).
-  if (manifest.backupLevel !== 'client' && manifest.backupLevel !== 'period') {
+  if (manifest.backupLevel !== 'client') {
     throw new ClientFilesError('This backup does not hold one client.', 'NOT_A_CLIENT_BACKUP');
   }
   const checked = verifyEntries(manifest, await hashArchive(archivePath));
@@ -68,8 +67,24 @@ export async function placeFilesForNewClient(
       'BACKUP_DAMAGED',
     );
   }
+  return placeFiles(db, archivePath, manifest, newClientId, documentIds);
+}
+
+/**
+ * The placing itself, for an archive whose manifest and checksums the
+ * caller has checked already (a client .tbak above, or a period pulled
+ * from the firm server, P12).
+ */
+export async function placeFiles(
+  db: Knex,
+  archivePath: string,
+  manifest: Record<string, unknown>,
+  newClientId: number,
+  documentIds: Record<string, number>,
+): Promise<PlaceResult> {
   const listed = (Array.isArray(manifest.files) ? manifest.files : []) as ListedFile[];
   if (listed.length === 0) return { placed: 0, notPlaced: 0 };
+  const dir = await unzipper.Open.file(archivePath);
 
   const client = await db('clients').where({ id: newClientId }).first('id', 'tax_year_end');
   if (!client) throw new ClientFilesError('The restored client was not found.', 'CLIENT_NOT_FOUND');
@@ -81,6 +96,28 @@ export async function placeFilesForNewClient(
   const driver = await getStorageDriver();
   const fallbackSection = await defaultUploadSection(db);
   const entries = new Map(dir.files.map((f) => [f.path, f]));
+
+  // Each period's year folder, looked up once.
+  const years = new Map<number, string>();
+  const yearFolder = async (periodId: number): Promise<string> => {
+    let fy = years.get(periodId);
+    if (fy === undefined) {
+      const period = await db('periods')
+        .where({ id: periodId })
+        .first('start_date', 'end_date', 'period_name', 'folder_year');
+      fy = period
+        ? fiscalYearFolder({
+            folderYear: period.folder_year as string | null,
+            endDate: period.end_date as string | null,
+            startDate: period.start_date as string | null,
+            periodName: period.period_name as string | null,
+            taxYearEnd: client.tax_year_end as string | null,
+          }, cfg.yearFormat)
+        : 'unknown-year';
+      years.set(periodId, fy);
+    }
+    return fy;
+  };
 
   let placed = 0;
   let notPlaced = 0;
@@ -101,21 +138,7 @@ export async function placeFilesForNewClient(
     let key: string | null = null;
     try {
       const body = await entry.buffer();
-      let fy = 'unknown-year';
-      if (row.period_id) {
-        const period = await db('periods')
-          .where({ id: row.period_id })
-          .first('start_date', 'end_date', 'period_name', 'folder_year');
-        if (period) {
-          fy = fiscalYearFolder({
-            folderYear: period.folder_year as string | null,
-            endDate: period.end_date as string | null,
-            startDate: period.start_date as string | null,
-            periodName: period.period_name as string | null,
-            taxYearEnd: client.tax_year_end as string | null,
-          }, cfg.yearFormat);
-        }
-      }
+      const fy = row.period_id ? await yearFolder(Number(row.period_id)) : 'unknown-year';
       const section = (row.section as string | null) ?? fallbackSection;
       key = await buildUniqueDocumentKeyUnder(
         link.storage_path,

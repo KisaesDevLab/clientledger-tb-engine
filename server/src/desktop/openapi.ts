@@ -8,12 +8,6 @@
 // in the same change. Shapes are what the routes return today (snake_case DB
 // rows inside the { data, error, meta } envelope); amounts are integer cents.
 
-import { Router } from 'express';
-import { desktopBackupRouter } from './backupRoutes';
-import { desktopTbRouter } from './tbTotals';
-import { desktopClientSummaryRouter } from './clientSummary';
-import { desktopMeRouter } from './me';
-import { desktopDraftRouter } from './draftStamp';
 import { fsPaths, fsSchemas } from './openapiFs';
 import { wpPaths, wpSchemas } from './openapiWp';
 import { aiPaths, aiSchemas } from './openapiAi';
@@ -2105,12 +2099,3 @@ export function buildOpenApiSpec(): Schema {
   };
 }
 
-export const desktopRouter = Router();
-desktopRouter.use(desktopBackupRouter);
-desktopRouter.use(desktopTbRouter);
-desktopRouter.use(desktopClientSummaryRouter);
-desktopRouter.use(desktopMeRouter);
-desktopRouter.use(desktopDraftRouter);
-desktopRouter.get('/openapi.json', (_req, res) => {
-  res.json(buildOpenApiSpec());
-});
