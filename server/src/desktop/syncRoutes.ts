@@ -144,7 +144,12 @@ desktopAppSyncRouter.post('/desktop/sync/export-period', async (req: AuthRequest
         recordHistory: false,
         manifestExtra: async (trx) => {
           stamp = await stampPeriod(trx, periodId);
-          return { sync: { periodUid: period.period_uid, clientUid: period.client_uid, stamp, checkoutId, stampAtPull } };
+          // The server's merge refuses a send-back without these (whole cents
+          // as text, the same sum as mergePeriod's own check after the merge).
+          const sums = await trx('v_adjusted_trial_balance').where({ period_id: periodId })
+            .sum({ d: 'book_adjusted_debit', c: 'book_adjusted_credit' }).first();
+          const totals = { bookDebit: String(sums?.d ?? 0), bookCredit: String(sums?.c ?? 0) };
+          return { sync: { periodUid: period.period_uid, clientUid: period.client_uid, stamp, checkoutId, stampAtPull, totals } };
         },
       }, req.user?.userId ?? null);
       res.setHeader('X-Period-Stamp', stamp ?? '');
