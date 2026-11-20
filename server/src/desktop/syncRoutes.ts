@@ -38,6 +38,7 @@ import { SyncJobError } from '../lib/sync/jobs';
 import { MAX_UPLOAD_BYTES } from '../lib/sync/uploads';
 import { asSyncError, dropReplacedDocuments, mergePeriod, readSendBack, removeDocuments, stageAttachmentFiles } from '../lib/sync/mergePeriod';
 import { placeFiles } from './clientFiles';
+import { currentUserId } from './currentUser';
 
 export const desktopAppSyncRouter = Router();
 
@@ -151,7 +152,7 @@ desktopAppSyncRouter.post('/desktop/sync/export-period', async (req: AuthRequest
           const totals = { bookDebit: String(sums?.d ?? 0), bookCredit: String(sums?.c ?? 0) };
           return { sync: { periodUid: period.period_uid, clientUid: period.client_uid, stamp, checkoutId, stampAtPull, totals } };
         },
-      }, req.user?.userId ?? null);
+      }, currentUserId());
       res.setHeader('X-Period-Stamp', stamp ?? '');
       return made;
     });
@@ -172,7 +173,7 @@ desktopAppSyncRouter.post('/desktop/sync/export-client', async (req: AuthRequest
       refuse(res, 404, 'NOT_FOUND', 'No such client.');
       return;
     }
-    await sendArchive(res, (outDir) => createBackup('client', { clientId, outDir, recordHistory: false }, req.user?.userId ?? null));
+    await sendArchive(res, (outDir) => createBackup('client', { clientId, outDir, recordHistory: false }, currentUserId()));
   } catch (err: unknown) {
     sendServerError(res, err, 'desktop-sync/export-client');
   }
@@ -250,7 +251,13 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
   }
   try {
     const { periodUid, clientUid } = await namedUids(upload.path);
-    const userId = req.user!.userId;
+    // The desktop's one user, as the session knows it: the desktop routes
+    // run without authMiddleware, so req.user is never set here.
+    const userId = currentUserId();
+    if (userId == null) {
+      refuse(res, 503, 'NOT_READY', 'The engine is still starting. Try again in a moment.');
+      return;
+    }
     const client = await db('clients').where({ sync_uid: clientUid }).first('id');
     if (!client) {
       // QS2: not on this computer: a new client, keeping its sync_uids.
