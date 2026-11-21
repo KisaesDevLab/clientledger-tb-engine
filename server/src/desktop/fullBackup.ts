@@ -159,6 +159,35 @@ function walk(root: string): string[] {
   return out.sort();
 }
 
+/**
+ * DATE columns by table. The same as upstream's `dateColumns` in
+ * `routes/backup.ts` (3da78af5), kept here because importing that route
+ * module needs the server's secrets at load.
+ */
+async function dateColumns(q: Knex | Knex.Transaction): Promise<Map<string, string[]>> {
+  const r = await q.raw(
+    "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema() AND data_type = 'date'",
+  );
+  const out = new Map<string, string[]>();
+  for (const row of r.rows as Array<{ table_name: string; column_name: string }>) {
+    out.set(row.table_name, [...(out.get(row.table_name) ?? []), row.column_name]);
+  }
+  return out;
+}
+
+/** The row with its DATE columns as YYYY-MM-DD (upstream's `withCalendarDates`). */
+export function withCalendarDates(row: Record<string, unknown>, cols: string[]): Record<string, unknown> {
+  let out: Record<string, unknown> | null = null;
+  for (const c of cols) {
+    const v = row[c];
+    if (!(v instanceof Date) || Number.isNaN(v.getTime())) continue;
+    out ??= { ...row };
+    const p = (n: number) => String(n).padStart(2, '0');
+    out[c] = `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`;
+  }
+  return out ?? row;
+}
+
 export interface FullBackupResult {
   path: string;
   size: number;
@@ -183,10 +212,15 @@ export async function writeFullBackup(
   const recordCounts: Record<string, number> = {};
   await db.transaction(
     async (trx) => {
+      // DATE columns as their calendar date (YYYY-MM-DD), as upstream's
+      // createBackup writes them since 3da78af5 (Q104): a client taken out of
+      // this backup then matches the engine's own client backup.
+      const dateCols = await dateColumns(trx);
       for (const table of await listTables(trx)) {
         if (SIGN_IN_TABLES.has(table)) continue;
         const rows = (await trx(table).select('*')) as Array<Record<string, unknown>>;
-        tableData[table] = JSON.stringify(rows.map((r) => encodeRow(redactRow(table, r))));
+        const cols = dateCols.get(table);
+        tableData[table] = JSON.stringify(rows.map((r) => encodeRow(redactRow(table, cols ? withCalendarDates(r, cols) : r))));
         recordCounts[table] = rows.length;
       }
     },

@@ -200,6 +200,8 @@ const SCHEMA_TEXT = 'This period was made by a different version of Vibe Trial B
  */
 function desktopSide(err: unknown): unknown {
   if (!(err instanceof SyncJobError)) return err;
+  // Already in this side's words (the import's own tie-out).
+  if (err.code === 'SYNC_STAMP_MISMATCH') return err;
   const unchanged = 'Nothing on this computer was changed.';
   const words: Record<string, string> = {
     SYNC_SCHEMA_MISMATCH: SCHEMA_TEXT,
@@ -249,7 +251,8 @@ async function checkedForNewClient(file: string): Promise<Record<string, unknown
   return manifest;
 }
 
-type WhoRows = { signoffs: Record<string, unknown>[]; notes: Record<string, unknown>[]; sheetCodes: Map<number, string> };
+type SheetKey = { code: string | null; name: string };
+type WhoRows = { signoffs: Record<string, unknown>[]; notes: Record<string, unknown>[]; sheets: Map<number, SheetKey> };
 
 /**
  * Who signed and wrote what, as the firm server's archive says, taken
@@ -260,7 +263,7 @@ function serversWho(tables: Record<string, unknown[]>): WhoRows {
   return {
     signoffs: rows('lead_sheet_signoffs'),
     notes: rows('lead_sheet_notes'),
-    sheetCodes: new Map(rows('lead_sheets').map((l) => [Number(l.id), String(l.code)])),
+    sheets: new Map(rows('lead_sheets').map((l) => [Number(l.id), { code: l.code == null ? null : String(l.code), name: String(l.name) }])),
   };
 }
 
@@ -280,9 +283,12 @@ async function keepServersWho(trx: Knex.Transaction, clientId: number, periodId:
       .update({ author_name: n.author_name ?? null, resolved_by_name: n.resolved_by_name ?? null });
   }
   for (const a of who.signoffs) {
-    const code = who.sheetCodes.get(Number(a.lead_sheet_id));
-    if (code === undefined) continue;
-    const sheet = await trx('lead_sheets').where({ client_id: clientId, code }).first('id');
+    const key = who.sheets.get(Number(a.lead_sheet_id));
+    if (key === undefined) continue;
+    // As the merge matches them: by code, or by name for a sheet without one.
+    const sheet = key.code !== null
+      ? await trx('lead_sheets').where({ client_id: clientId, code: key.code }).first('id')
+      : await trx('lead_sheets').where({ client_id: clientId, name: key.name }).whereNull('code').first('id');
     if (!sheet) continue;
     await trx('lead_sheet_signoffs')
       .where({ period_id: periodId, lead_sheet_id: sheet.id, role: a.role as string, signed_at: a.signed_at as string })
