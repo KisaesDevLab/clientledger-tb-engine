@@ -23,7 +23,7 @@ import { reportsExcluded } from './openapiReports';
 type Json = Record<string, unknown>;
 type Schema = Record<string, unknown>;
 
-const COA_TEMPLATES = "chart of accounts templates are the firm's, set up on their screen (P13, Q108)";
+const COA_TEMPLATES = "chart of accounts templates are the firm's, set up on their screen (P13, Q112)";
 
 /** Operations that are not tools, and why (owner 2026-11-20, Q105, unless said). */
 export const EXCLUDED: Record<string, string> = {
@@ -95,7 +95,7 @@ export const EXCLUDED: Record<string, string> = {
   updateEngagementTask: "upstream's update_engagement_task",
   listTaxCodes: 'list_tax_codes (the codes a client can use, with ids)',
   getDraftReport: 'save_report (every report, final or DRAFT, with its options)',
-  // Chart of accounts templates (P13). Not tools yet (Q108); Claude sets up a
+  // Chart of accounts templates (P13). Not tools yet (Q112); Claude sets up a
   // client's chart with create_account. Apply's replace mode deletes a chart.
   listCoaTemplates: COA_TEMPLATES,
   createCoaTemplate: COA_TEMPLATES,
