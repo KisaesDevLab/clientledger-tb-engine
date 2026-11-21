@@ -58,9 +58,13 @@ export async function syncAuthMiddleware(req: SyncRequest, res: Response, next: 
       return;
     }
     if (deviceIdle(row.last_used_at, row.created_at)) {
-      await db('sync_devices').where({ id: row.id }).whereNull('revoked_at').update({ revoked_at: db.fn.now() });
-      await releaseDeviceHolds(db, [row.id], null, `desktop "${row.name}" unused for ${DEVICE_IDLE_DAYS} days`);
-      void logAudit({ userId: row.user_id, periodId: null, entityType: 'sync_device', entityId: row.id, action: 'revoke', description: `Desktop "${row.name}" removed: unused for ${DEVICE_IDLE_DAYS} days` });
+      // Revoked, released and audited together (code review): never revoked with its holds left behind.
+      await db.transaction(async (trx) => {
+        const n = await trx('sync_devices').where({ id: row.id }).whereNull('revoked_at').update({ revoked_at: trx.fn.now() });
+        if (n === 0) return; // another request ended it first
+        await releaseDeviceHolds(trx, [row.id], null, `desktop "${row.name}" unused for ${DEVICE_IDLE_DAYS} days`);
+        await logAudit({ userId: row.user_id, periodId: null, entityType: 'sync_device', entityId: row.id, action: 'revoke', description: `Desktop "${row.name}" removed: unused for ${DEVICE_IDLE_DAYS} days` }, trx);
+      });
       refuse(res, 'SYNC_DEVICE_EXPIRED', `This computer had not synced for ${DEVICE_IDLE_DAYS} days, so its connection ended. Pair it again from Settings › Desktop sync.`);
       return;
     }

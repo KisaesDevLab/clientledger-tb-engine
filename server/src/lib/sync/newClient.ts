@@ -7,8 +7,10 @@
  * backup an admin chose. Only the tables a client's work consists of are
  * taken (no users, folder links, QuickBooks connection, imports or saved
  * reports); every user id in them is the sender's or none, with the names
- * that go with them; a sign-off must be the sender's; and statements cannot
- * arrive issued (they are finalized on the server, through its checks).
+ * that go with them; every sign-off becomes the sender's (Q102: the desktop's
+ * user ids are its own, never the server's, so it cannot name anyone here);
+ * and statements cannot arrive issued (they are finalized on the server,
+ * through its checks).
  */
 import { USER_FK_COLUMNS } from '../../routes/backup';
 import { SyncJobError } from './jobs';
@@ -32,10 +34,15 @@ const NAMES: Record<string, Record<string, string>> = {
 };
 
 /**
- * The tables of a client archive from a desktop, as they may be restored.
- * Refuses issued statements and a sign-off by anyone but the sender.
+ * The tables of a client archive from a desktop, as they may be restored,
+ * and how many sign-offs were given to the sender (they named someone else,
+ * or a user id of the desktop's own). Refuses issued statements.
  */
-export function confineNewClient(tables: Record<string, unknown[]>, sender: { id: number; name: string }): Record<string, unknown[]> {
+export function confineNewClient(
+  tables: Record<string, unknown[]>,
+  sender: { id: number; name: string },
+): { tables: Record<string, unknown[]>; signoffsReassigned: number } {
+  let signoffsReassigned = 0;
   if (((tables.fs_report_versions ?? []) as Row[]).length > 0) {
     throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'Statements finalized on the desktop cannot be sent: send the client, then finalize them on the server.');
   }
@@ -45,8 +52,11 @@ export function confineNewClient(tables: Record<string, unknown[]>, sender: { id
     const cols = USER_FK_COLUMNS[t] ?? [];
     out[t] = (rows as Row[]).map((r) => {
       const row = { ...r };
-      if (t === 'lead_sheet_signoffs' && Number(row.user_id) !== sender.id) {
-        throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'A lead sheet in the archive is signed by someone other than the person sending it.');
+      if (t === 'lead_sheet_signoffs') {
+        // Signed by the person sending it: nobody signs for another here.
+        if (Number(row.user_id) !== sender.id || row.user_name !== sender.name) signoffsReassigned++;
+        row.user_id = sender.id;
+        row.user_name = sender.name;
       }
       for (const col of cols) {
         if (row[col] == null) continue;
@@ -58,5 +68,5 @@ export function confineNewClient(tables: Record<string, unknown[]>, sender: { id
       return row;
     });
   }
-  return out;
+  return { tables: out, signoffsReassigned };
 }

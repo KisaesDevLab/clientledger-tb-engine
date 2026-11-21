@@ -21,7 +21,7 @@ This file is the build plan. Follow the repo's Workflow Rules and License Compli
 ## Decisions this plan builds on
 
 - **SQ1 Identity.** `sync_uid uuid` on `clients`, `periods`, `chart_of_accounts` and `bank_transactions`. Lead sheets match by code, tax codes by form + activity + code (the existing resolver), tickmark library by symbol, lead sheet attachments by `ref_code` within the period. **Decided** (owner 2026-11-19).
-- **SQ2 Check-out. Decided:** on by default; the desktop user may untick it at pull. A checked-out period is read-only in the web app and over MCP until it is sent back or released by its holder or an admin. **No automatic release.** A check-out older than 14 days is flagged to admins.
+- **SQ2 Check-out. Decided:** on by default; the desktop user may untick it at pull. A checked-out period is read-only in the web app and over MCP until it is sent back or released by its holder or an admin. **No automatic release.** A check-out older than 14 days is flagged to admins. A checked-out period cannot be rolled forward (**Decided** 2026-11-19). Device tokens have no fixed maximum lifetime; a user changing their own password also ends their desktops, without blocking a new pairing from that session (**Decided** 2026-11-19).
 - **SQ3 Chart changes on send-back.** New accounts are added. A change to an existing account is applied only when the server's row has not changed since the pull; otherwise the server's value stays and the difference is listed in the result. Accounts are never deleted by a send-back. **Decided.** The same rule applies to a client's Statement Writer layouts (`fs_client_layouts`) that the period's sets use (**Decided** 2026-11-19). While any period of a client is checked out, a lead sheet's code and a tickmark's symbol cannot be changed, on the server or the desktop, so matching by them stays exact (**Decided** 2026-11-19).
 - **SQ4 Scope of a period.** Trial balance, journal entries and lines, the period's bank transactions, variance notes, tickmarks, M-1 adjustments, engagement tasks, lead sheet notes and sign-offs, PY comparison data, Statement Writer sets, **lead sheet attachments with their files, and bank reconciliations with their items** (**Decided**). **Not in the first release:** other client documents and the QuickBooks connection. Their server rows are left untouched by a send-back.
 - **SQ5 Who may sync. Decided:** a device acts as the user who paired it. Staff and admin may pull and send; a reviewer may pull only. No admin requirement.
@@ -136,3 +136,38 @@ Two-way record merge. The server never calls the desktop. No change to the exist
 | S3 | 4–5 days | 1 day |
 | S4 | 9–12 days | 2–3 days (merge rules, tie-out, attachments) |
 | S5 | 2 days | half a day |
+
+## Compatibility check against the desktop (2026-11-19, read of both trees, nothing run)
+
+Compared: this branch at `60c1cb90` with ClientLedger-Trial-Balance `feat/p12-sync` (`bdf90f3` plus uncommitted work) and its engine `feat/p12-sync-engine` (`94a3a7a`, upstream merged at `7248f42`).
+
+Agree: the migration list (schema version), `FORMAT_VERSION` 2, `lib/sync/*` including `periodStamp` and `mergePeriod` (byte-equal in the fork), every route path, method and request body the desktop's `cltb-sync` sends, and the answers it reads (pair, me, capabilities, clients, periods, pull, jobs, uploads, push, release).
+
+To fix (all done 2026-11-21 on `feat/sync-s5-hardening`, below):
+
+1. **`sync.totals` is required here and nobody writes it.** Done: the pull writes `totals` in its manifest and its job result; a pulled archive sent back unchanged is accepted (`sync-e2e`).
+2. **Totals are integer cents as text** (`"12000"`). Done: `docs/desktop-sync.md`. The desktop's own comment (`"100.00"`) is its side to correct.
+3. The fork is behind this branch. Merge at the next sync, with the changes below.
+
+## The desktop's requests of 2026-11-21 (ClientLedger TB `docs/upstream-requests-2026-11-21.md`)
+
+| Request | Done here |
+|---|---|
+| Q98 a push answer lost | A used upload answers `409 SYNC_UPLOAD_USED` with `error.jobId` on `GET`/`DELETE /sync/uploads/:id` and on a second push. A push claims its upload (the job's id is written) before the job starts, so two pushes of one upload at once start one job; the other is refused with that job's id. |
+| Q101 uploads left open | `DELETE /sync/uploads/:id` cancels an unsent upload; "used" is checked before "expired"; a sent upload's row is kept 30 days past its day (its files still go at the day). A join's state stays in memory: after a restart, `POST …/complete` again (documented). |
+| Q102 (1) pull totals | As item 1 above. |
+| Q102 (2) a new client with sign-offs | Every sign-off is given to the sender (was refused); the job result counts them as `signoffsReassigned`. |
+| Q102 (3) sign-offs re-attributed | A sent-back sign-off matches the server's by lead sheet, role, signing time and balance stamp, without the signer, and keeps the server's signer (and its unsigner when unsigned at the same moment). Only rows the server has can match, so nobody signs for another. Notes likewise: same text and creation time keep the server's author and resolver. |
+| Q104 dates and time zones | Archives write DATE columns as `YYYY-MM-DD`. The period stamp reads an older archive's ISO text by its date part, which is what Postgres stores from it, so a UTC desktop's archive is taken by a server in any zone (`sync-e2e` passes under America/Chicago, UTC and Asia/Tokyo). |
+| Q106 (1) `add_variance_note` | PR #36 merged into this branch: a note with no comparison period is kept against the period itself. |
+| Q106 (2) "Admin > Settings" | The provider-not-configured errors no longer name a menu. |
+| Q109 (1) the new client's folder | The result says `folder: null`: linking a storage folder stays an explicit admin step on this server, never made on its own. |
+| Q109 (2) totals in the pull result | As item 1 above. |
+| Q108 | Desktop side (`portableClient.ts`); nothing here. Q110 and compat item 3 (a re-pull's baseline) are desktop side. |
+
+**For the fork's next sync:** `lib/sync/mergePeriod.ts`, `lib/sync/newClient.ts`, `lib/sync/periodStamp.ts` and `lib/sync/uploads.ts` changed, so the byte-equal check against the fork will differ until it merges; `routes/backup.ts` (plain dates) and `routes/sync.ts` changed too. No migration was added, so the schema version is unchanged. The desktop's `export-period` should write DATE columns as `YYYY-MM-DD` as well (the engine's `createBackup` does once merged). The desktop's Rust side reads only `clients` and `chart_of_accounts` from an archive, so plain dates break nothing there; its `appliance_compare` test diffs whole tables, and after the merge a desktop archive's dates (`2025-12-31`) will differ in form from a v0.1.56 appliance's (`2025-12-31T06:00:00.000Z`): compare DATE columns by their date part.
+
+## Code review of the branch (2026-11-21), fixed
+
+A pull that cannot start (job cap, full disk) no longer leaves its check-out behind, and a send-back under a check-out with no `stamp_at_pull` is refused (`SYNC_NOT_PULLED`). Deletes that cascade into a held period (a transaction its reconciliation clears, an entry its bank line names, a period its variance notes compare with) are refused (`periodsReachedByDelete` / `assertDeleteSparesHeldPeriods` in `lib/periodGuard.ts`). A part upload whose connection drops ends and removes its partial file (`stream.pipeline`). The hourly prune keeps a sent upload's archive while its job is queued or running. Removing a device, and ending an idle one, revoke + release + audit in one transaction. The desktop's period list reads every hold in one query and stamps four periods at a time. A statement set renamed on the desktop is matched through an issued version. All in `sync-e2e` ("Code review:" steps).
+

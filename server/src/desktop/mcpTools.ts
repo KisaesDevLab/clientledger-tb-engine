@@ -752,8 +752,13 @@ const stampAttachment: DesktopTool = {
 
 // ---------------------------------------------------------------- variance notes
 
-/** Upstream's add_variance_note writes compare_period_id 0, which no period
-    has, so it always fails (found 2026-11-20, P10b QA; for upstream). */
+/** Upstream's add_variance_note wrote compare_period_id 0, which no period
+    has, so it always failed (found 2026-11-20, P10b QA). Upstream fixed it
+    (PR #36, Q106(1)) by keeping a note with no comparison period against the
+    period itself; its tool still takes no comparison period, so this one
+    stays: it saves the note against the period compared with (as the
+    trial balance's Prior year columns show it), through the route's own
+    locked- and held-period checks. */
 const addVarianceNote: DesktopTool = {
   name: 'add_variance_note',
   replacesUpstream: true,

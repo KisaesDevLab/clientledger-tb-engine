@@ -11,6 +11,7 @@
 import { apiFetch } from './client';
 
 export const DESKTOP_SYNC_QUERY_KEY = ['desktop-sync-devices'] as const;
+export const CHECKOUTS_QUERY_KEY = ['desktop-sync-checkouts'] as const;
 
 export interface PairingCode {
   /** As shown: XXXX-XXXX. */
@@ -53,6 +54,8 @@ export interface SyncCheckout {
   since: string;
   days: number;
   stale: boolean;
+  /** Held by the signed-in user's own desktop. */
+  mine: boolean;
 }
 
 /** Every live check-out (an admin), or the user's own. */

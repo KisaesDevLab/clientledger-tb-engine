@@ -18,6 +18,7 @@ import {
   encodeRow,
   redactRow,
   safeRelative,
+  withCalendarDates,
 } from '../fullBackup';
 
 const cols = [
@@ -87,4 +88,13 @@ test('sign-in data is left out of a desktop full backup (Q32)', () => {
   const je = { id: 1, created_by: 2, description: 'x' };
   assert.equal(redactRow('journal_entries', je), je, 'other tables pass through');
   assert.deepEqual(Object.keys(REDACTED_COLUMNS), ['app_users']);
+});
+
+test('DATE columns are written as the calendar date, as upstream writes them (Q104)', () => {
+  const row = { id: 1, entry_date: new Date(2024, 11, 31), created_at: new Date('2026-11-21T18:45:55.778Z') };
+  const out = withCalendarDates(row, ['entry_date']);
+  assert.equal(out.entry_date, '2024-12-31');
+  assert.equal(out.created_at, row.created_at, 'timestamps stay as they are');
+  assert.equal(withCalendarDates(row, []), row, 'no DATE columns: the same row');
+  assert.equal(withCalendarDates({ entry_date: '2024-12-31' }, ['entry_date']).entry_date, '2024-12-31');
 });

@@ -14,6 +14,7 @@
 //
 //   E2E_PG_ADMIN_URL   a Postgres the test may CREATE DATABASE on (required)
 //   E2E_VERBOSE=1      the server's output to stderr
+//   SYNC_TEST_TZ       the server's time zone (default: this PC's)
 //
 // The setup steps are upstream's (test/sync-e2e.mjs).
 
@@ -55,10 +56,11 @@ function childEnv(extra) {
   const env = {};
   for (const k of keep) if (process.env[k] !== undefined) env[k] = process.env[k];
   for (const k of ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'APP_BASE_URL', 'ALLOWED_ORIGIN', 'VIBE_AI_MODE', 'MAIL_TRANSPORT', 'DESKTOP_MODE']) env[k] = '';
-  // On UTC, as the appliance runs (and the desktop engine, main.ts): DATE
-  // columns travel in archives as timestamps at local midnight, so a server
-  // on this PC's own zone reads a desktop's dates a day early (Q104).
-  return { ...env, TZ: 'UTC', ...extra };
+  // In this PC's own zone, or SYNC_TEST_TZ's. It was forced to UTC while
+  // archives carried DATE columns as timestamps at local midnight (Q104);
+  // upstream 3da78af5 writes them as YYYY-MM-DD, so any zone works now.
+  const tz = process.env.SYNC_TEST_TZ ? { TZ: process.env.SYNC_TEST_TZ } : {};
+  return { ...env, ...tz, ...extra };
 }
 
 function run(cmd, args, env) {

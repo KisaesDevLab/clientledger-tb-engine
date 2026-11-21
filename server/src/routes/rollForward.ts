@@ -2,7 +2,7 @@
 // Licensed under the PolyForm Small Business License 1.0.0.
 // Use is limited to qualifying small businesses. See LICENSE for terms.
 
-import { referenceError } from '../lib/periodGuard';
+import { assertNotCheckedOut, referenceError } from '../lib/periodGuard';
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
@@ -53,6 +53,9 @@ rollForwardRouter.post('/', async (req: AuthRequest, res: Response): Promise<voi
       if (!sourcePeriod) return { kind: 'not_found' };
       // A reference period (desktop sync) has no balances to roll forward.
       if (sourcePeriod.is_reference) throw referenceError();
+      // Owner 2026-11-19: a period a desktop holds is not rolled forward; the
+      // new period would start from balances the desktop may still change.
+      await assertNotCheckedOut(trx, [sourceId]);
 
       // ── Pre-check: source period TB must be in balance. Use BigInt to avoid
       //    precision loss on very large firm aggregates.

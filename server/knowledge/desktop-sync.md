@@ -14,7 +14,7 @@ The desktop then acts as you: it can do what your account can. A reviewer's desk
 not check them out or send them back. **Settings › Desktop sync** lists your connected desktops, when each was last
 used, and lets you remove one. An admin can tick **Every user** to see and remove anyone's.
 
-A desktop's connection also ends when your password is reset, when your account is deactivated, or after 90 days
+A desktop's connection also ends when your password is reset or you change it yourself, when your account is deactivated, or after 90 days
 without syncing. Connect it again with a new code.
 
 ## Pulling and checking out a period
