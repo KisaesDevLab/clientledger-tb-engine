@@ -117,14 +117,18 @@ if (bundleOnly) process.exit(0);
 // Node SEA: blob → copy of node → inject.
 const seaConfig = path.join(out, 'sea-config.json');
 const blob = path.join(out, 'sea-prep.blob');
+// Paths relative to `out` (node resolves them from its working folder): the
+// blob keeps the main script's path as written, and an absolute one would
+// ship this build machine's folder names inside the engine (ClientLedger
+// TB RELEASE-ADDENDUM R2, tools/check-binary.ps1).
 fs.writeFileSync(seaConfig, JSON.stringify({
-  main: bundle,
-  output: blob,
+  main: path.basename(bundle),
+  output: path.basename(blob),
   disableExperimentalSEAWarning: true,
   useSnapshot: false,
   useCodeCache: false,
 }));
-execFileSync(process.execPath, ['--experimental-sea-config', seaConfig], { stdio: 'inherit' });
+execFileSync(process.execPath, ['--experimental-sea-config', path.basename(seaConfig)], { stdio: 'inherit', cwd: out });
 
 const exe = path.join(out, process.platform === 'win32' ? 'clientledger-tb-engine.exe' : 'clientledger-tb-engine');
 fs.copyFileSync(process.execPath, exe);
