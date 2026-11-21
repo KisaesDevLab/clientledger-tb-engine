@@ -15,7 +15,12 @@
 //   POST /desktop/sync/export-client        a client archive to send as a new client
 //   POST /desktop/sync/import               a period pulled from the firm server:
 //                                           a client not here is restored as new keeping its
-//                                           sync_uids; one here gets the period merged in
+//                                           sync_uids; one here gets the period merged in.
+//                                           With `expectStamp` (the server's pull stamp) the
+//                                           period must stamp the same once opened, or
+//                                           nothing is kept (D2.2's tie-out)
+//   POST /desktop/sync/periods/:id/changes  what changed in a period since a pulled archive
+//                                           (the Send back summary, D2.5)
 //
 // QS2's merge is upstream's `mergePeriod`, run as a fresh merge (no
 // check-out here and no stamp to compare with: the server's period replaces
@@ -27,13 +32,16 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Router, type Response } from 'express';
+import type { Knex } from 'knex';
 import multer from 'multer';
 import { db } from '../db';
 import type { AuthRequest } from '../middleware/auth';
 import { sendServerError } from '../lib/safeError';
 import { createBackup, readManifest, readZipContents, restoreAsNew } from '../routes/backup';
 import { BackupRefusal, FORMAT_VERSION, appliedMigrations, checkArchive, syncManifestProblem } from '../lib/backupManifest';
-import { stampPeriod } from '../lib/sync/periodStampLoad';
+import { loadPeriodStampInput, stampPeriod } from '../lib/sync/periodStampLoad';
+import { STAMP_TABLES } from '../lib/sync/periodStamp';
+import { archiveInput, tableChanges } from './syncChanges';
 import { SyncJobError } from '../lib/sync/jobs';
 import { MAX_UPLOAD_BYTES } from '../lib/sync/uploads';
 import { asSyncError, dropReplacedDocuments, mergePeriod, readSendBack, removeDocuments, stageAttachmentFiles } from '../lib/sync/mergePeriod';
@@ -249,6 +257,15 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
     refuse(res, 400, 'VALIDATION_ERROR', 'file is needed.');
     return;
   }
+  const expectStamp = typeof (req.body ?? {}).expectStamp === 'string' && req.body.expectStamp ? String(req.body.expectStamp) : null;
+  // Inside the transaction, so a period that would not match is never kept.
+  const tieOut = async (trx: Knex.Transaction, periodId: number): Promise<void> => {
+    if (expectStamp === null) return;
+    const here = await stampPeriod(trx, periodId);
+    if (here !== expectStamp) {
+      throw new SyncJobError('SYNC_STAMP_MISMATCH', "The period would not have matched the firm server's once opened here, so it was not kept. Nothing on this computer was changed. Open it again.");
+    }
+  };
   try {
     const { periodUid, clientUid } = await namedUids(upload.path);
     // The desktop's one user, as the session knows it: the desktop routes
@@ -275,6 +292,7 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
         if (c?.sync_uid !== clientUid || p?.sync_uid !== periodUid) {
           throw new SyncJobError('SYNC_UID_TAKEN', 'Part of this client is already on this computer under another client, so it was not opened again. Open that client instead.');
         }
+        await tieOut(trx, Number(newPeriodId));
         return { newClientId: restored.newClientId, idMappings: restored.idMappings, periodId: Number(newPeriodId) };
       });
       const docs = Object.fromEntries(Object.entries(r.idMappings.client_documents ?? {}).map(([k, v]) => [k, Number(v)]));
@@ -323,7 +341,9 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
           await trx('periods').where({ id: periodId })
             .update({ is_reference: false, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date });
         }
-        return mergePeriod(trx, target, tables, manifest, docMap);
+        const merged = await mergePeriod(trx, target, tables, manifest, docMap);
+        await tieOut(trx, periodId);
+        return merged;
       });
       await dropReplacedDocuments(outcome.replacedDocs);
       res.json({ data: { mode: 'merged', clientId, periodId, ...outcome.result }, error: null });
@@ -338,6 +358,63 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
     } else {
       sendServerError(res, err, 'desktop-sync/import');
     }
+  } finally {
+    fs.promises.unlink(upload.path).catch(() => undefined);
+  }
+});
+
+// ---- What changed since the pull (the Send back summary, D2.5) ----------
+
+type Rows = Record<string, unknown>[];
+const tableRows = (tables: Record<string, unknown[]>, t: string): Rows => (tables[t] ?? []) as Rows;
+
+/**
+ * `{ file }` (the archive the period was pulled as, kept by the app) →
+ * `{ tables: { <table>: { added, removed, changed } }, accountsAdded,
+ * otherDocuments, totals }`: what a send-back would carry, for the owner to
+ * read first. Read only.
+ */
+desktopAppSyncRouter.post('/desktop/sync/periods/:id/changes', pulledUpload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
+  const upload = (req as AuthRequest & { file?: Express.Multer.File }).file;
+  const id = Number(req.params.id);
+  if (!upload || !Number.isInteger(id) || id <= 0) {
+    refuse(res, 400, 'VALIDATION_ERROR', 'A period id and the pulled archive (file) are needed.');
+    if (upload) fs.promises.unlink(upload.path).catch(() => undefined);
+    return;
+  }
+  try {
+    const manifest = await readManifest(upload.path).catch(() => null);
+    if (!manifest || manifest.backupLevel !== 'period') {
+      refuse(res, 400, 'SYNC_ARCHIVE_INVALID', 'The file is not a period pulled from a firm server.');
+      return;
+    }
+    const tables = await readZipContents(upload.path, 5000);
+    const after = await loadPeriodStampInput(db, id);
+    if (!after) {
+      refuse(res, 404, 'NOT_FOUND', 'No such period.');
+      return;
+    }
+    const before = archiveInput(tables as Record<string, unknown[]>, Number(manifest.periodId));
+    const changes = Object.fromEntries(STAMP_TABLES.map((t) => [t, tableChanges(before, after, t)]));
+    const period = await db('periods').where({ id }).first('client_id');
+    const known = new Set(tableRows(tables as Record<string, unknown[]>, 'chart_of_accounts').map((r) => String(r.sync_uid)));
+    const accounts = (await db('chart_of_accounts').where({ client_id: period.client_id }).orderBy('account_number')
+      .select('sync_uid', 'account_number')) as Array<{ sync_uid: string; account_number: string }>;
+    const attached = new Set(((after.rows.lead_sheet_attachments ?? []) as Rows).map((a) => Number(a.document_id)));
+    const docs = (await db('client_documents').where({ client_id: period.client_id }).pluck('id')) as number[];
+    const sums = await db('v_adjusted_trial_balance').where({ period_id: id })
+      .sum({ d: 'book_adjusted_debit', c: 'book_adjusted_credit' }).first();
+    res.json({
+      data: {
+        tables: changes,
+        accountsAdded: accounts.filter((a) => !known.has(String(a.sync_uid))).map((a) => a.account_number),
+        otherDocuments: docs.filter((d) => !attached.has(Number(d))).length,
+        totals: { bookDebit: String(sums?.d ?? 0), bookCredit: String(sums?.c ?? 0) },
+      },
+      error: null,
+    });
+  } catch (err: unknown) {
+    sendServerError(res, err, 'desktop-sync/changes');
   } finally {
     fs.promises.unlink(upload.path).catch(() => undefined);
   }
