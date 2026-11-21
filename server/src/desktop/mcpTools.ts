@@ -783,6 +783,68 @@ const addVarianceNote: DesktopTool = {
 };
 
 /** Every desktop tool, in the order `tools/list` shows them. */
+// ---------------------------------------------------------------- chart of accounts templates
+
+/**
+ * The tax code of `text` on a client's return: its own form's code before a
+ * code common to every return; two of the same kind is no match (as the
+ * app's templates::carry_plan).
+ */
+export function codeForTemplateLine(text: string, codes: Json[]): number | null {
+  const t = text.trim();
+  const same = codes.filter((c) => String(c.tax_code ?? '').trim() === t);
+  const own = same.filter((c) => c.return_form !== 'common');
+  if (own.length === 1) return Number(own[0].id);
+  if (own.length === 0 && same.length === 1) return Number(same[0].id);
+  return null;
+}
+
+const applyCoaTemplate: DesktopTool = {
+  name: 'apply_coa_template',
+  description:
+    "Add a chart of accounts template's accounts to a client, as the app's Apply to a client does: only accounts whose number the client does not have are added (accounts already there, their names and balances are never touched; nothing is ever replaced or deleted). Each added account gets the tax code of the template's tax line on the client's return when there is exactly one; the answer lists the accounts left without one. Template ids come from list_coa_templates.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      templateId: { type: 'number', description: 'The template (list_coa_templates)' },
+      clientId: { type: 'number', description: 'The client' },
+    },
+    required: ['templateId', 'clientId'],
+  },
+  async run(ctx, args) {
+    const templateId = num(args, 'templateId')!;
+    const clientId = num(args, 'clientId')!;
+    const chart = `/api/v1/clients/${clientId}/chart-of-accounts`;
+    const before = new Set(rowsOf(await expect(ctx, 'GET', chart)).map((a) => String(a.account_number)));
+    // Merge only: the engine's replace mode deletes a client's whole chart.
+    const applied = (await expect(ctx, 'POST', `/api/v1/coa-templates/${templateId}/apply/${clientId}`, { mode: 'merge' })) as Json;
+    const added = rowsOf(await expect(ctx, 'GET', chart)).filter((a) => !before.has(String(a.account_number)));
+    const wanting = added.filter((a) => a.tax_code_id == null && String(a.tax_line ?? '').trim() !== '');
+    let taxCodes = 0;
+    const noCode: string[] = [];
+    if (wanting.length > 0) {
+      const codes = rowsOf(await expect(ctx, 'GET', `/api/v1/tax-codes/available?clientId=${clientId}`));
+      const assignments = wanting.map((a) => {
+        const id = codeForTemplateLine(String(a.tax_line), codes);
+        if (id === null) noCode.push(String(a.account_number));
+        return { accountId: Number(a.id), taxCodeId: id, source: 'template', confidence: null };
+      });
+      const real = assignments.filter((x) => x.taxCodeId !== null);
+      if (real.length > 0) {
+        await expect(ctx, 'PUT', '/api/v1/tax-lines/bulk-confirm', { clientId, assignments: real });
+        taxCodes = real.length;
+      }
+    }
+    return ok({
+      added: applied.added ?? added.length,
+      skipped: applied.skipped ?? null,
+      accountsAdded: added.map((a) => `${a.account_number} ${a.account_name}`),
+      taxCodesGiven: taxCodes,
+      withoutTaxCode: noCode,
+    });
+  },
+};
+
 export const DESKTOP_TOOLS: DesktopTool[] = [
   listTaxCodes,
   listBankTransactions,
@@ -800,6 +862,7 @@ export const DESKTOP_TOOLS: DesktopTool[] = [
   saveReport,
   stampAttachment,
   addVarianceNote,
+  applyCoaTemplate,
 ];
 
 /** Run a desktop tool: its answer, or its refusal in words (never a thrown error). */

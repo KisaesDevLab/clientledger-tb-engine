@@ -23,7 +23,6 @@ import { reportsExcluded } from './openapiReports';
 type Json = Record<string, unknown>;
 type Schema = Record<string, unknown>;
 
-const COA_TEMPLATES = "chart of accounts templates are the firm's, set up on their screen (P13, Q112)";
 
 /** Operations that are not tools, and why (owner 2026-11-20, Q105, unless said). */
 export const EXCLUDED: Record<string, string> = {
@@ -95,21 +94,12 @@ export const EXCLUDED: Record<string, string> = {
   updateEngagementTask: "upstream's update_engagement_task",
   listTaxCodes: 'list_tax_codes (the codes a client can use, with ids)',
   getDraftReport: 'save_report (every report, final or DRAFT, with its options)',
-  // Chart of accounts templates (P13). Not tools yet (Q112); Claude sets up a
-  // client's chart with create_account. Apply's replace mode deletes a chart.
-  listCoaTemplates: COA_TEMPLATES,
-  createCoaTemplate: COA_TEMPLATES,
-  getCoaTemplate: COA_TEMPLATES,
-  updateCoaTemplate: COA_TEMPLATES,
-  deleteCoaTemplate: COA_TEMPLATES,
-  addCoaTemplateAccount: COA_TEMPLATES,
-  updateCoaTemplateAccount: COA_TEMPLATES,
-  deleteCoaTemplateAccount: COA_TEMPLATES,
-  saveChartAsCoaTemplate: COA_TEMPLATES,
-  exportCoaTemplate: COA_TEMPLATES,
-  previewCoaTemplateImport: COA_TEMPLATES,
-  importCoaTemplate: COA_TEMPLATES,
-  applyCoaTemplate: `${COA_TEMPLATES}; its replace mode deletes a client's whole chart`,
+  // Chart of accounts templates (P13, Q112): the rest are tools (list, get,
+  // create, update, delete, accounts, save a client's chart as one).
+  exportCoaTemplate: 'a file for the screen: get_coa_template gives the same accounts',
+  previewCoaTemplateImport: 'a file upload: create_coa_template and add_coa_template_account do it',
+  importCoaTemplate: 'a file upload: create_coa_template and add_coa_template_account do it',
+  applyCoaTemplate: "apply_coa_template adds only (its replace mode deletes a client's whole chart) and carries the tax codes",
 };
 
 /** `classifyBankTransactions` → `classify_bank_transactions`. */

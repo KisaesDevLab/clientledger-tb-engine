@@ -9,7 +9,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DESKTOP_TOOLS, runTool, type ApiAnswer, type ToolContext } from '../mcpTools';
+import { DESKTOP_TOOLS, codeForTemplateLine, runTool, type ApiAnswer, type ToolContext } from '../mcpTools';
 import { DesktopTransport, appLabel, auditText } from '../mcp';
 
 type Call = { method: string; path: string; body?: unknown };
@@ -215,4 +215,52 @@ test('upstream tools that change something are audited under the app, reads and 
   assert.equal(hint('create_journal_entry'), false);
   assert.equal(hint('list_tax_codes'), true, 'a desktop tool that reads');
   assert.equal(hint('add_bank_transactions'), false, 'a desktop tool that writes');
+});
+
+test('a template line takes the return form own code before a common one; two of a kind is no match', () => {
+  const codes = [
+    { id: 1, tax_code: '100', return_form: '1120S' },
+    { id: 2, tax_code: '100', return_form: 'common' },
+    { id: 3, tax_code: '200', return_form: 'common' },
+    { id: 4, tax_code: '300', return_form: '1120S' },
+    { id: 5, tax_code: '300', return_form: '1120S' },
+  ];
+  assert.equal(codeForTemplateLine('100', codes), 1);
+  assert.equal(codeForTemplateLine(' 200 ', codes), 3);
+  assert.equal(codeForTemplateLine('300', codes), null);
+  assert.equal(codeForTemplateLine('999', codes), null);
+});
+
+test('apply_coa_template only adds (merge), then gives the added accounts their tax codes', async () => {
+  let applied = false;
+  const { ctx, calls } = fake((c) => {
+    if (c.path === '/api/v1/clients/7/chart-of-accounts') {
+      return okData(applied
+        ? [
+            { id: 1, account_number: '1000', account_name: 'Cash', tax_code_id: null, tax_line: '100' },
+            { id: 2, account_number: '4000', account_name: 'Sales', tax_code_id: null, tax_line: '100' },
+            { id: 3, account_number: '6000', account_name: 'Rent', tax_code_id: null, tax_line: '999' },
+            { id: 4, account_number: '6100', account_name: 'Fees', tax_code_id: null, tax_line: null },
+          ]
+        : [{ id: 1, account_number: '1000', account_name: 'Cash', tax_code_id: null, tax_line: '100' }]);
+    }
+    if (c.path.startsWith('/api/v1/coa-templates/')) {
+      applied = true;
+      return okData({ added: 3, skipped: 1, total: 4 });
+    }
+    if (c.path.startsWith('/api/v1/tax-codes/available')) return okData([{ id: 50, tax_code: '100', return_form: '1120S' }]);
+    return okData({ results: [] });
+  });
+  const r = await runTool(tool('apply_coa_template'), ctx, { templateId: 9, clientId: 7 });
+  assert.notEqual(r.isError, true, r.text);
+  const apply = calls.find((c) => c.path === '/api/v1/coa-templates/9/apply/7')!;
+  assert.deepEqual(apply.body, { mode: 'merge' }, 'never replace');
+  const confirm = calls.find((c) => c.path === '/api/v1/tax-lines/bulk-confirm')!;
+  assert.equal(confirm.method, 'PUT');
+  assert.deepEqual(confirm.body, { clientId: 7, assignments: [{ accountId: 2, taxCodeId: 50, source: 'template', confidence: null }] },
+    'only the added account with a match; 1000 was there already');
+  const out = JSON.parse(r.text) as { added: number; withoutTaxCode: string[]; taxCodesGiven: number };
+  assert.equal(out.added, 3);
+  assert.equal(out.taxCodesGiven, 1);
+  assert.deepEqual(out.withoutTaxCode, ['6000']);
 });
