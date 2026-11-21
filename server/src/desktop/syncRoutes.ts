@@ -44,7 +44,7 @@ import { STAMP_TABLES } from '../lib/sync/periodStamp';
 import { archiveInput, tableChanges } from './syncChanges';
 import { SyncJobError } from '../lib/sync/jobs';
 import { MAX_UPLOAD_BYTES } from '../lib/sync/uploads';
-import { asSyncError, dropReplacedDocuments, mergePeriod, readSendBack, removeDocuments, stageAttachmentFiles } from '../lib/sync/mergePeriod';
+import { asSyncError, dropReplacedDocuments, mergePeriod, periodTotals, readSendBack, removeDocuments, stageAttachmentFiles } from '../lib/sync/mergePeriod';
 import { placeFiles } from './clientFiles';
 import { currentUserId } from './currentUser';
 
@@ -153,11 +153,9 @@ desktopAppSyncRouter.post('/desktop/sync/export-period', async (req: AuthRequest
         recordHistory: false,
         manifestExtra: async (trx) => {
           stamp = await stampPeriod(trx, periodId);
-          // The server's merge refuses a send-back without these (whole cents
-          // as text, the same sum as mergePeriod's own check after the merge).
-          const sums = await trx('v_adjusted_trial_balance').where({ period_id: periodId })
-            .sum({ d: 'book_adjusted_debit', c: 'book_adjusted_credit' }).first();
-          const totals = { bookDebit: String(sums?.d ?? 0), bookCredit: String(sums?.c ?? 0) };
+          // The server's merge refuses a send-back without these: whole cents
+          // as text, by upstream's own sum (the one it checks after the merge).
+          const totals = await periodTotals(trx, periodId);
           return { sync: { periodUid: period.period_uid, clientUid: period.client_uid, stamp, checkoutId, stampAtPull, totals } };
         },
       }, currentUserId());
@@ -251,6 +249,47 @@ async function checkedForNewClient(file: string): Promise<Record<string, unknown
   return manifest;
 }
 
+type WhoRows = { signoffs: Record<string, unknown>[]; notes: Record<string, unknown>[]; sheetCodes: Map<number, string> };
+
+/**
+ * Who signed and wrote what, as the firm server's archive says, taken
+ * before the merge (which changes the archive's rows in place).
+ */
+function serversWho(tables: Record<string, unknown[]>): WhoRows {
+  const rows = (t: string) => ((tables[t] ?? []) as Record<string, unknown>[]).map((r) => ({ ...r }));
+  return {
+    signoffs: rows('lead_sheet_signoffs'),
+    notes: rows('lead_sheet_notes'),
+    sheetCodes: new Map(rows('lead_sheets').map((l) => [Number(l.id), String(l.code)])),
+  };
+}
+
+/**
+ * Upstream's merge is written for the server receiving a desktop's
+ * send-back: a sign-off it does not already have becomes the sender's (with
+ * a balance stamp computed now), and a note author it does not know is
+ * blanked, so nobody signs for another. Here the desktop receives the firm
+ * server's own period, whose sign-offs and notes are the firm's record: their
+ * names and balance stamps are put back as the server has them (both are in
+ * the period stamp, so the tie-out needs them; Q102). Ids stay as the merge
+ * set them: the firm's users are not users here.
+ */
+async function keepServersWho(trx: Knex.Transaction, clientId: number, periodId: number, who: WhoRows): Promise<void> {
+  for (const n of who.notes) {
+    await trx('lead_sheet_notes').where({ period_id: periodId, body: n.body as string, created_at: n.created_at as string })
+      .update({ author_name: n.author_name ?? null, resolved_by_name: n.resolved_by_name ?? null });
+  }
+  for (const a of who.signoffs) {
+    const code = who.sheetCodes.get(Number(a.lead_sheet_id));
+    if (code === undefined) continue;
+    const sheet = await trx('lead_sheets').where({ client_id: clientId, code }).first('id');
+    if (!sheet) continue;
+    await trx('lead_sheet_signoffs')
+      .where({ period_id: periodId, lead_sheet_id: sheet.id, role: a.role as string, signed_at: a.signed_at as string })
+      .update({ user_name: a.user_name ?? null, balance_stamp: a.balance_stamp as string });
+  }
+}
+
 desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
   const upload = (req as AuthRequest & { file?: Express.Multer.File }).file;
   if (!upload) {
@@ -341,7 +380,9 @@ desktopAppSyncRouter.post('/desktop/sync/import', pulledUpload.single('file'), a
           await trx('periods').where({ id: periodId })
             .update({ is_reference: false, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date });
         }
+        const who = serversWho(tables as Record<string, unknown[]>);
         const merged = await mergePeriod(trx, target, tables, manifest, docMap);
+        await keepServersWho(trx, clientId, periodId, who);
         await tieOut(trx, periodId);
         return merged;
       });
@@ -402,14 +443,13 @@ desktopAppSyncRouter.post('/desktop/sync/periods/:id/changes', pulledUpload.sing
       .select('sync_uid', 'account_number')) as Array<{ sync_uid: string; account_number: string }>;
     const attached = new Set(((after.rows.lead_sheet_attachments ?? []) as Rows).map((a) => Number(a.document_id)));
     const docs = (await db('client_documents').where({ client_id: period.client_id }).pluck('id')) as number[];
-    const sums = await db('v_adjusted_trial_balance').where({ period_id: id })
-      .sum({ d: 'book_adjusted_debit', c: 'book_adjusted_credit' }).first();
+    const totals = await periodTotals(db, id);
     res.json({
       data: {
         tables: changes,
         accountsAdded: accounts.filter((a) => !known.has(String(a.sync_uid))).map((a) => a.account_number),
         otherDocuments: docs.filter((d) => !attached.has(Number(d))).length,
-        totals: { bookDebit: String(sums?.d ?? 0), bookCredit: String(sums?.c ?? 0) },
+        totals,
       },
       error: null,
     });
