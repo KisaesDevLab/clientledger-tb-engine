@@ -54,6 +54,7 @@ export const EXCLUDED: Record<string, string> = {
   // backup, engine restart): through the running app, a later slice.
   writeFullBackup: "the engine's raw writer: back_up_now makes the app's backup (history, second copy, passphrase, check)",
   backupClient: 'backups are made by the app: back_up_now, list_backups, restore_backup (the relay)',
+  desktopBackupClient: 'backups are made by the app: back_up_now, list_backups, restore_backup (the relay)',
   extractClient: 'restores are run by the app: restore_backup (the relay)',
   stageRestore: 'restores are run by the app: restore_backup (the relay)',
   executeRestore: 'restores are run by the app: restore_backup (the relay)',

@@ -20,8 +20,13 @@
 //     (clientFiles.ts, Q31). `documentIds` is the restore's
 //     idMappings.client_documents as JSON. Answers { filesPlaced, filesNotPlaced }.
 //
-// Client backups and restores use the engine's own routes
-// (/api/v1/backup/client/:id?includeFiles=1, /api/v1/restore/*). A full
+//   POST /api/v1/desktop/backup/client/:clientId[?includeFiles=1]
+//     The engine's own client backup (routes/backup.ts createBackup), then
+//     rewritten without the columns of upstream's unreleased sync work
+//     (portableClient.ts, Q108), so it restores on a Vibe Trial Balance
+//     appliance; its history row gets the new size and checksum.
+//
+// Client restores use the engine's own routes (/api/v1/restore/*). A full
 // restore is not a route: the launcher stops the engine and runs
 // `clientledger-tb-engine restore-full <file>` against a new database.
 
@@ -37,6 +42,9 @@ import { localStorageRoot } from '../lib/storage';
 import { writeFullBackup } from './fullBackup';
 import { ClientFilesError, placeFilesForNewClient } from './clientFiles';
 import { ExtractError, extractClient } from './extractClient';
+import { makePortable } from './portableClient';
+import { createBackup } from '../routes/backup';
+import { currentUserId } from './currentUser';
 
 /** The only names the route writes: plain .tbak names in the backups folder. */
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.tbak$/;
@@ -101,6 +109,29 @@ desktopBackupRouter.post('/desktop/backup/extract-client', async (req: AuthReque
     } else {
       sendServerError(res, err, 'backup');
     }
+  }
+});
+
+desktopBackupRouter.post('/desktop/backup/client/:clientId', async (req: AuthRequest, res: Response): Promise<void> => {
+  const clientId = Number(req.params.clientId);
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    res.status(400).json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid clientId' } });
+    return;
+  }
+  const q = req.query.includeFiles;
+  const includeFiles = q === '1' || q === 'true';
+  try {
+    const record = (await createBackup('client', { clientId, triggerType: 'manual', includeFiles }, currentUserId())) as unknown as Record<string, unknown>;
+    const file = record.storage_local as string;
+    const { size, sha256 } = await makePortable(file);
+    const old = (record.checksum as string | null) ?? '';
+    const checksum = old.startsWith('sha256:') ? `sha256:${sha256}` : sha256;
+    if (record.id !== undefined) {
+      await db('backup_history').where({ id: record.id }).update({ file_size: size, checksum });
+    }
+    res.json({ data: { ...record, file_size: size, checksum }, error: null });
+  } catch (err: unknown) {
+    sendServerError(res, err, 'backup');
   }
 });
 

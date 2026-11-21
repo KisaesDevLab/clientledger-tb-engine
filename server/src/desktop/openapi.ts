@@ -1278,7 +1278,18 @@ export function buildOpenApiSpec(): Schema {
         ],
         post: {
           operationId: 'backupClient', tags: ['backup'],
-          summary: 'Write a client .tbak (appliance-compatible) into BACKUPS_DIR',
+          summary: 'Write a client .tbak into BACKUPS_DIR (on the desktop it carries the unreleased sync columns: use desktopBackupClient)',
+          responses: { '200': ok('Written', ref('BackupRecord')), '400': errorResponse('Invalid id'), ...commonErrors },
+        },
+      },
+      '/api/v1/desktop/backup/client/{clientId}': {
+        parameters: [
+          idParam('clientId', 'Client id'),
+          { name: 'includeFiles', in: 'query', required: false, schema: { type: 'string', enum: ['1', 'true'] }, description: 'Carry document bytes under files/' },
+        ],
+        post: {
+          operationId: 'desktopBackupClient', tags: ['backup'],
+          summary: 'Write a client .tbak into BACKUPS_DIR without the unreleased sync columns, so it restores on a Vibe Trial Balance appliance (Q108); the record has the rewritten size and checksum',
           responses: { '200': ok('Written', ref('BackupRecord')), '400': errorResponse('Invalid id'), ...commonErrors },
         },
       },

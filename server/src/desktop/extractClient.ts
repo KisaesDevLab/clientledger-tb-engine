@@ -34,6 +34,7 @@ import {
   type ManifestEntries,
 } from '../lib/backupManifest';
 import { FULL_LEVEL } from './fullBackup';
+import { stripSyncColumns } from './portableClient';
 
 type Row = Record<string, unknown>;
 export type Tables = Record<string, Row[]>;
@@ -223,6 +224,8 @@ export async function writeClientArchive(
   fileOf: (doc: Row) => (() => Promise<Buffer>) | null,
 ): Promise<{ size: number; sha256: string; fileCount: number; missingFiles: number[] }> {
   refuseBinary(tables);
+  // A client backup travels (Q9): without the unreleased sync columns (Q108).
+  tables = Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, stripSyncColumns(t, rows)]));
   const recordCounts: Record<string, number> = {};
   for (const [t, rows] of Object.entries(tables)) recordCounts[t] = rows.length;
   const entries: ManifestEntries = {};
