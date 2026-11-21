@@ -660,7 +660,9 @@ export function createMcpServer(rateLimitKey = 'default'): Server {
             // Desktop sync: not in a period a desktop holds.
             await assertNotCheckedOut(trx, [periodId]);
             await trx('variance_notes')
-              .insert({ period_id: periodId, account_id: accountId, compare_period_id: 0, note, created_by: mcpUserId })
+              // No comparison period: kept against the period itself (compare_period_id is a
+              // foreign key into periods; the 0 written before was always refused).
+              .insert({ period_id: periodId, account_id: accountId, compare_period_id: periodId, note, created_by: mcpUserId })
               .onConflict(['account_id', 'period_id', 'compare_period_id'])
               .merge(['note']);
           });

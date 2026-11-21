@@ -6,7 +6,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { assertNotCheckedOut, checkedOutBy, logAudit } from '../lib/periodGuard';
+import { assertDeleteSparesHeldPeriods, assertNotCheckedOut, checkedOutBy, checkedOutByMany, logAudit } from '../lib/periodGuard';
 import { checkoutApi, checkoutWarnDays } from '../lib/sync/checkouts';
 import { sendServerError } from '../lib/safeError';
 import { isForeignKeyViolation, foreignKeyBlockMessage, isRaisedException } from '../lib/pgErrors';
@@ -42,11 +42,11 @@ periodCollectionRouter.get('/', async (req: AuthRequest, res: Response): Promise
       .orderBy('end_date', 'desc')) as Array<Record<string, unknown> & { id: number }>;
     // Desktop sync: who holds each period, if anyone (banner, Periods page).
     const warnDays = await checkoutWarnDays();
-    const withCheckout = [];
-    for (const p of periods) {
-      const holder = await checkedOutBy(db, p.id);
-      withCheckout.push({ ...p, checkout: holder ? checkoutApi(holder, warnDays) : null });
-    }
+    const holders = await checkedOutByMany(db, periods.map((p) => p.id));
+    const withCheckout = periods.map((p) => {
+      const holder = holders.get(p.id);
+      return { ...p, checkout: holder ? checkoutApi(holder, warnDays) : null };
+    });
     res.json({ data: withCheckout, error: null, meta: { count: periods.length, checkoutWarnDays: warnDays } });
   } catch (err: unknown) {
     sendServerError(res, err, 'periods');
@@ -293,6 +293,10 @@ periodItemRouter.delete('/:id', async (req: AuthRequest, res: Response): Promise
     let deleted: number | undefined;
     await db.transaction(async (trx) => {
       // Desktop sync: deleting would erase the check-out with the period.
+      // …nor a held period it cascades into: variance notes compared with this
+      // one, reconciliations clearing its transactions (code review). This and
+      // every period it reaches are locked first, in one ascending pass.
+      await assertDeleteSparesHeldPeriods(trx, { periodIds: [id] });
       await assertNotCheckedOut(trx, [id]);
       await logAudit({ userId: req.user!.userId, periodId: null, entityType: 'period', entityId: id, action: 'delete', description: `Deleted period "${period.period_name ?? id}"` }, trx);
       const rows = await trx('periods').where({ id }).delete().returning('id');

@@ -6,7 +6,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
+import { assertDeleteSparesHeldPeriods, assertPeriodUnlocked, logAudit } from '../lib/periodGuard';
 import { ensureTrialBalanceRows } from '../lib/ensureTrialBalanceRows';
 import { sendServerError } from '../lib/safeError';
 
@@ -387,6 +387,9 @@ jeItemRouter.delete('/:id', async (req: AuthRequest, res: Response): Promise<voi
       if (!existing) {
         throw Object.assign(new Error('NOT_FOUND'), { code: 'NOT_FOUND' });
       }
+      // Desktop sync: a bank line of a held period that points at this entry is
+      // refused, and its period and the entry's are locked in one ascending pass (code review).
+      await assertDeleteSparesHeldPeriods(trx, { journalEntryIds: [id] }, [existing.period_id]);
       await assertPeriodUnlocked(existing.period_id, trx);
       // Cascade: lines, then any bank_transactions link, then the JE itself.
       await trx('journal_entry_lines').where({ journal_entry_id: id }).delete();

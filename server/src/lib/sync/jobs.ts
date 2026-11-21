@@ -69,7 +69,7 @@ export function assertDiskRoom(bytes: number): void {
  * fails. Returns the job id at once.
  */
 export async function startJob(
-  input: { kind: JobKind; deviceId: number; userId: number; clientId: number | null; periodId?: number; checkoutId?: number | null; checkoutCreated?: boolean },
+  input: { id?: string; kind: JobKind; deviceId: number; userId: number; clientId: number | null; periodId?: number; checkoutId?: number | null; checkoutCreated?: boolean },
   work: (jobId: string) => Promise<JobOutcome>,
   onFail?: () => Promise<void>,
 ): Promise<string> {
@@ -79,6 +79,8 @@ export async function startJob(
   }
   const [row] = await db('sync_jobs')
     .insert({
+      // A send-back's id is chosen first, when it claims its upload.
+      ...(input.id ? { id: input.id } : {}),
       kind: input.kind,
       device_id: input.deviceId,
       user_id: input.userId,

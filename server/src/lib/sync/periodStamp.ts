@@ -133,15 +133,19 @@ function calendarDate(d: Date): string {
 
 /**
  * A DATE column as its calendar date, from the database (a Date at local
- * midnight) or from an archive's JSON (that Date written as ISO text, or a
- * plain YYYY-MM-DD), so a period and its archive stamp alike.
+ * midnight) or from an archive's JSON, so a period and its archive stamp
+ * alike. Archives write plain YYYY-MM-DD (Q104); older ones wrote the Date as
+ * ISO text, and of that text only the date part counts, because that is what
+ * Postgres stores when the text is inserted into a DATE column (it ignores
+ * the time and zone). Reading it in this server's zone instead put every date
+ * from a server or desktop on UTC a day early here when this one was west of
+ * UTC, and every send-back was refused.
  */
-function dateText(v: unknown): unknown {
+export function dateText(v: unknown): unknown {
   if (v instanceof Date) return calendarDate(v);
   if (typeof v === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-    const d = new Date(v);
-    if (!Number.isNaN(d.getTime())) return calendarDate(d);
+    const m = /^(\d{4}-\d{2}-\d{2})(?:$|[T ])/.exec(v);
+    if (m) return m[1];
   }
   return v;
 }

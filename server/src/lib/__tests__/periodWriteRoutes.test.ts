@@ -58,6 +58,7 @@ export const PERIOD_ROUTES = [
   'periods.ts periodItemRouter POST /:id/lock',
   'periods.ts periodItemRouter DELETE /:id',
   'pyComparison.ts pyComparisonRouter POST /manual',
+  'rollForward.ts rollForwardRouter POST /',
   'pyComparison.ts pyComparisonRouter POST /confirm-csv',
   'pyComparison.ts pyComparisonRouter POST /confirm-pdf',
   'pyComparison.ts pyComparisonRouter DELETE /',
@@ -115,7 +116,6 @@ const OTHER_FILES: Record<string, string> = {
   'diagnostics.ts': 'reads and asks the AI; writes nothing',
   'exports.ts': 'consolidation settings, by client',
   'pdfReports.ts': 'a merged workpaper PDF saved as a client document',
-  'rollForward.ts': 'reads the source period (a held one too) and makes a new period',
 };
 
 /** Single write routes in mixed files that are not period data, and why. */

@@ -5,7 +5,9 @@
 /** Self-service password change, extracted verbatim from the old Settings Account card. */
 
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { changePassword } from '../../api/auth';
+import { CHECKOUTS_QUERY_KEY, DESKTOP_SYNC_QUERY_KEY, listCheckouts, listSyncDevices } from '../../api/desktopSync';
 import { PasswordInput } from '../PasswordInput';
 
 export function ChangePasswordForm() {
@@ -15,6 +17,19 @@ export function ChangePasswordForm() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSaved, setPwSaved] = useState(false);
+  const qc = useQueryClient();
+  // Changing your password signs out your paired desktops and releases the
+  // periods they hold (desktop sync): say so before, not after.
+  const { data: devices } = useQuery({
+    queryKey: [...DESKTOP_SYNC_QUERY_KEY, false],
+    queryFn: async () => (await listSyncDevices(false)).data ?? [],
+  });
+  const { data: checkouts } = useQuery({
+    queryKey: CHECKOUTS_QUERY_KEY,
+    queryFn: async () => (await listCheckouts()).data ?? [],
+  });
+  const myDevices = (devices ?? []).filter((d) => d.mine);
+  const myHolds = (checkouts ?? []).filter((c) => c.mine);
 
   const handleChangePassword = async () => {
     setPwError(null);
@@ -38,6 +53,8 @@ export function ChangePasswordForm() {
     setPwConfirm('');
     setPwSaved(true);
     setTimeout(() => setPwSaved(false), 3000);
+    void qc.invalidateQueries({ queryKey: DESKTOP_SYNC_QUERY_KEY });
+    void qc.invalidateQueries({ queryKey: CHECKOUTS_QUERY_KEY });
   };
 
   return (
@@ -79,6 +96,15 @@ export function ChangePasswordForm() {
             required
           />
         </div>
+        {myDevices.length > 0 && (
+          <div className="px-3 py-2 rounded text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300">
+            Changing your password signs out your {myDevices.length === 1 ? 'paired desktop' : `${myDevices.length} paired desktops`} ({myDevices.map((d) => d.name).join(', ')}).
+            {myHolds.length > 0 && (
+              <> {myHolds.length === 1 ? 'The period it holds' : `The ${myHolds.length} periods they hold`} ({myHolds.map((c) => `${c.clientName} ${c.periodName}`).join(', ')}) will be released: send back any desktop work first, or it may be refused if the period changes here.</>
+            )}
+            {' '}Pair again from Settings afterwards.
+          </div>
+        )}
         <button
           type="submit"
           disabled={pwSaving || !pwCurrent || !pwNew || !pwConfirm}

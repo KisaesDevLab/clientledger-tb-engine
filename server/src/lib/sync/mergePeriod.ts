@@ -154,6 +154,13 @@ async function totals(q: Knex | Knex.Transaction, periodId: number): Promise<Tot
   return { bookDebit: String(r?.d ?? 0), bookCredit: String(r?.c ?? 0) };
 }
 
+/**
+ * The period's adjusted book totals, in whole cents as text: what a period
+ * archive carries as `manifest.sync.totals` and what a send-back is checked
+ * against after the merge.
+ */
+export const periodTotals = totals;
+
 async function columnsOf(trx: Knex.Transaction, table: string): Promise<Set<string>> {
   return new Set(Object.keys(await trx(table).columnInfo()));
 }
@@ -367,6 +374,9 @@ export async function mergePeriod(
     }
     const co = await trx('period_checkouts').where({ id: target.checkoutId }).first('stamp_at_pull');
     stampAtPull = (co.stamp_at_pull as string | null) ?? null;
+    // A hold whose pull never finished has no stamp to compare with: nothing the
+    // desktop has came from it (code review).
+    if (!stampAtPull) throw fail('SYNC_NOT_PULLED', 'The period was checked out but its pull never finished, so there is nothing to compare this with. Pull it again, then send it back.');
   } else if (target.fresh) {
     stampAtPull = null;
   } else {
@@ -439,6 +449,25 @@ export async function mergePeriod(
     }
     return allowedCache.get(k)!;
   };
+  // A note the server already has (same text, written at the same moment)
+  // keeps the server's author, and its resolver while it was resolved at the
+  // same moment (Q102): the desktop's user ids are its own, so they would
+  // otherwise be blanked here. Only what the server already says is restored.
+  const serverNotes = new Map<string, Row>();
+  for (const n of (await trx('lead_sheet_notes').where({ period_id: P })) as Row[]) serverNotes.set(`${iso(n.created_at)}|${String(n.body)}`, n);
+  for (const r of rowsOf(tables, 'lead_sheet_notes')) {
+    const key = `${iso(r.created_at)}|${String(r.body)}`;
+    const was = serverNotes.get(key);
+    if (!was) continue;
+    // Matched once: a copy of it in the archive is not the server's note.
+    serverNotes.delete(key);
+    r.author_id = was.author_id;
+    r.author_name = was.author_name;
+    if (was.resolved_at != null && iso(r.resolved_at) === iso(was.resolved_at)) {
+      r.resolved_by = was.resolved_by;
+      r.resolved_by_name = was.resolved_by_name;
+    }
+  }
   for (const t of [...REPLACED.filter((x) => x !== 'lead_sheet_signoffs'), 'journal_entries', 'bank_transactions', 'bank_reconciliations', 'lead_sheet_attachments', 'fs_reports']) {
     const cols = USER_FK_COLUMNS[t] ?? [];
     for (const r of rowsOf(tables, t)) {
@@ -671,12 +700,17 @@ export async function mergePeriod(
     result.counts[t] = rows.length;
   }
 
-  // ── Sign-offs (security review): one the server has, exactly, stays as the
-  // server has it (it may be invalidated since); any other is the sender's,
-  // with the balance stamp the server computes now. Nobody signs for another.
+  // ── Sign-offs (security review): one the server has stays signed by whoever
+  // the server says signed it (it may be invalidated since); any other is the
+  // sender's, with the balance stamp the server computes now. Nobody signs for
+  // another. The match leaves the signer OUT (Q102): a desktop's user ids are
+  // its own, so keying on them gave a reviewer's sign-off to the preparer who
+  // sent the period back. Only a row the server already has can match, and
+  // it takes the server's signer, so leaving the signer out of the key lets
+  // nobody claim a signature.
   const signCols = await columnsOf(trx, 'lead_sheet_signoffs');
   const serverSigns = (await trx('lead_sheet_signoffs').where({ period_id: P })) as Row[];
-  const signKey = (r: Row) => [r.lead_sheet_id, r.role, iso(r.signed_at), num(r.user_id), r.user_name ?? null, r.balance_stamp].map((x) => String(x)).join('|');
+  const signKey = (r: Row) => [r.lead_sheet_id, r.role, iso(r.signed_at), r.balance_stamp].map((x) => String(x)).join('|');
   const serverByKey = new Map(serverSigns.map((r) => [signKey(r), r]));
   await trx('lead_sheet_signoffs').where({ period_id: P }).delete();
   let signs = 0;
@@ -686,7 +720,12 @@ export async function mergePeriod(
     const invalidatedBy = num(a.invalidated_by);
     const keptInvalidator = invalidatedBy === null || invalidatedBy === target.userId || invalidatedBy === num(was?.invalidated_by) ? invalidatedBy : null;
     if (was) {
-      a.invalidated_by = keptInvalidator;
+      a.user_id = was.user_id;
+      a.user_name = was.user_name;
+      // Unsigned on the server at the same moment: by whoever the server says.
+      a.invalidated_by = was.invalidated_at != null && iso(a.invalidated_at) === iso(was.invalidated_at) ? was.invalidated_by : keptInvalidator;
+      // Matched once: a second archive row with the same key is a new signature.
+      serverByKey.delete(signKey({ ...a, lead_sheet_id: lsId }));
     } else {
       a.user_id = target.userId;
       a.user_name = pusherName;
@@ -739,17 +778,38 @@ export async function mergePeriod(
   const verCols = await columnsOf(trx, 'fs_report_versions');
   const currentOld = new Map<number, number | null>();
   const usedReports = new Set<number>();
-  for (const r of rowsOf(tables, 'fs_reports')) {
-    const row: Row = { ...sanitize('fs_reports', pick(r, repCols)), client_id: C, period_id: P, current_version_id: null };
-    row.client_layout_id = mapRef('fsLayout', r.client_layout_id, 'fs_reports', 'client_layout_id');
-    // By name, preferring the same archived state; each server set matched once.
+  const setRows = rowsOf(tables, 'fs_reports');
+  const matched = new Map<Row, number>();
+  // An issued version first (code review): it is frozen here, so the same
+  // number finalized at the same moment with the same numbers says which
+  // server set it belongs to, whatever the set is called now. A set renamed on
+  // the desktop and a new set given its old name then both land right.
+  for (const r of setRows) {
+    for (const v of rowsOf(tables, 'fs_report_versions').filter((x) => num(x.report_id) === num(r.id))) {
+      const hit = (await trx('fs_report_versions as v').join('fs_reports as s', 's.id', 'v.report_id')
+        .where({ 's.period_id': P, 'v.version_no': v.version_no, 'v.numbers_hash': v.numbers_hash })
+        .select('v.report_id', 'v.finalized_at')) as Array<{ report_id: number; finalized_at: unknown }>;
+      const set = hit.find((h) => iso(h.finalized_at) === iso(v.finalized_at) && !usedReports.has(Number(h.report_id)));
+      if (set) { usedReports.add(Number(set.report_id)); matched.set(r, Number(set.report_id)); break; }
+    }
+  }
+  // Then by name, preferring the same archived state; each server set matched
+  // once. Without issued versions a rename cannot be told from a new set, and
+  // the refusal below says so.
+  for (const r of setRows) {
+    if (matched.has(r)) continue;
     const cands = (await trx('fs_reports').where({ period_id: P, name: r.name }).select('id', 'archived_at')) as Array<{ id: number; archived_at: unknown }>;
     const free = cands.filter((c) => !usedReports.has(Number(c.id)));
     const here = free.find((c) => !!c.archived_at === !!r.archived_at) ?? free[0];
-    if (here) usedReports.add(Number(here.id));
+    if (here) { usedReports.add(Number(here.id)); matched.set(r, Number(here.id)); }
+  }
+  for (const r of setRows) {
+    const row: Row = { ...sanitize('fs_reports', pick(r, repCols)), client_id: C, period_id: P, current_version_id: null };
+    row.client_layout_id = mapRef('fsLayout', r.client_layout_id, 'fs_reports', 'client_layout_id');
     let id: number;
-    if (here) {
-      id = Number(here.id);
+    const here = matched.get(r);
+    if (here !== undefined) {
+      id = here;
       await trx('fs_reports').where({ id }).update(await enc('fs_reports', row));
     } else {
       const [ins] = await trx('fs_reports').insert(await enc('fs_reports', row)).returning('id');
@@ -789,7 +849,7 @@ export async function mergePeriod(
   // A set is never deleted, only archived (its issued versions stay): one the
   // server has that the archive lacks is refused, not guessed.
   const missingSet = await trx('fs_reports').where({ period_id: P }).whereNotIn('id', [...usedReports, ...maps.fsReport.values()]).first('name');
-  if (missingSet) throw fail('SYNC_ARCHIVE_INVALID', `The archive lacks the statement set "${String(missingSet.name)}" the server has: archive it on the desktop instead of deleting it.`);
+  if (missingSet) throw fail('SYNC_ARCHIVE_INVALID', `The archive lacks the statement set "${String(missingSet.name)}" the server has. If it was renamed on the desktop, give it that name back and send again (rename it on the server); if it was deleted, archive it on the desktop instead.`);
   result.counts.fs_reports = maps.fsReport.size;
 
   // ── Acceptance.

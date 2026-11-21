@@ -91,6 +91,73 @@ export async function assertNotCheckedOut(
   }
 }
 
+/**
+ * The periods a delete reaches through foreign keys beyond the rows' own
+ * periods (code review): deleting bank transactions cascades into the
+ * reconciliations that cleared them, in whatever period; deleting journal
+ * entries un-links the bank transactions that point at them; deleting a
+ * period does both for its own transactions and entries, and cascades into
+ * other periods' variance notes that compare with it. Any of those periods
+ * a desktop holds would change under it and its send-back be refused.
+ */
+export async function periodsReachedByDelete(
+  trx: Knex.Transaction,
+  what: { periodIds?: number[]; transactionIds?: number[]; journalEntryIds?: number[] },
+): Promise<number[]> {
+  const periodIds = what.periodIds ?? [];
+  const out = new Set<number>();
+  const txIds = [...(what.transactionIds ?? [])];
+  const jeIds = [...(what.journalEntryIds ?? [])];
+  if (periodIds.length) {
+    txIds.push(...((await trx('bank_transactions').whereIn('period_id', periodIds).pluck('id')) as number[]));
+    jeIds.push(...((await trx('journal_entries').whereIn('period_id', periodIds).pluck('id')) as number[]));
+    for (const id of (await trx('variance_notes').whereIn('compare_period_id', periodIds).distinct().pluck('period_id')) as number[]) out.add(Number(id));
+  }
+  for (let k = 0; k < txIds.length; k += 1000) {
+    const rows = (await trx('reconciliation_items as i').join('bank_reconciliations as r', 'r.id', 'i.reconciliation_id')
+      .whereIn('i.transaction_id', txIds.slice(k, k + 1000)).distinct().pluck('r.period_id')) as number[];
+    for (const id of rows) out.add(Number(id));
+  }
+  for (let k = 0; k < jeIds.length; k += 1000) {
+    const rows = (await trx('bank_transactions').whereIn('journal_entry_id', jeIds.slice(k, k + 1000)).whereNotNull('period_id')
+      .distinct().pluck('period_id')) as number[];
+    for (const id of rows) out.add(Number(id));
+  }
+  for (const id of periodIds) out.delete(id);
+  return [...out].sort((a, b) => a - b);
+}
+
+/** Takes these period rows FOR UPDATE in one statement, in id order. */
+export async function lockPeriodsInOrder(trx: Knex.Transaction, periodIds: Iterable<number | string | null | undefined>): Promise<void> {
+  const ids = [...new Set([...periodIds].map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+  if (ids.length) await trx('periods').whereIn('id', ids).orderBy('id').forUpdate().select('id');
+}
+
+/**
+ * Refuses a delete whose cascades would change a period a desktop holds
+ * (409 PERIOD_CHECKED_OUT). A reference period it reaches is not refused:
+ * it holds no rows for the delete to change.
+ */
+export async function assertDeleteSparesHeldPeriods(
+  trx: Knex.Transaction,
+  what: { periodIds?: number[]; transactionIds?: number[]; journalEntryIds?: number[] },
+  ownPeriodIds: Iterable<number | null | undefined> = [],
+): Promise<void> {
+  const reached = await periodsReachedByDelete(trx, what);
+  // Every period the delete touches, its own and those it reaches, locked in
+  // one ascending pass before any other guard locks one (code review: rounds
+  // sorted separately could deadlock two deletes against each other). The
+  // guards that follow lock rows this transaction already holds.
+  await lockPeriodsInOrder(trx, [...ownPeriodIds, ...(what.periodIds ?? []), ...reached]);
+  if (reached.length === 0) return;
+  const held = new Set(await lockAndListHeld(trx, reached));
+  for (const id of reached) {
+    if (!held.has(id)) continue;
+    const out = await checkedOutBy(trx, id);
+    if (out) throw checkedOutError(out);
+  }
+}
+
 /** The refusal for a period that came along only as a reference. */
 export function referenceError(): Error {
   return Object.assign(
@@ -159,6 +226,22 @@ export async function checkedOutBy(q: Knex | Knex.Transaction, periodId: number)
     .first('c.id', 'c.created_at', 'd.id as device_id', 'd.name as device', 'u.display_name', 'u.username');
   if (!row) return null;
   return { id: row.id, user: row.display_name ?? row.username, device: row.device, deviceId: row.device_id, since: new Date(row.created_at) };
+}
+
+/** The live check-outs of many periods in one query (code review: one query per period before). */
+export async function checkedOutByMany(q: Knex | Knex.Transaction, periodIds: number[]): Promise<Map<number, PeriodCheckoutHolder>> {
+  const out = new Map<number, PeriodCheckoutHolder>();
+  if (periodIds.length === 0) return out;
+  const rows = await q('period_checkouts as c')
+    .join('sync_devices as d', 'd.id', 'c.device_id')
+    .join('app_users as u', 'u.id', 'c.user_id')
+    .whereIn('c.period_id', periodIds)
+    .whereNull('c.released_at')
+    .select('c.id', 'c.period_id', 'c.created_at', 'd.id as device_id', 'd.name as device', 'u.display_name', 'u.username');
+  for (const row of rows) {
+    out.set(Number(row.period_id), { id: row.id, user: row.display_name ?? row.username, device: row.device, deviceId: row.device_id, since: new Date(row.created_at) });
+  }
+  return out;
 }
 
 interface AuditEntry {

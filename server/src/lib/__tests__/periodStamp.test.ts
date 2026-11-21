@@ -150,12 +150,30 @@ test('an account named by a reference counts by its sync_uid', () => {
 
 test('a period and its archive stamp alike: a DATE read back from JSON is the same calendar date', () => {
   const p = period();
-  const fromJson = JSON.parse(JSON.stringify(p)) as typeof p;
-  // JSON turns the Date objects into ISO text; layouts and maps survive as plain data.
+  // Archives write DATE columns as YYYY-MM-DD (Q104); everything else as JSON makes it.
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const plain = (d: unknown) => (d instanceof Date ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : d);
+  const written = period();
+  written.rows.journal_entries![0].entry_date = plain(written.rows.journal_entries![0].entry_date);
+  written.rows.bank_transactions![0].transaction_date = plain(written.rows.bank_transactions![0].transaction_date);
+  written.rows.bank_reconciliations![0].statement_date = plain(written.rows.bank_reconciliations![0].statement_date);
+  const fromJson = JSON.parse(JSON.stringify(written)) as typeof p;
+  // Layouts and maps survive as plain data.
   assert.equal(periodStamp(fromJson), base);
   const q = period();
   q.rows.journal_entries![0].entry_date = '2025-12-31';
   const r = period();
   r.rows.journal_entries![0].entry_date = new Date(2025, 11, 31);
   assert.equal(periodStamp(q), periodStamp(r), 'YYYY-MM-DD text and a local-midnight Date are one date');
+});
+
+test("an older archive's ISO date is the date Postgres stores from it, in any zone of this server (Q104)", () => {
+  const r = period();
+  r.rows.journal_entries![0].entry_date = new Date(2025, 11, 31);
+  // Written by a server on UTC (the desktop, the appliance), and by one on US Central time.
+  for (const text of ['2025-12-31T00:00:00.000Z', '2025-12-31T06:00:00.000Z']) {
+    const q = period();
+    q.rows.journal_entries![0].entry_date = text;
+    assert.equal(periodStamp(q), periodStamp(r), text);
+  }
 });

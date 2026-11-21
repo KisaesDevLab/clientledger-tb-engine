@@ -91,7 +91,7 @@ export async function getLLMProvider(): Promise<LLMConfig> {
 
   if (providerName === 'ollama') {
     const baseURL = s['llm.ollama_base_url'];
-    if (!baseURL) throw new Error('Ollama base URL not configured. Set it in Admin > Settings.');
+    if (!baseURL) throw new Error('Ollama base URL not configured. An administrator sets it in the AI provider settings.');
     fastModel    = s['llm.ollama_vision_model']    || 'qwen3-vl:8b';
     primaryModel = s['llm.ollama_reasoning_model'] || 'qwq:32b';
     provider = new OpenAICompatProvider({
@@ -103,7 +103,7 @@ export async function getLLMProvider(): Promise<LLMConfig> {
     });
   } else if (providerName === 'openai') {
     const apiKey = s['llm.openai_api_key'];
-    if (!apiKey) throw new Error('OpenAI API key not configured. Set it in Admin > Settings.');
+    if (!apiKey) throw new Error('OpenAI API key not configured. An administrator sets it in the AI provider settings.');
     primaryModel = s['llm.openai_primary_model'] || 'gpt-4o';
     fastModel    = s['llm.openai_fast_model']    || primaryModel;
     provider = new OpenAICompatProvider({
@@ -116,7 +116,7 @@ export async function getLLMProvider(): Promise<LLMConfig> {
     });
   } else if (providerName === 'openai-compat') {
     const baseURL = s['llm.openai_compat_base_url'];
-    if (!baseURL) throw new Error('OpenAI-compatible base URL not configured. Set it in Admin > Settings.');
+    if (!baseURL) throw new Error('OpenAI-compatible base URL not configured. An administrator sets it in the AI provider settings.');
     primaryModel = s['llm.openai_compat_model'] || '';
     // Separate fast model — falls back to primaryModel if not set
     fastModel    = s['llm.openai_compat_fast_model'] || primaryModel;
@@ -131,7 +131,7 @@ export async function getLLMProvider(): Promise<LLMConfig> {
   } else {
     // Claude (default)
     const apiKey = s['claude_api_key'] ?? process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error('Claude API key not configured. Set it in Admin > Settings.');
+    if (!apiKey) throw new Error('Claude API key not configured. An administrator sets it in the AI provider settings.');
     fastModel    = s['ai_model_fast']    || DEFAULT_FAST_MODEL;
     primaryModel = s['ai_model_primary'] || DEFAULT_PRIMARY_MODEL;
     provider = new ClaudeProvider(new Anthropic({ apiKey, timeout: 120_000, maxRetries: 2 }));

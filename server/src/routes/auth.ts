@@ -21,6 +21,7 @@ import { authMiddleware, AuthRequest, assertStage, invalidateAuthCache } from '.
 import { sendServerError } from '../lib/safeError';
 import { passwordSchema } from '../lib/passwordPolicy';
 import { logAudit } from '../lib/periodGuard';
+import { revokeUserDevices } from '../lib/sync/deviceRevoke';
 import { resolveLoginStage } from '../lib/loginStage';
 import { securitySettings } from '../lib/securitySettings';
 import { getRelyingParty } from '../lib/publicUrl';
@@ -213,11 +214,17 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
       return;
     }
     const hash = await bcrypt.hash(parsed.data.newPassword, 12);
-    await db('app_users').where({ id: me.id }).update({
-      password_hash: hash,
-      must_change_password: false,
-      // A real password now exists (see lib/accountGuards.ts).
-      sso_only_since: null,
+    await db.transaction(async (trx) => {
+      await trx('app_users').where({ id: me.id }).update({
+        password_hash: hash,
+        must_change_password: false,
+        // A real password now exists (see lib/accountGuards.ts).
+        sso_only_since: null,
+      });
+      // Owner 2026-11-19: changing your own password also signs out your paired
+      // desktops (desktop sync). Not a reset: this session, which just proved
+      // the old password, may pair again at once.
+      await revokeUserDevices(me.id, null, `"${me.username}" changed their own password`, { trx });
     });
     invalidateAuthCache(me.id);
     await logAudit({ userId: me.id, periodId: null, entityType: 'user', entityId: me.id, action: 'update', description: `User "${me.username}" changed their own password` });

@@ -175,6 +175,32 @@ function appendAndWait(archive: archiver.Archiver, body: Buffer, name: string): 
   });
 }
 
+
+/** DATE columns by table, in the schema the app uses. */
+export async function dateColumns(q: Knex | Knex.Transaction): Promise<Map<string, string[]>> {
+  const r = await q.raw(
+    "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema() AND data_type = 'date'",
+  );
+  const out = new Map<string, string[]>();
+  for (const row of r.rows as Array<{ table_name: string; column_name: string }>) {
+    out.set(row.table_name, [...(out.get(row.table_name) ?? []), row.column_name]);
+  }
+  return out;
+}
+
+/** The row with its DATE columns as YYYY-MM-DD (a Date from node-pg is local midnight). */
+export function withCalendarDates(row: Record<string, unknown>, cols: string[]): Record<string, unknown> {
+  let out: Record<string, unknown> | null = null;
+  for (const c of cols) {
+    const v = row[c];
+    if (!(v instanceof Date) || Number.isNaN(v.getTime())) continue;
+    out ??= { ...row };
+    const p = (n: number) => String(n).padStart(2, '0');
+    out[c] = `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`;
+  }
+  return out ?? row;
+}
+
 export async function createBackup(
   level: BackupLevel,
   options: BackupOptions,
@@ -195,8 +221,15 @@ export async function createBackup(
 
   await db.transaction(
     async (trx) => {
+      // DATE columns go into the archive as their calendar date (YYYY-MM-DD),
+      // not as the Date node-pg makes of them (midnight in THIS server's zone,
+      // which JSON writes as a UTC instant): read on a server in another zone,
+      // that instant fell on the day before (Q104). Plain dates restore the
+      // same everywhere, and every reader already takes them.
+      const dateCols = await dateColumns(trx);
       async function dump(table: string, rows: unknown[]) {
-        tableData[table] = rows;
+        const cols = dateCols.get(table);
+        tableData[table] = cols ? (rows as Array<Record<string, unknown>>).map((r) => withCalendarDates(r, cols)) : rows;
         recordCounts[table] = rows.length;
       }
 

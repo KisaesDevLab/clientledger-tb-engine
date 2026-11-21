@@ -10,8 +10,11 @@
  *   - Unused for DEVICE_IDLE_DAYS (checked on every call).
  *   - The user's password is RESET: by an admin (Users page, Vibe Auth) or
  *     through an emailed reset link. A reset means someone else may have had
- *     the account, so the desktops it paired are cut off. A user changing
- *     their own password while signed in, or signing out, does not.
+ *     the account, so the desktops it paired are cut off.
+ *   - The user changes their own password while signed in (owner
+ *     2026-11-19). Not a reset: `sync_reset_at` is not stamped, so the
+ *     session that changed it may pair a desktop again at once.
+ * Signing out does not end them.
  */
 import type { Knex } from 'knex';
 import { db } from '../../db';

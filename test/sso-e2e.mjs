@@ -634,6 +634,25 @@ async function main() {
     assert.equal((await api(`/api/v1/users/${patId}`, { method: 'PATCH', token: adminToken, json: { isActive: true, email: PAT_IDP.email } })).status, 200);
   });
 
+  await step('a variance note with no comparison period saves, reads back and clears', async () => {
+    const [c] = await sql(`INSERT INTO clients (name, entity_type) VALUES ('Example Notes Client', 'llc') RETURNING id`);
+    const [p] = await sql(`INSERT INTO periods (client_id, period_name, start_date, end_date) VALUES ($1, 'FY 2025', '2025-01-01', '2025-12-31') RETURNING id`, [c.id]);
+    const [p0] = await sql(`INSERT INTO periods (client_id, period_name, start_date, end_date) VALUES ($1, 'FY 2024', '2024-01-01', '2024-12-31') RETURNING id`, [c.id]);
+    const [a] = await sql(`INSERT INTO chart_of_accounts (client_id, account_number, account_name, category, normal_balance) VALUES ($1, '1000', 'Example Cash', 'assets', 'debit') RETURNING id`, [c.id]);
+    // A note against the prior year, as the comparison screen writes it.
+    await sql(`INSERT INTO variance_notes (period_id, account_id, compare_period_id, note) VALUES ($1, $2, $3, 'Example comparison note')`, [p.id, a.id, p0.id]);
+    const put = await api(`/api/v1/periods/${p.id}/variance-notes/${a.id}`, { method: 'PUT', token: adminToken, json: { note: 'Example note' } });
+    assert.equal(put.status, 200, put.text);
+    const got = await api(`/api/v1/periods/${p.id}/variance-notes`, { token: adminToken });
+    assert.ok(got.json.data.some((n) => n.note === 'Example note'));
+    const again = await api(`/api/v1/periods/${p.id}/variance-notes/${a.id}`, { method: 'PUT', token: adminToken, json: { note: 'Example note, edited' } });
+    assert.equal(again.status, 200, again.text);
+    assert.equal((await sql(`SELECT count(*)::int AS n FROM variance_notes WHERE period_id = $1 AND compare_period_id = $1`, [p.id]))[0].n, 1, 'one note, edited');
+    const clear = await api(`/api/v1/periods/${p.id}/variance-notes/${a.id}`, { method: 'PUT', token: adminToken, json: { note: ' ' } });
+    assert.equal(clear.status, 200, clear.text);
+    assert.deepEqual((await sql(`SELECT note FROM variance_notes WHERE period_id = $1`, [p.id])).map((r) => r.note), ['Example comparison note'], 'clearing it leaves the comparison note');
+  });
+
   await step('H2. an admin password set does not put break-glass into forced rotation (it does for everyone else)', async () => {
     const bg = await userRow('username', 'vibe-breakglass');
     const temp = 'E2eBreakGlassTemp!2026';

@@ -10,13 +10,13 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { listCheckouts } from '../api/desktopSync';
+import { CHECKOUTS_QUERY_KEY, listCheckouts } from '../api/desktopSync';
 import { useAuthStore } from '../store/uiStore';
 
 export function StaleCheckoutsNotice() {
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
   const { data } = useQuery({
-    queryKey: ['desktop-sync-checkouts'],
+    queryKey: CHECKOUTS_QUERY_KEY,
     queryFn: async () => {
       const res = await listCheckouts();
       if (res.error) throw new Error(res.error.message);

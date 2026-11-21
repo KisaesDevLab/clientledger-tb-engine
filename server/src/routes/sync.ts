@@ -36,12 +36,13 @@ import { z } from 'zod';
 import { createBackup, readManifest, readZipContents, restoreAsNew } from './backup';
 import { currentStampFor } from '../lib/leadSheetStamp';
 import { BackupRefusal, FORMAT_VERSION, appliedMigrations, checkArchive, syncManifestProblem } from '../lib/backupManifest';
-import { checkedOutBy } from '../lib/periodGuard';
+import { checkedOutBy, checkedOutByMany } from '../lib/periodGuard';
+import { mapWithConcurrency } from '../lib/concurrency';
 import { stampPeriod } from '../lib/sync/periodStampLoad';
 import { SYNC_JOB_DIR, SyncJobError, assertDiskRoom, startJob } from '../lib/sync/jobs';
 import { checkoutApi, checkoutWarnDays, daysOut, isoDate } from '../lib/sync/checkouts';
-import { MAX_UPLOAD_BYTES, UploadError, joinState, openUpload, partBytes, putPart, receivedParts, startCompleteUpload, startUpload } from '../lib/sync/uploads';
-import { asSyncError, dropReplacedDocuments, mergePeriod, readBaseline, readSendBack, removeDocuments, stageAttachmentFiles, type PullBaseline } from '../lib/sync/mergePeriod';
+import { MAX_UPLOAD_BYTES, UploadError, cancelUpload, claimUpload, joinState, openUpload, partBytes, putPart, receivedParts, startCompleteUpload, startUpload, unclaimUpload } from '../lib/sync/uploads';
+import { asSyncError, dropReplacedDocuments, mergePeriod, periodTotals, readBaseline, readSendBack, removeDocuments, stageAttachmentFiles, type PullBaseline } from '../lib/sync/mergePeriod';
 import { confineNewClient } from '../lib/sync/newClient';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -53,6 +54,8 @@ const bad = (res: Response, status: number, code: string, message: string): void
 
 /** Live check-outs one device may hold (security review: one device freezing every period). */
 const MAX_CHECKOUTS_PER_DEVICE = 25;
+/** Period stamps computed at once for the desktop's period list. */
+const PERIOD_STAMP_CONCURRENCY = 4;
 
 /** A job result as the desktop sees it: the pull's baseline is the server's own record. */
 function withoutBaseline(result: Record<string, unknown>): Record<string, unknown> {
@@ -292,10 +295,12 @@ syncRouter.get('/clients/:uid/periods', async (req: SyncRequest, res: Response):
       .orderBy('id', 'desc')
       .select('id', 'sync_uid', 'period_name', 'start_date', 'end_date', 'locked_at', 'is_current')) as Array<Record<string, unknown> & { id: number }>;
     const warnDays = await checkoutWarnDays();
-    const out = [];
-    for (const p of periods) {
-      const holder = await checkedOutBy(db, p.id);
-      out.push({
+    // One query for every hold, and the stamps a few at a time (code review:
+    // one by one, a client with many long periods ran into the proxy's ~100 s).
+    const holders = await checkedOutByMany(db, periods.map((p) => p.id));
+    const out = await mapWithConcurrency(periods, PERIOD_STAMP_CONCURRENCY, async (p) => {
+      const holder = holders.get(p.id);
+      return {
         sync_uid: p.sync_uid,
         period_name: p.period_name,
         start_date: isoDate(p.start_date),
@@ -304,8 +309,8 @@ syncRouter.get('/clients/:uid/periods', async (req: SyncRequest, res: Response):
         is_current: p.is_current,
         checkout: holder ? checkoutApi(holder, warnDays, req.syncDevice!.id) : null,
         stamp: await stampPeriod(db, p.id),
-      });
-    }
+      };
+    });
     res.json({ data: out, error: null, meta: { count: out.length, checkoutWarnDays: warnDays } });
   } catch (err: unknown) {
     sendServerError(res, err, 'sync/periods');
@@ -345,6 +350,8 @@ syncRouter.post('/periods/:uid/pull', async (req: SyncRequest, res: Response): P
       return;
     }
     const device = req.syncDevice!;
+    // Before any hold is taken: a full disk refuses the pull without one (code review).
+    assertDiskRoom(0);
     let checkoutId: number | null = null;
     let checkoutCreated = false;
     if (wantCheckout) {
@@ -391,45 +398,55 @@ syncRouter.post('/periods/:uid/pull', async (req: SyncRequest, res: Response): P
     // Only a check-out this call took is undone on failure: a re-pull keeps
     // the hold the desktop already had (it may hold unsent work).
     const createdCheckout = checkoutCreated ? checkoutId : null;
-    assertDiskRoom(0);
-    const jobId = await startJob(
-      { kind: 'pull', deviceId: device.id, userId: req.user!.userId, clientId: period.client_id, periodId: period.id, checkoutId, checkoutCreated },
-      async (id) => {
-        const dir = path.join(SYNC_JOB_DIR, id);
-        fs.mkdirSync(dir, { recursive: true });
-        // Set inside the archive's snapshot (manifestExtra); widened so TS does not narrow it to null.
-        let stamp = null as string | null;
-        let pulledAt = new Date();
-        let baseline = null as PullBaseline | null;
-        const made = await createBackup('period', {
-          clientId: period.client_id,
-          periodId: period.id,
-          includeFiles: true,
-          outDir: dir,
-          recordHistory: false,
-          manifestExtra: async (trx) => {
-            pulledAt = new Date((await trx.raw('SELECT now() AS t')).rows[0].t);
-            stamp = await stampPeriod(trx, period.id);
-            // What the send-back is compared with (SQ3), kept here, not trusted from the archive.
-            baseline = await readBaseline(trx, period.client_id);
-            return { sync: { periodUid: uid, clientUid: period.client_uid, stamp, checkoutId, pulledAt: pulledAt.toISOString(), deviceId: device.id } };
-          },
-        }, req.user!.userId);
-        // Read inside the archive's snapshot: what the desktop now has, and when.
-        if (checkoutId) await db('period_checkouts').where({ id: checkoutId }).update({ stamp_at_pull: stamp, pulled_at: pulledAt });
-        return {
-          result: { periodUid: uid, clientUid: period.client_uid, stamp, checkoutId, size: made.file_size, checksum: made.checksum, baseline },
-          filePath: made.storage_local ?? undefined,
-        };
-      },
-      // A pull that failed must not leave the period held.
-      createdCheckout
-        ? async () => {
-          await db('period_checkouts').where({ id: createdCheckout }).whereNull('released_at')
-            .update({ released_at: db.fn.now(), release_reason: 'The pull failed.' });
-        }
-        : undefined,
-    );
+    const releaseCreated = async (reason: string): Promise<void> => {
+      if (!createdCheckout) return;
+      await db('period_checkouts').where({ id: createdCheckout }).whereNull('released_at')
+        .update({ released_at: db.fn.now(), release_reason: reason });
+    };
+    let jobId: string;
+    try {
+      jobId = await startJob(
+        { kind: 'pull', deviceId: device.id, userId: req.user!.userId, clientId: period.client_id, periodId: period.id, checkoutId, checkoutCreated },
+        async (id) => {
+          const dir = path.join(SYNC_JOB_DIR, id);
+          fs.mkdirSync(dir, { recursive: true });
+          // Set inside the archive's snapshot (manifestExtra); widened so TS does not narrow it to null.
+          let stamp = null as string | null;
+          let pulledAt = new Date();
+          let baseline = null as PullBaseline | null;
+          // The period's adjusted book totals (whole cents as text), in the manifest and the result (Q102, Q109).
+          let totals = null as { bookDebit: string; bookCredit: string } | null;
+          const made = await createBackup('period', {
+            clientId: period.client_id,
+            periodId: period.id,
+            includeFiles: true,
+            outDir: dir,
+            recordHistory: false,
+            manifestExtra: async (trx) => {
+              pulledAt = new Date((await trx.raw('SELECT now() AS t')).rows[0].t);
+              stamp = await stampPeriod(trx, period.id);
+              // What the send-back is compared with (SQ3), kept here, not trusted from the archive.
+              baseline = await readBaseline(trx, period.client_id);
+              // totals: a pulled archive sent back as it came is a valid send-back.
+              totals = await periodTotals(trx, period.id);
+              return { sync: { periodUid: uid, clientUid: period.client_uid, stamp, checkoutId, pulledAt: pulledAt.toISOString(), deviceId: device.id, totals } };
+            },
+          }, req.user!.userId);
+          // Read inside the archive's snapshot: what the desktop now has, and when.
+          if (checkoutId) await db('period_checkouts').where({ id: checkoutId }).update({ stamp_at_pull: stamp, pulled_at: pulledAt });
+          return {
+            result: { periodUid: uid, clientUid: period.client_uid, stamp, totals, checkoutId, size: made.file_size, checksum: made.checksum, baseline },
+            filePath: made.storage_local ?? undefined,
+          };
+        },
+        // A pull that failed must not leave the period held.
+        createdCheckout ? () => releaseCreated('The pull failed.') : undefined,
+      );
+    } catch (err) {
+      // The job never started (this computer has too many running): nor does the hold (code review).
+      await releaseCreated('The pull could not start.');
+      throw err;
+    }
     res.status(202).json({ data: { jobId, checkoutId }, error: null });
   } catch (err: unknown) {
     sendServerError(res, err, 'sync/pull');
@@ -501,6 +518,12 @@ syncRouter.use(blockReviewerWrites);
 
 const uploadFail = (res: Response, err: unknown, tag: string): void => {
   if (err instanceof UploadError) {
+    // A used upload names the job it became (Q98): a desktop whose push
+    // answer was lost waits for that job instead of guessing.
+    if (err.jobId) {
+      res.status(err.status).json({ data: null, error: { code: err.code, message: err.message, jobId: err.jobId } });
+      return;
+    }
     bad(res, err.status, err.code, err.message);
     return;
   }
@@ -557,6 +580,24 @@ syncRouter.get('/uploads/:id', async (req: SyncRequest, res: Response): Promise<
     });
   } catch (err: unknown) {
     uploadFail(res, err, 'sync/uploads/status');
+  }
+});
+
+/**
+ * Cancel an upload this computer has not sent (Q101): it stops counting
+ * against the open uploads. 409 SYNC_UPLOAD_USED (with `jobId`) once sent.
+ */
+syncRouter.delete('/uploads/:id', async (req: SyncRequest, res: Response): Promise<void> => {
+  const id = String(req.params.id);
+  if (!isUuid(id)) {
+    bad(res, 404, 'NOT_FOUND', 'No such upload from this computer.');
+    return;
+  }
+  try {
+    await cancelUpload(id, req.syncDevice!.id);
+    res.json({ data: { uploadId: id, cancelled: true }, error: null });
+  } catch (err: unknown) {
+    uploadFail(res, err, 'sync/uploads/cancel');
   }
 });
 
@@ -618,33 +659,39 @@ syncRouter.post('/periods/:uid/push', async (req: SyncRequest, res: Response): P
       userId: req.user!.userId, checkoutId: body.data.checkoutId,
     };
     const filePath = upload.file_path;
-    const jobId = await startJob(
-      { kind: 'push', deviceId: device.id, userId: req.user!.userId, clientId: target.clientId, periodId: target.periodId, checkoutId: target.checkoutId },
-      async () => {
-        const uids = (await db('periods as p').join('clients as c', 'c.id', 'p.client_id').where('p.id', target.periodId)
-          .first('p.sync_uid as period_uid', 'c.sync_uid as client_uid')) as { period_uid: string; client_uid: string };
-        const { tables, manifest, files } = await readSendBack(filePath, { periodUid: uids.period_uid, clientUid: uids.client_uid, checkoutId: target.checkoutId });
-        const stampAtPull = (manifest.sync as Record<string, unknown> | undefined)?.stampAtPull;
-        const withBaseline = {
-          ...target,
-          baseline: await findBaseline(device.id, target.clientId, target.checkoutId !== null
-            ? { periodId: target.periodId, checkoutId: target.checkoutId }
-            : { periodId: target.periodId, stamp: typeof stampAtPull === 'string' ? stampAtPull : '-' }),
-        };
-        const staged = await stageAttachmentFiles(tables, files, withBaseline);
-        let outcome;
-        try {
-          outcome = await db.transaction((trx) => mergePeriod(trx, withBaseline, tables, manifest, staged.docMap));
-        } catch (err) {
-          await removeDocuments(staged.created);
-          throw asSyncError(err);
-        }
-        await dropReplacedDocuments(outcome.replacedDocs);
-        return { result: outcome.result as unknown as Record<string, unknown> };
-      },
-    );
-    // An upload is sent once, whatever the job's outcome.
-    await db('sync_uploads').where({ id: upload.id }).update({ job_id: jobId });
+    // Sent once (Q98): the upload is claimed for this job before it starts.
+    const jobId = await claimUpload(upload.id, req.syncDevice!.id);
+    try {
+      await startJob(
+        { id: jobId, kind: 'push', deviceId: device.id, userId: req.user!.userId, clientId: target.clientId, periodId: target.periodId, checkoutId: target.checkoutId },
+        async () => {
+          const uids = (await db('periods as p').join('clients as c', 'c.id', 'p.client_id').where('p.id', target.periodId)
+            .first('p.sync_uid as period_uid', 'c.sync_uid as client_uid')) as { period_uid: string; client_uid: string };
+          const { tables, manifest, files } = await readSendBack(filePath, { periodUid: uids.period_uid, clientUid: uids.client_uid, checkoutId: target.checkoutId });
+          const stampAtPull = (manifest.sync as Record<string, unknown> | undefined)?.stampAtPull;
+          const withBaseline = {
+            ...target,
+            baseline: await findBaseline(device.id, target.clientId, target.checkoutId !== null
+              ? { periodId: target.periodId, checkoutId: target.checkoutId }
+              : { periodId: target.periodId, stamp: typeof stampAtPull === 'string' ? stampAtPull : '-' }),
+          };
+          const staged = await stageAttachmentFiles(tables, files, withBaseline);
+          let outcome;
+          try {
+            outcome = await db.transaction((trx) => mergePeriod(trx, withBaseline, tables, manifest, staged.docMap));
+          } catch (err) {
+            await removeDocuments(staged.created);
+            throw asSyncError(err);
+          }
+          await dropReplacedDocuments(outcome.replacedDocs);
+          return { result: outcome.result as unknown as Record<string, unknown> };
+        },
+      );
+    } catch (err) {
+      // The job never started: the upload may be sent again.
+      await unclaimUpload(upload.id, jobId);
+      throw err;
+    }
     res.status(202).json({ data: { jobId }, error: null });
   } catch (err: unknown) {
     uploadFail(res, err, 'sync/push');
@@ -678,54 +725,60 @@ syncRouter.post('/clients/:uid/periods/push', async (req: SyncRequest, res: Resp
     const device = req.syncDevice!;
     const filePath = upload.file_path;
     const clientId = client.id as number;
-    const jobId = await startJob(
-      { kind: 'push', deviceId: device.id, userId: req.user!.userId, clientId },
-      async () => {
-        const { tables, manifest, files } = await readSendBack(filePath, { periodUid: null, clientUid, checkoutId: null });
-        const sync = manifest.sync as Record<string, unknown>;
-        const own = ((tables.periods ?? []) as Array<Record<string, unknown>>).find((p) => Number(p.id) === Number(manifest.periodId));
-        if (!own) throw new SyncJobError('SYNC_ARCHIVE_INVALID', "The archive does not carry its own period's row.");
-        const existing = await db('periods').where({ sync_uid: sync.periodUid }).first('id', 'client_id', 'is_reference');
-        if (existing && (!existing.is_reference || existing.client_id !== clientId)) {
-          throw new SyncJobError('SYNC_PERIOD_EXISTS', 'This period is on the server already: send it back to it instead.');
-        }
-        const overlap = await db('periods').where({ client_id: clientId, is_reference: false })
-          .where('start_date', '<=', own.end_date as string).where('end_date', '>=', own.start_date as string).first('period_name');
-        if (overlap) throw new SyncJobError('PERIOD_OVERLAPS', `Its dates overlap "${overlap.period_name}" on the server.`);
-        // Files are stored before the transaction, so the period must exist first; a
-        // failure below removes it with everything else.
-        let periodId = existing ? Number(existing.id) : 0;
-        if (!periodId) {
-          const [ins] = await db('periods').insert({
-            client_id: clientId, sync_uid: sync.periodUid, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date,
-            folder_year: own.folder_year ?? null, is_current: false, is_reference: true,
-          }).returning('id');
-          periodId = Number((ins as { id: number }).id);
-        }
-        const target = {
-          periodId, clientId, deviceId: device.id, deviceName: device.name, userId: req.user!.userId, checkoutId: null, fresh: true,
-          // A new period: the client as this device last pulled any of its periods.
-          baseline: await findBaseline(device.id, clientId, {}),
-        };
-        let staged: Awaited<ReturnType<typeof stageAttachmentFiles>> | null = null;
-        try {
-          staged = await stageAttachmentFiles(tables, files, target);
-          const docMap = staged.docMap;
-          const outcome = await db.transaction(async (trx) => {
-            // Made as a reference so nothing can write to it meanwhile; filled in here.
-            await trx('periods').where({ id: periodId }).update({ is_reference: false, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date });
-            return mergePeriod(trx, target, tables, manifest, docMap);
-          });
-          await dropReplacedDocuments(outcome.replacedDocs);
-          return { result: { periodUid: sync.periodUid, ...(outcome.result as unknown as Record<string, unknown>) } };
-        } catch (err) {
-          if (staged) await removeDocuments(staged.created);
-          if (!existing) await db('periods').where({ id: periodId }).delete().catch(() => undefined);
-          throw asSyncError(err);
-        }
-      },
-    );
-    await db('sync_uploads').where({ id: upload.id }).update({ job_id: jobId });
+    // Sent once (Q98): the upload is claimed for this job before it starts.
+    const jobId = await claimUpload(upload.id, req.syncDevice!.id);
+    try {
+      await startJob(
+        { id: jobId, kind: 'push', deviceId: device.id, userId: req.user!.userId, clientId },
+        async () => {
+          const { tables, manifest, files } = await readSendBack(filePath, { periodUid: null, clientUid, checkoutId: null });
+          const sync = manifest.sync as Record<string, unknown>;
+          const own = ((tables.periods ?? []) as Array<Record<string, unknown>>).find((p) => Number(p.id) === Number(manifest.periodId));
+          if (!own) throw new SyncJobError('SYNC_ARCHIVE_INVALID', "The archive does not carry its own period's row.");
+          const existing = await db('periods').where({ sync_uid: sync.periodUid }).first('id', 'client_id', 'is_reference');
+          if (existing && (!existing.is_reference || existing.client_id !== clientId)) {
+            throw new SyncJobError('SYNC_PERIOD_EXISTS', 'This period is on the server already: send it back to it instead.');
+          }
+          const overlap = await db('periods').where({ client_id: clientId, is_reference: false })
+            .where('start_date', '<=', own.end_date as string).where('end_date', '>=', own.start_date as string).first('period_name');
+          if (overlap) throw new SyncJobError('PERIOD_OVERLAPS', `Its dates overlap "${overlap.period_name}" on the server.`);
+          // Files are stored before the transaction, so the period must exist first; a
+          // failure below removes it with everything else.
+          let periodId = existing ? Number(existing.id) : 0;
+          if (!periodId) {
+            const [ins] = await db('periods').insert({
+              client_id: clientId, sync_uid: sync.periodUid, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date,
+              folder_year: own.folder_year ?? null, is_current: false, is_reference: true,
+            }).returning('id');
+            periodId = Number((ins as { id: number }).id);
+          }
+          const target = {
+            periodId, clientId, deviceId: device.id, deviceName: device.name, userId: req.user!.userId, checkoutId: null, fresh: true,
+            // A new period: the client as this device last pulled any of its periods.
+            baseline: await findBaseline(device.id, clientId, {}),
+          };
+          let staged: Awaited<ReturnType<typeof stageAttachmentFiles>> | null = null;
+          try {
+            staged = await stageAttachmentFiles(tables, files, target);
+            const docMap = staged.docMap;
+            const outcome = await db.transaction(async (trx) => {
+              // Made as a reference so nothing can write to it meanwhile; filled in here.
+              await trx('periods').where({ id: periodId }).update({ is_reference: false, period_name: own.period_name, start_date: own.start_date, end_date: own.end_date });
+              return mergePeriod(trx, target, tables, manifest, docMap);
+            });
+            await dropReplacedDocuments(outcome.replacedDocs);
+            return { result: { periodUid: sync.periodUid, ...(outcome.result as unknown as Record<string, unknown>) } };
+          } catch (err) {
+            if (staged) await removeDocuments(staged.created);
+            if (!existing) await db('periods').where({ id: periodId }).delete().catch(() => undefined);
+            throw asSyncError(err);
+          }
+        },
+      );
+    } catch (err) {
+      await unclaimUpload(upload.id, jobId);
+      throw err;
+    }
     res.status(202).json({ data: { jobId }, error: null });
   } catch (err: unknown) {
     uploadFail(res, err, 'sync/push-period');
@@ -754,61 +807,70 @@ syncRouter.post('/clients/push', async (req: SyncRequest, res: Response): Promis
     const device = req.syncDevice!;
     const userId = req.user!.userId;
     // Everything that reads the archive runs in the job (it may be large).
-    const jobId = await startJob(
-      { kind: 'push', deviceId: device.id, userId, clientId: null },
-      async () => {
-        const manifest = await readManifest(filePath).catch(() => null);
-        const problem = manifest ? syncManifestProblem(manifest) : 'The file sent is not a Vibe Trial Balance archive.';
-        if (problem || !manifest) throw new SyncJobError('SYNC_ARCHIVE_INVALID', problem ?? 'Not an archive.');
-        try {
-          await checkArchive(filePath, manifest, db);
-        } catch (err: unknown) {
-          if (err instanceof BackupRefusal) throw new SyncJobError('SYNC_ARCHIVE_DAMAGED', err.message);
-          throw err;
-        }
-        const applied = await appliedMigrations(db);
-        if (manifest.schemaVersion !== applied[applied.length - 1]) {
-          throw new SyncJobError('SYNC_SCHEMA_MISMATCH', 'This archive was made for a different version of the server. Update the desktop (or the server) so both match, then send it again.');
-        }
-        const tables = await readZipContents(filePath, 5000);
-        const clientRow = ((tables.clients ?? []) as Array<Record<string, unknown>>)[0];
-        if (manifest.backupLevel !== 'client' || !clientRow || typeof clientRow.sync_uid !== 'string') {
-          throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'The file sent is not a client archive.');
-        }
-        // Only what a client archive from a desktop may carry, and every user id the
-        // sender's or none (security review).
-        const sender = await db('app_users').where({ id: userId }).first('id', 'display_name', 'username');
-        const out = await db.transaction(async (trx) => {
-          // Two sends of one client wait for each other; the second finds the first.
-          await trx.raw('SELECT pg_advisory_xact_lock(44, hashtext(?))', [String(clientRow.sync_uid)]);
-          if (await trx('clients').where({ sync_uid: clientRow.sync_uid }).first('id')) {
-            throw new SyncJobError('CLIENT_EXISTS', 'This client is on the server already: send its periods back to it instead.');
+    // Sent once (Q98): the upload is claimed for this job before it starts.
+    const jobId = await claimUpload(upload.id, req.syncDevice!.id);
+    try {
+      await startJob(
+        { id: jobId, kind: 'push', deviceId: device.id, userId, clientId: null },
+        async () => {
+          const manifest = await readManifest(filePath).catch(() => null);
+          const problem = manifest ? syncManifestProblem(manifest) : 'The file sent is not a Vibe Trial Balance archive.';
+          if (problem || !manifest) throw new SyncJobError('SYNC_ARCHIVE_INVALID', problem ?? 'Not an archive.');
+          try {
+            await checkArchive(filePath, manifest, db);
+          } catch (err: unknown) {
+            if (err instanceof BackupRefusal) throw new SyncJobError('SYNC_ARCHIVE_DAMAGED', err.message);
+            throw err;
           }
-          // A restore would quietly give a held uid a new one; a desktop's new client must not.
-          for (const t of ['periods', 'chart_of_accounts', 'bank_transactions', 'fs_client_layouts']) {
-            const uids = ((tables[t] ?? []) as Array<Record<string, unknown>>).map((r) => r.sync_uid).filter((u): u is string => typeof u === 'string');
-            for (let k = 0; k < uids.length; k += 1000) {
-              if (await trx(t).whereIn('sync_uid', uids.slice(k, k + 1000)).first('id')) {
-                throw new SyncJobError('SYNC_UID_EXISTS', `Some of this client's ${t.replace(/_/g, ' ')} are on the server already under another client.`);
+          const applied = await appliedMigrations(db);
+          if (manifest.schemaVersion !== applied[applied.length - 1]) {
+            throw new SyncJobError('SYNC_SCHEMA_MISMATCH', 'This archive was made for a different version of the server. Update the desktop (or the server) so both match, then send it again.');
+          }
+          const tables = await readZipContents(filePath, 5000);
+          const clientRow = ((tables.clients ?? []) as Array<Record<string, unknown>>)[0];
+          if (manifest.backupLevel !== 'client' || !clientRow || typeof clientRow.sync_uid !== 'string') {
+            throw new SyncJobError('SYNC_ARCHIVE_INVALID', 'The file sent is not a client archive.');
+          }
+          // Only what a client archive from a desktop may carry, and every user id the
+          // sender's or none (security review).
+          const sender = await db('app_users').where({ id: userId }).first('id', 'display_name', 'username');
+          const out = await db.transaction(async (trx) => {
+            // Two sends of one client wait for each other; the second finds the first.
+            await trx.raw('SELECT pg_advisory_xact_lock(44, hashtext(?))', [String(clientRow.sync_uid)]);
+            if (await trx('clients').where({ sync_uid: clientRow.sync_uid }).first('id')) {
+              throw new SyncJobError('CLIENT_EXISTS', 'This client is on the server already: send its periods back to it instead.');
+            }
+            // A restore would quietly give a held uid a new one; a desktop's new client must not.
+            for (const t of ['periods', 'chart_of_accounts', 'bank_transactions', 'fs_client_layouts']) {
+              const uids = ((tables[t] ?? []) as Array<Record<string, unknown>>).map((r) => r.sync_uid).filter((u): u is string => typeof u === 'string');
+              for (let k = 0; k < uids.length; k += 1000) {
+                if (await trx(t).whereIn('sync_uid', uids.slice(k, k + 1000)).first('id')) {
+                  throw new SyncJobError('SYNC_UID_EXISTS', `Some of this client's ${t.replace(/_/g, ' ')} are on the server already under another client.`);
+                }
               }
             }
-          }
-          const allowedTables = confineNewClient(tables, { id: userId, name: String(sender?.display_name ?? sender?.username ?? '') });
-          const r = await restoreAsNew(allowedTables, trx, true, { keepName: true, untrusted: true });
-          // Its sign-offs are the sender's, at the balances it arrived with.
-          const signs = (await trx('lead_sheet_signoffs as s').join('periods as p', 'p.id', 's.period_id').where('p.client_id', r.newClientId)
-            .select('s.id', 's.period_id', 's.lead_sheet_id')) as Array<{ id: number; period_id: number; lead_sheet_id: number }>;
-          for (const sg of signs) {
-            await trx('lead_sheet_signoffs').where({ id: sg.id }).update({ balance_stamp: await currentStampFor(trx, sg.period_id, sg.lead_sheet_id) });
-          }
-          await logAudit({ userId, periodId: null, clientId: r.newClientId, entityType: 'client', entityId: r.newClientId, action: 'sync_create', description: `Client "${String(clientRow.name)}" sent from desktop "${device.name}"` }, trx);
-          return r;
-        });
-        const files = Array.isArray(manifest.files) ? manifest.files.length : 0;
-        return { result: { clientUid: clientRow.sync_uid, clientId: out.newClientId, filesNotPlaced: files } };
-      },
-    );
-    await db('sync_uploads').where({ id: upload.id }).update({ job_id: jobId });
+            const confined = confineNewClient(tables, { id: userId, name: String(sender?.display_name ?? sender?.username ?? '') });
+            const r = await restoreAsNew(confined.tables, trx, true, { keepName: true, untrusted: true });
+            // Its sign-offs are the sender's, at the balances it arrived with.
+            const signs = (await trx('lead_sheet_signoffs as s').join('periods as p', 'p.id', 's.period_id').where('p.client_id', r.newClientId)
+              .select('s.id', 's.period_id', 's.lead_sheet_id')) as Array<{ id: number; period_id: number; lead_sheet_id: number }>;
+            for (const sg of signs) {
+              await trx('lead_sheet_signoffs').where({ id: sg.id }).update({ balance_stamp: await currentStampFor(trx, sg.period_id, sg.lead_sheet_id) });
+            }
+            await logAudit({ userId, periodId: null, clientId: r.newClientId, entityType: 'client', entityId: r.newClientId, action: 'sync_create', description: `Client "${String(clientRow.name)}" sent from desktop "${device.name}"` }, trx);
+            return { ...r, signoffsReassigned: confined.signoffsReassigned };
+          });
+          const files = Array.isArray(manifest.files) ? manifest.files.length : 0;
+          // No `folder`: linking a client to a storage folder is explicit on this
+          // server (never made on its own), so a new client arrives unlinked and its
+          // document files stay on the desktop until an admin links one (Q109).
+          return { result: { clientUid: clientRow.sync_uid, clientId: out.newClientId, filesNotPlaced: files, folder: null, signoffsReassigned: out.signoffsReassigned } };
+        },
+      );
+    } catch (err) {
+      await unclaimUpload(upload.id, jobId);
+      throw err;
+    }
     res.status(202).json({ data: { jobId }, error: null });
   } catch (err: unknown) {
     uploadFail(res, err, 'sync/push-client');
@@ -859,7 +921,7 @@ desktopSyncRouter.get('/checkouts', async (req: AuthRequest, res: Response): Pro
       .whereNull('c.released_at')
       .orderBy('c.created_at')
       .select('c.id', 'c.created_at', 'p.id as period_id', 'p.period_name', 'cl.id as client_id', 'cl.name as client_name',
-        'd.name as device', 'u.display_name', 'u.username');
+        'd.name as device', 'u.display_name', 'u.username', 'c.user_id');
     if (req.user!.role !== 'admin') q.where('c.user_id', req.user!.userId);
     const warnDays = await checkoutWarnDays();
     const rows = (await q) as Array<Record<string, unknown>>;
@@ -870,6 +932,7 @@ desktopSyncRouter.get('/checkouts', async (req: AuthRequest, res: Response): Pro
         return {
           id: r.id, periodId: r.period_id, periodName: r.period_name, clientId: r.client_id, clientName: r.client_name,
           user: (r.display_name as string | null) ?? r.username, device: r.device, since: since.toISOString(), days, stale: days >= warnDays,
+          mine: r.user_id === req.user!.userId,
         };
       }),
       error: null,
@@ -947,12 +1010,15 @@ desktopSyncRouter.delete('/devices/:id', async (req: AuthRequest, res: Response)
       bad(res, 404, 'NOT_FOUND', 'Device not found');
       return;
     }
-    await db('sync_devices').where({ id }).update({ revoked_at: db.fn.now(), revoked_by: req.user!.userId });
-    // The periods it held are released with it.
-    await releaseDeviceHolds(db, [id], req.user!.userId, 'its desktop was removed');
-    await logAudit({
-      userId: req.user!.userId, periodId: null, entityType: 'sync_device', entityId: id, action: 'revoke',
-      description: `Removed desktop "${device.name}"`,
+    // One transaction (code review): a revoked device can no longer give its
+    // holds back, so it is never revoked without them being released.
+    await db.transaction(async (trx) => {
+      await trx('sync_devices').where({ id }).update({ revoked_at: trx.fn.now(), revoked_by: req.user!.userId });
+      await releaseDeviceHolds(trx, [id], req.user!.userId, 'its desktop was removed');
+      await logAudit({
+        userId: req.user!.userId, periodId: null, entityType: 'sync_device', entityId: id, action: 'revoke',
+        description: `Removed desktop "${device.name}"`,
+      }, trx);
     });
     res.json({ data: { id }, error: null });
   } catch (err: unknown) {

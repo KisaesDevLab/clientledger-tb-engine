@@ -11,7 +11,7 @@ import type { Knex } from 'knex';
 import { createHash } from 'crypto';
 import { db } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { assertNotCheckedOut, assertPeriodUnlocked, lockAndListHeld, logAudit } from '../lib/periodGuard';
+import { assertDeleteSparesHeldPeriods, assertNotCheckedOut, assertPeriodUnlocked, lockAndListHeld, logAudit } from '../lib/periodGuard';
 import { aiComplete, markAiUsageParseError } from '../lib/aiComplete';
 import { ensureTrialBalanceRows } from '../lib/ensureTrialBalanceRows';
 import { getLLMProvider } from '../lib/aiClient';
@@ -726,22 +726,24 @@ btCollectionRouter.post('/batch-delete', async (req: AuthRequest, res: Response)
         .where({ client_id: clientId })
         .whereIn('id', result.data.ids)
         .select('id', 'journal_entry_id', 'period_id');
-      // Desktop sync: the rows' own periods, held or not (the JE check below
-      // covers the entries' periods).
+      const jeIds = txs.map((t: { journal_entry_id: number | null }) => t.journal_entry_id).filter(Boolean) as number[];
+      // Any JE we are about to delete belongs to some period — every one of those
+      // periods must be unlocked before we can mutate them.
+      const jePeriods = jeIds.length ? await trx('journal_entries').whereIn('id', jeIds).distinct('period_id') : [];
+      const periodIds = jePeriods
+        .map((p: { period_id: number | null }) => p.period_id)
+        .filter((p: number | null): p is number => typeof p === 'number')
+        .sort((a: number, b: number) => a - b);
+      // Desktop sync: the periods the delete reaches (a reconciliation that cleared
+      // one of these, a bank line pointing at one of their entries) are refused when
+      // held, and every period it touches is locked first, in one ascending pass, so
+      // this batch can't deadlock against another (code review).
+      await assertDeleteSparesHeldPeriods(trx, { transactionIds: txs.map((t: { id: number }) => t.id), journalEntryIds: jeIds },
+        [...txs.map((t: { period_id: number | null }) => t.period_id), ...periodIds]);
+      // The rows' own periods, held or not.
       await assertNotCheckedOut(trx, txs.map((t: { period_id: number | null }) => t.period_id));
 
-      const jeIds = txs.map((t: { journal_entry_id: number | null }) => t.journal_entry_id).filter(Boolean) as number[];
       if (jeIds.length > 0) {
-        // Any JE we are about to delete belongs to some period — every one of those
-        // periods must be unlocked before we can mutate them. Lock in ascending
-        // id order so this batch can't deadlock against another concurrent batch.
-        const jePeriods = await trx('journal_entries')
-          .whereIn('id', jeIds)
-          .distinct('period_id');
-        const periodIds = jePeriods
-          .map((p: { period_id: number | null }) => p.period_id)
-          .filter((p: number | null): p is number => typeof p === 'number')
-          .sort((a: number, b: number) => a - b);
         for (const pid of periodIds) {
           await assertPeriodUnlocked(pid, trx);
         }
@@ -1156,10 +1158,14 @@ btCollectionRouter.delete('/:id', async (req: AuthRequest, res: Response): Promi
     await db.transaction(async (trx) => {
       const tx = await trx('bank_transactions').where({ id, client_id: clientId }).first('journal_entry_id', 'period_id');
       if (!tx) throw Object.assign(new Error('NOT_FOUND'), { status: 404 });
-      // Desktop sync: the row's own period (the JE check below covers the entry's).
+      const existingJe = tx.journal_entry_id ? await trx('journal_entries').where({ id: tx.journal_entry_id }).first('period_id') : null;
+      // Desktop sync: the periods the delete reaches are refused when held, and
+      // every period it touches is locked first in one ascending pass (code review).
+      await assertDeleteSparesHeldPeriods(trx, { transactionIds: [id], journalEntryIds: tx.journal_entry_id ? [tx.journal_entry_id] : [] },
+        [tx.period_id, existingJe?.period_id]);
+      // The row's own period (the JE check below covers the entry's).
       await assertNotCheckedOut(trx, [tx.period_id]);
       if (tx.journal_entry_id) {
-        const existingJe = await trx('journal_entries').where({ id: tx.journal_entry_id }).first('period_id');
         if (existingJe?.period_id) {
           await assertPeriodUnlocked(existingJe.period_id as number, trx);
         }
