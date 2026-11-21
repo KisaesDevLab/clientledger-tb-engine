@@ -38,6 +38,10 @@ Set up in **Settings › AI**: the user's own Anthropic (Claude) key, Ollama, an
 
 **Settings › Claude Desktop › Connect Claude Desktop**, then quit Claude Desktop completely and open it again. While this app is open, Claude in Claude Desktop can do the work here when asked, through the same steps the screens use (a locked period stays locked): set up a client, its period, its chart of accounts and balances from a report given to it; post a bank statement's transactions to Bank transactions with their accounts, leaving out ones already there; post, change and delete entries; assign tax codes and export to tax software; work on lead sheets, notes, tickmarks, attachments and sign-offs; build, change and issue statements in the Statement Writer; work the checklist and documents; and save any report or the workpaper package as a file. It cannot delete a client or a period, or change Settings. What Claude reads goes to Anthropic as part of the conversation.
 
+### Other AI apps
+
+Any other app that runs MCP servers on this computer (Visual Studio Code, Cursor, Windsurf, Claude Code and others) can do the same work, with the same limits. **Settings › Other AI apps (MCP)** shows the program and arguments to add as a server in that app, and **Copy settings** copies a block to paste into its MCP settings file. It connects only while this app is open. What that app reads goes to the AI it uses. Changes it makes show in the audit trail under its name. AI on a website (ChatGPT or Claude in a browser) cannot reach this app.
+
 ## Not in the desktop edition
 
 User management, roles and permissions; signing in, passwords, passkeys, two-factor and single sign-on; the QuickBooks Online connection; the audit log page; the AI usage log page; the public app URL and email settings; the custom report builder; the PY tie-out page; chart of accounts templates; sharing with other users at the same time. The desktop does not connect to the firm's server.

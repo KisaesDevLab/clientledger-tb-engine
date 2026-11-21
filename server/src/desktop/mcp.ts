@@ -163,8 +163,12 @@ export class DesktopTransport implements Transport {
     private readonly own: DesktopTool[] = DESKTOP_TOOLS,
     // Writes a change Claude made to the audit trail (P10b): the tool and
     // what it was given.
-    private readonly audit?: (tool: string, args: Json) => Promise<void>,
+    private readonly audit?: (tool: string, args: Json, app: string) => Promise<void>,
   ) {}
+
+  // The app on the other end, as it names itself when it connects
+  // (Claude Desktop, or another app that runs local MCP servers).
+  private app = '';
 
   async start(): Promise<void> {
     this.inner.onmessage = (m) => { void this.receive(m); };
@@ -195,13 +199,17 @@ export class DesktopTransport implements Transport {
   }
 
   private async receive(m: Message): Promise<void> {
+    if (m.method === 'initialize') {
+      const name = (m.params as { clientInfo?: { name?: unknown } } | undefined)?.clientInfo?.name;
+      this.app = typeof name === 'string' ? name.slice(0, 60) : '';
+    }
     const called = m.method === 'tools/call' && m.id !== undefined ? String((m.params as Json | undefined)?.name ?? '') : '';
     const own = this.ctx ? this.own.find((t) => t.name === called) : undefined;
     if (own && this.ctx) {
       const args = ((m.params as Json).arguments ?? {}) as Json;
       const answer = await runTool(own, this.ctx, args);
       if (!own.reads && !answer.isError && this.audit) {
-        await this.audit(own.name, args).catch((e: unknown) => {
+        await this.audit(own.name, args, appLabel(this.app)).catch((e: unknown) => {
           console.error('[mcp] audit', e instanceof Error ? e.message : String(e));
         });
       }
@@ -247,10 +255,17 @@ export function apiContext(port: number): ToolContext {
   };
 }
 
-/** "Claude Desktop: <tool> <what it was given>", short: a file's path, never its contents. */
-export function auditText(tool: string, args: Json): string {
+/** What the audit trail calls the app: Claude Desktop (it names itself "claude-ai"), another app by its own name. */
+export function appLabel(name: string): string {
+  const n = name.trim();
+  if (!n || /^claude[-_ ]?(ai|desktop)$/i.test(n)) return 'Claude Desktop';
+  return `${n} (MCP)`;
+}
+
+/** "<app>: <tool> <what it was given>", short: a file's path, never its contents. */
+export function auditText(tool: string, args: Json, app = 'Claude Desktop'): string {
   const given = JSON.stringify(args);
-  return `Claude Desktop: ${tool} ${given.length > 400 ? `${given.slice(0, 400)}…` : given}`;
+  return `${app}: ${tool} ${given.length > 400 ? `${given.slice(0, 400)}…` : given}`;
 }
 
 /** Run the MCP server until Claude Desktop closes stdin. */
@@ -288,7 +303,7 @@ export async function runMcp(): Promise<void> {
   const tools = [...DESKTOP_TOOLS, ...specTools(reportFolder)];
   const { logAudit } = require('../lib/periodGuard') as typeof import('../lib/periodGuard');
   const { currentUserId } = require('./currentUser') as typeof import('./currentUser');
-  const audit = (tool: string, args: Json): Promise<void> =>
+  const audit = (tool: string, args: Json, app: string): Promise<void> =>
     logAudit({
       userId: currentUserId(),
       periodId: typeof args.periodId === 'number' ? args.periodId : null,
@@ -296,7 +311,7 @@ export async function runMcp(): Promise<void> {
       entityType: 'mcp_tool',
       entityId: null,
       action: tool,
-      description: auditText(tool, args),
+      description: auditText(tool, args, app),
     });
   await server.connect(new DesktopTransport(new StdioServerTransport(), (args) => saveReport(port, args), apiContext(port), tools, audit) as never);
   process.stdin.on('close', () => process.exit(0));
