@@ -1,0 +1,60 @@
+{
+  "data": {
+    "account_count": 3,
+    "accounts": [
+      {
+        "account_name": "Cash",
+        "account_number": "1000",
+        "category": "assets",
+        "id": 3589,
+        "is_active": true,
+        "normal_balance": "debit",
+        "sort_order": 0,
+        "subcategory": "",
+        "tax_line": null,
+        "template_id": 36,
+        "unit": null,
+        "workpaper_ref": ""
+      },
+      {
+        "account_name": "Loans, officers",
+        "account_number": "2000",
+        "category": "liabilities",
+        "id": 3590,
+        "is_active": true,
+        "normal_balance": "credit",
+        "sort_order": 10,
+        "subcategory": "",
+        "tax_line": null,
+        "template_id": 36,
+        "unit": null,
+        "workpaper_ref": ""
+      },
+      {
+        "account_name": "Bad",
+        "account_number": "5000",
+        "category": "expense",
+        "id": 3591,
+        "is_active": true,
+        "normal_balance": "debit",
+        "sort_order": 30,
+        "subcategory": "",
+        "tax_line": null,
+        "template_id": 36,
+        "unit": null,
+        "workpaper_ref": ""
+      }
+    ],
+    "business_type": "custom",
+    "created_at": "2026-11-21T15:07:54.870Z",
+    "created_by": 2,
+    "created_from_client_id": null,
+    "description": null,
+    "id": 36,
+    "is_active": true,
+    "is_system": false,
+    "name": "Imported",
+    "updated_at": "2026-11-21T15:07:54.870Z"
+  },
+  "error": null
+}

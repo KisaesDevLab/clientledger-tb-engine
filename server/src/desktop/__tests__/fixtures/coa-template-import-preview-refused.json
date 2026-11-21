@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_CSV",
+    "message": "Missing required columns: account_number, account_name, category"
+  }
+}

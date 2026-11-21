@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "System templates cannot be modified"
+  }
+}

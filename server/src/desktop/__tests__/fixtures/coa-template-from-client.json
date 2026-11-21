@@ -1,0 +1,16 @@
+{
+  "data": {
+    "account_count": 16,
+    "business_type": "retail",
+    "created_at": "2026-11-21T15:07:54.692Z",
+    "created_by": 2,
+    "created_from_client_id": 1,
+    "description": "Created from Demo Company LLC",
+    "id": 35,
+    "is_active": true,
+    "is_system": false,
+    "name": "Demo chart",
+    "updated_at": "2026-11-21T15:07:54.692Z"
+  },
+  "error": null
+}

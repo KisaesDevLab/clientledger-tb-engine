@@ -1,0 +1,55 @@
+{
+  "data": [
+    {
+      "account_name": "Cash",
+      "account_number": "1000",
+      "category": "assets",
+      "normal_balance": "debit",
+      "sort_order": 0,
+      "status": "new",
+      "subcategory": "",
+      "tax_line": "",
+      "unit": "",
+      "workpaper_ref": ""
+    },
+    {
+      "account_name": "Loans, officers",
+      "account_number": "2000",
+      "category": "liabilities",
+      "normal_balance": "credit",
+      "sort_order": 10,
+      "status": "new",
+      "subcategory": "",
+      "tax_line": "",
+      "unit": "",
+      "workpaper_ref": ""
+    },
+    {
+      "account_name": "No number",
+      "account_number": "",
+      "category": "assets",
+      "error": "account_number required",
+      "normal_balance": "debit",
+      "sort_order": 20,
+      "status": "error",
+      "subcategory": "",
+      "tax_line": "",
+      "unit": "",
+      "workpaper_ref": ""
+    },
+    {
+      "account_name": "Bad",
+      "account_number": "5000",
+      "category": "expense",
+      "error": "invalid category",
+      "normal_balance": "debit",
+      "sort_order": 30,
+      "status": "error",
+      "subcategory": "",
+      "tax_line": "",
+      "unit": "",
+      "workpaper_ref": ""
+    }
+  ],
+  "error": null
+}
