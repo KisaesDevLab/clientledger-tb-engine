@@ -18,12 +18,16 @@ import path from 'node:path';
 import { buildOpenApiSpec } from './openapi';
 import type { DesktopTool, ToolContext, ToolResult } from './mcpTools';
 import { ToolError } from './mcpTools';
+import { reportsExcluded } from './openapiReports';
 
 type Json = Record<string, unknown>;
 type Schema = Record<string, unknown>;
 
 /** Operations that are not tools, and why (owner 2026-11-20, Q105, unless said). */
 export const EXCLUDED: Record<string, string> = {
+  // The statement and report PDFs and M-1 (openapiReports.ts): the
+  // desktop's own tools do them.
+  ...reportsExcluded,
   // The app's own plumbing.
   ping: 'plumbing',
   health: 'plumbing',

@@ -9033,6 +9033,89 @@
           }
         },
         "description": "What opening a pulled period did. A merge also carries upstream mergePeriod's result fields."
+      },
+      "M1Adjustment": {
+        "type": "object",
+        "required": [
+          "id",
+          "period_id",
+          "description",
+          "book_amount",
+          "tax_amount",
+          "sort_order"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "period_id": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "one of the engine's M-1 categories"
+          },
+          "book_amount": {
+            "type": "integer",
+            "description": "cents"
+          },
+          "tax_amount": {
+            "type": "integer",
+            "description": "cents"
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "M1Input": {
+        "type": "object",
+        "required": [
+          "description",
+          "bookAmount",
+          "taxAmount"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bookAmount": {
+            "type": "integer",
+            "description": "cents"
+          },
+          "taxAmount": {
+            "type": "integer",
+            "description": "cents"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       }
     }
   },
@@ -16475,6 +16558,1375 @@
           },
           "500": {
             "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/income-statement": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "basis",
+          "in": "query",
+          "required": false,
+          "description": "which balances: book adjusted, tax, or before adjustments",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "book",
+              "tax"
+            ]
+          }
+        },
+        {
+          "name": "priorYear",
+          "in": "query",
+          "required": false,
+          "description": "prior-year columns ($ and % change); unset: shown when any row has one",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        },
+        {
+          "name": "groupByLeadSheet",
+          "in": "query",
+          "required": false,
+          "description": "subtotal by lead sheet",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getIncomeStatementPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Income statement as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_income-statement.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/balance-sheet": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "basis",
+          "in": "query",
+          "required": false,
+          "description": "which balances: book adjusted, tax, or before adjustments",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "book",
+              "tax"
+            ]
+          }
+        },
+        {
+          "name": "priorYear",
+          "in": "query",
+          "required": false,
+          "description": "prior-year columns ($ and % change); unset: shown when any row has one",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        },
+        {
+          "name": "groupByLeadSheet",
+          "in": "query",
+          "required": false,
+          "description": "subtotal by lead sheet",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getBalanceSheetPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Balance sheet as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_balance-sheet.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/equity-statement": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "basis",
+          "in": "query",
+          "required": false,
+          "description": "which balances: book adjusted, tax, or before adjustments",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "book",
+              "tax"
+            ]
+          }
+        },
+        {
+          "name": "priorYear",
+          "in": "query",
+          "required": false,
+          "description": "prior-year columns ($ and % change); unset: shown when any row has one",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getEquityStatementPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Statement of changes in equity as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_equity-statement.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/cash-flow": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getCashFlowPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Statement of cash flows as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_cash-flow.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/tax-basis-pl": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTaxBasisIncomePdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Tax-basis income (by tax code and category) as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_tax-basis-pl.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/trial-balance": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "basis",
+          "in": "query",
+          "required": false,
+          "description": "which balances: book adjusted, tax, or before adjustments",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "unadjusted",
+              "book",
+              "tax"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTrialBalancePdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Trial balance as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_trial-balance.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/general-ledger": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getGeneralLedgerPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "General ledger as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_general-ledger.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/journal-entries": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "type",
+          "in": "query",
+          "required": false,
+          "description": "which entries",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "book",
+              "tax",
+              "trans"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getJournalEntriesPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Journal entries as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_journal-entries.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/tax-code-report": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "columns",
+          "in": "query",
+          "required": false,
+          "description": "book and tax columns, or one",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "book",
+              "tax",
+              "both"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTaxCodeReportPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Balances by tax code as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_tax-code-report.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/tax-return-order": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTaxReturnOrderPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Accounts in tax return order as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_tax-return-order.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/tax-basis-schedule": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTaxBasisSchedulePdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Book and tax balances side by side as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_tax-basis-schedule.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/m1": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getM1ReconciliationPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "M-1 reconciliation as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_m1.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/periods/{periodId}/flux/{comparePeriodId}": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "comparePeriodId",
+          "in": "path",
+          "required": true,
+          "description": "Period compared with",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "basis",
+          "in": "query",
+          "required": false,
+          "description": "which balances: book adjusted, tax, or before adjustments",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "book",
+              "tax"
+            ]
+          }
+        },
+        {
+          "name": "groupByLeadSheet",
+          "in": "query",
+          "required": false,
+          "description": "subtotal by lead sheet",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getFluxAnalysisPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Flux analysis against another period, with variance notes, as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_flux-analysis-vs-<period>.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id or option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/exports/bookkeeper-letter": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "required": false,
+          "description": "inline instead of attachment",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getBookkeeperLetterPdf",
+        "tags": [
+          "reports"
+        ],
+        "summary": "Letter to the bookkeeper listing the period's book adjusting entries, as a PDF",
+        "responses": {
+          "200": {
+            "description": "The PDF; Content-Disposition names it <period>_<client>_bookkeeper-letter.pdf",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/periods/{periodId}/m1-adjustments": {
+      "parameters": [
+        {
+          "name": "periodId",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listM1Adjustments",
+        "tags": [
+          "m1"
+        ],
+        "summary": "The period's book-to-tax (M-1) adjustments",
+        "responses": {
+          "200": {
+            "description": "Adjustments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/M1Adjustment"
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createM1Adjustment",
+        "tags": [
+          "m1"
+        ],
+        "summary": "Add an M-1 adjustment (refused in a locked period)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/M1Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/M1Adjustment"
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PERIOD_LOCKED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/m1-adjustments/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "M-1 adjustment id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateM1Adjustment",
+        "tags": [
+          "m1"
+        ],
+        "summary": "Change an M-1 adjustment (any of its fields; refused in a locked period)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/M1Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/M1Adjustment"
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PERIOD_LOCKED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteM1Adjustment",
+        "tags": [
+          "m1"
+        ],
+        "summary": "Delete an M-1 adjustment (refused in a locked period)",
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PERIOD_LOCKED",
             "content": {
               "application/json": {
                 "schema": {
