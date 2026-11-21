@@ -16333,6 +16333,165 @@
         }
       }
     },
+    "/api/v1/desktop/sync/periods/{id}/changes": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Period id",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "syncPeriodChanges",
+        "tags": [
+          "sync"
+        ],
+        "summary": "What changed in a period since the archive it was pulled as (Send back… summary): rows added, changed and removed by table, accounts added, documents not sent, book totals",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The changes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "tables",
+                        "accountsAdded",
+                        "otherDocuments",
+                        "totals"
+                      ],
+                      "properties": {
+                        "tables": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "required": [
+                              "added",
+                              "removed",
+                              "changed"
+                            ],
+                            "properties": {
+                              "added": {
+                                "type": "integer"
+                              },
+                              "removed": {
+                                "type": "integer"
+                              },
+                              "changed": {
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        },
+                        "accountsAdded": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "otherDocuments": {
+                          "type": "integer"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "bookDebit",
+                            "bookCredit"
+                          ],
+                          "properties": {
+                            "bookDebit": {
+                              "type": "string"
+                            },
+                            "bookCredit": {
+                              "type": "string"
+                            }
+                          },
+                          "description": "cents, as strings"
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, SYNC_ARCHIVE_INVALID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong desktop session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/desktop/sync/export-period": {
       "post": {
         "operationId": "syncExportPeriod",

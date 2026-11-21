@@ -49,6 +49,7 @@ export const EXCLUDED: Record<string, string> = {
   syncIds: 'firm server sync (owner: not through Claude)',
   syncImport: 'firm server sync (owner: not through Claude)',
   syncPeriodStamp: 'firm server sync (owner: not through Claude)',
+  syncPeriodChanges: 'firm server sync (owner: not through Claude)',
   syncVersion: 'firm server sync (owner: not through Claude)',
   // Backups and restores are the app's (encryption, second copy, safety
   // backup, engine restart): through the running app, a later slice.

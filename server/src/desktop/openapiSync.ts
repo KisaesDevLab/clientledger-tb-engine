@@ -89,6 +89,28 @@ export const syncPaths: Record<string, Schema> = {
       responses: { '200': ok('The stamp', ref('SyncStamp')), '400': err('INVALID_ID'), '404': err('NOT_FOUND'), ...common },
     },
   },
+  '/api/v1/desktop/sync/periods/{id}/changes': {
+    parameters: [{ name: 'id', in: 'path', required: true, description: 'Period id', schema: { type: 'integer', minimum: 1 } }],
+    post: {
+      operationId: 'syncPeriodChanges', tags: tags('sync'),
+      summary: 'What changed in a period since the archive it was pulled as (Send back… summary): rows added, changed and removed by table, accounts added, documents not sent, book totals',
+      requestBody: {
+        required: true,
+        content: { 'multipart/form-data': { schema: open(['file'], { file: { type: 'string', format: 'binary' } }) } },
+      },
+      responses: {
+        '200': ok('The changes', open(['tables', 'accountsAdded', 'otherDocuments', 'totals'], {
+          tables: { type: 'object', additionalProperties: open(['added', 'removed', 'changed'], { added: int, removed: int, changed: int }) },
+          accountsAdded: { type: 'array', items: str },
+          otherDocuments: int,
+          totals: open(['bookDebit', 'bookCredit'], { bookDebit: str, bookCredit: str }, 'cents, as strings'),
+        })),
+        '400': err('VALIDATION_ERROR, SYNC_ARCHIVE_INVALID'),
+        '404': err('NOT_FOUND'),
+        ...common,
+      },
+    },
+  },
   '/api/v1/desktop/sync/export-period': {
     post: {
       operationId: 'syncExportPeriod', tags: tags('sync'),
