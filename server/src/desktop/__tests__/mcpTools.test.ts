@@ -188,3 +188,31 @@ test('the audit trail names the app that made the change, Claude Desktop or anot
   for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
   assert.deepEqual(apps, ['Visual Studio Code (MCP)']);
 });
+
+test('upstream tools that change something are audited under the app, reads and failures are not; every tool says whether it reads', async () => {
+  const inner = new Inner();
+  const { ctx } = fake(() => okData([]));
+  const audited: Array<{ tool: string; app: string }> = [];
+  const t = new DesktopTransport(inner as never, async () => ({ text: '' }), ctx, DESKTOP_TOOLS, async (tool, _args, app) => {
+    audited.push({ tool, app });
+  });
+  t.onmessage = () => {};
+  await t.start();
+  inner.onmessage!({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { clientInfo: { name: 'Cursor' } } });
+  inner.onmessage!({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'create_journal_entry', arguments: { periodId: 4 } } });
+  inner.onmessage!({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_trial_balance', arguments: { periodId: 4 } } });
+  inner.onmessage!({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'lock_period', arguments: { periodId: 4 } } });
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  await t.send({ jsonrpc: '2.0', id: 2, result: { content: [] } } as never);
+  await t.send({ jsonrpc: '2.0', id: 3, result: { content: [] } } as never);
+  await t.send({ jsonrpc: '2.0', id: 4, result: { content: [], isError: true } } as never);
+  assert.deepEqual(audited, [{ tool: 'create_journal_entry', app: 'Cursor (MCP)' }]);
+
+  await t.send({ jsonrpc: '2.0', id: 5, result: { tools: [{ name: 'get_trial_balance', description: 'x' }, { name: 'create_journal_entry', description: 'y' }] } } as never);
+  const tools = (inner.sent.at(-1)!.result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools;
+  const hint = (n: string) => tools.find((x) => x.name === n)?.annotations?.readOnlyHint;
+  assert.equal(hint('get_trial_balance'), true);
+  assert.equal(hint('create_journal_entry'), false);
+  assert.equal(hint('list_tax_codes'), true, 'a desktop tool that reads');
+  assert.equal(hint('add_bank_transactions'), false, 'a desktop tool that writes');
+});

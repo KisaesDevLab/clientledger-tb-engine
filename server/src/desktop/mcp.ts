@@ -145,6 +145,25 @@ export async function saveReport(port: number, args: Json): Promise<{ text: stri
 }
 
 /**
+ * Upstream's tools that change nothing (its other seven post, change,
+ * confirm or lock). The connection's read-only mode allows only reads, and
+ * the audit mark is written for the others.
+ */
+export const UPSTREAM_READS = new Set([
+  'list_clients',
+  'get_period_dashboard',
+  'get_trial_balance',
+  'list_journal_entries',
+  'get_chart_of_accounts',
+  'get_tax_mapping_status',
+  'run_diagnostics',
+  'search_accounts',
+  'get_period_comparison',
+  'list_engagement_tasks',
+  'generate_report_url',
+]);
+
+/**
  * Claude Desktop's messages, with the desktop's own answer for
  * generate_report_url and its description saying so.
  */
@@ -170,6 +189,10 @@ export class DesktopTransport implements Transport {
   // (Claude Desktop, or another app that runs local MCP servers).
   private app = '';
 
+  // Upstream tool calls that change something, by request id, until their
+  // answer comes back: a successful one gets the audit mark.
+  private readonly upstreamCalls = new Map<string, { tool: string; args: Json }>();
+
   async start(): Promise<void> {
     this.inner.onmessage = (m) => { void this.receive(m); };
     this.inner.onclose = () => this.onclose?.();
@@ -187,8 +210,26 @@ export class DesktopTransport implements Transport {
       for (const t of this.own) tools.push({ name: t.name, description: t.description, inputSchema: t.inputSchema } as never);
     }
     for (const t of tools ?? []) {
+      // MCP's standard marker: an app (or the relay's read-only mode) can
+      // tell a tool that changes nothing.
+      const own = this.own.find((o) => o.name === t.name);
+      (t as { annotations?: Json }).annotations = {
+        ...((t as { annotations?: Json }).annotations ?? {}),
+        readOnlyHint: own ? own.reads === true : UPSTREAM_READS.has(t.name),
+      };
       if (t.name === 'generate_report_url') {
         t.description = 'Save a report (trial balance, general ledger, adjusting entries, income statement, balance sheet, cash flow, tax-basis P&L, tax return order) as a PDF on this computer and return where it is. ClientLedger Trial Balance has no web address.';
+      }
+    }
+    const key = message.id === undefined ? undefined : String(message.id);
+    const call = key === undefined ? undefined : this.upstreamCalls.get(key);
+    if (call && key !== undefined) {
+      this.upstreamCalls.delete(key);
+      const failed = message.error !== undefined || (message.result as { isError?: boolean } | undefined)?.isError === true;
+      if (!failed && this.audit) {
+        await this.audit(call.tool, call.args, appLabel(this.app)).catch((e: unknown) => {
+          console.error('[mcp] audit', e instanceof Error ? e.message : String(e));
+        });
       }
     }
     await this.inner.send(message);
@@ -226,6 +267,9 @@ export class DesktopTransport implements Transport {
       }
       await this.inner.send({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: answer.text }], ...(answer.isError ? { isError: true } : {}) } });
       return;
+    }
+    if (called && !own && !UPSTREAM_READS.has(called) && this.audit) {
+      this.upstreamCalls.set(String(m.id), { tool: called, args: ((m.params as Json).arguments ?? {}) as Json });
     }
     this.onmessage?.(m);
   }
