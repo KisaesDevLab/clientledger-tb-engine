@@ -22,6 +22,8 @@ import { ToolError } from './mcpTools';
 type Json = Record<string, unknown>;
 type Schema = Record<string, unknown>;
 
+const COA_TEMPLATES = "chart of accounts templates are the firm's, set up on their screen (P13, Q108)";
+
 /** Operations that are not tools, and why (owner 2026-11-20, Q105, unless said). */
 export const EXCLUDED: Record<string, string> = {
   // The app's own plumbing.
@@ -87,6 +89,21 @@ export const EXCLUDED: Record<string, string> = {
   updateEngagementTask: "upstream's update_engagement_task",
   listTaxCodes: 'list_tax_codes (the codes a client can use, with ids)',
   getDraftReport: 'save_report (every report, final or DRAFT, with its options)',
+  // Chart of accounts templates (P13). Not tools yet (Q108); Claude sets up a
+  // client's chart with create_account. Apply's replace mode deletes a chart.
+  listCoaTemplates: COA_TEMPLATES,
+  createCoaTemplate: COA_TEMPLATES,
+  getCoaTemplate: COA_TEMPLATES,
+  updateCoaTemplate: COA_TEMPLATES,
+  deleteCoaTemplate: COA_TEMPLATES,
+  addCoaTemplateAccount: COA_TEMPLATES,
+  updateCoaTemplateAccount: COA_TEMPLATES,
+  deleteCoaTemplateAccount: COA_TEMPLATES,
+  saveChartAsCoaTemplate: COA_TEMPLATES,
+  exportCoaTemplate: COA_TEMPLATES,
+  previewCoaTemplateImport: COA_TEMPLATES,
+  importCoaTemplate: COA_TEMPLATES,
+  applyCoaTemplate: `${COA_TEMPLATES}; its replace mode deletes a client's whole chart`,
 };
 
 /** `classifyBankTransactions` → `classify_bank_transactions`. */

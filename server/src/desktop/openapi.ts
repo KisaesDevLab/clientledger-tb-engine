@@ -12,6 +12,7 @@ import { fsPaths, fsSchemas } from './openapiFs';
 import { wpPaths, wpSchemas } from './openapiWp';
 import { aiPaths, aiSchemas } from './openapiAi';
 import { syncPaths, syncSchemas } from './openapiSync';
+import { coaPaths, coaSchemas } from './openapiCoa';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkg = require('../../package.json') as { version: string };
 
@@ -1170,13 +1171,14 @@ export function buildOpenApiSpec(): Schema {
       securitySchemes: {
         desktopSession: { type: 'apiKey', in: 'header', name: 'X-CLTB-Session', description: 'Per-launch token from the launcher' },
       },
-      schemas: { ...schemas, ...fsSchemas, ...wpSchemas, ...aiSchemas, ...syncSchemas },
+      schemas: { ...schemas, ...fsSchemas, ...wpSchemas, ...aiSchemas, ...syncSchemas, ...coaSchemas },
     },
     paths: {
       ...fsPaths,
       ...wpPaths,
       ...aiPaths,
       ...syncPaths,
+      ...coaPaths,
       '/api/v1/ping': {
         get: {
           operationId: 'ping', tags: ['system'], security: [],

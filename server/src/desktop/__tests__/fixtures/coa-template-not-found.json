@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Template not found"
+  }
+}

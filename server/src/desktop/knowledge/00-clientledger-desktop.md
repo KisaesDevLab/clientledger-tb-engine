@@ -17,6 +17,7 @@ The left side of the window lists: **Clients**; then, for the open client and pe
 The menus are File, Edit, View, Client, Entries, Reports, Tools and Help.
 
 - **New client, New period:** File and Client menus, or the Clients screen.
+- **Chart of accounts templates:** Tools › Chart of accounts templates…. The program's templates (one per industry: account numbers, names and categories, no tax codes) and the firm's own. A firm template can be made empty, saved from a client's chart (with its tax codes), copied from a program template, edited, exported to Excel and imported from Excel or CSV with a preview. **Apply to a client…** shows first which accounts would be added and which the client already has (same number); nothing is replaced. New client has **Start from a template**. Tax codes come along when the client's return has a code with the same number.
 - **Trial balance:** balances are typed in the grid; **Import…** reads a CSV or Excel file (a PDF trial balance is read by the AI when one is set up). View options switch Book, Tax or both, the prior year, and a debit and a credit column.
 - **Adjusting entries:** Entries › New adjusting entry (Ctrl+J). An entry cannot be saved until debits equal credits.
 - **Bank transactions:** Import bank file (OFX, QFX, QBO, QIF, CSV, or a PDF statement read by the AI), Enter transactions… for checks and deposits by hand, Ask AI for accounts, and the Reconcile tab.
@@ -44,4 +45,4 @@ Any other app that runs MCP servers on this computer (Visual Studio Code, Cursor
 
 ## Not in the desktop edition
 
-User management, roles and permissions; signing in, passwords, passkeys, two-factor and single sign-on; the QuickBooks Online connection; the audit log page; the AI usage log page; the public app URL and email settings; the custom report builder; the PY tie-out page; chart of accounts templates; sharing with other users at the same time. The desktop does not connect to the firm's server.
+User management, roles and permissions; signing in, passwords, passkeys, two-factor and single sign-on; the QuickBooks Online connection; the audit log page; the AI usage log page; the public app URL and email settings; the custom report builder; the PY tie-out page; sharing with other users at the same time. The desktop does not connect to the firm's server.

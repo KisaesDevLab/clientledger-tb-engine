@@ -1,0 +1,17 @@
+{
+  "data": {
+    "account_name": "Cash in bank",
+    "account_number": "1000",
+    "category": "assets",
+    "id": 3570,
+    "is_active": true,
+    "normal_balance": "debit",
+    "sort_order": 0,
+    "subcategory": null,
+    "tax_line": null,
+    "template_id": 34,
+    "unit": "",
+    "workpaper_ref": null
+  },
+  "error": null
+}

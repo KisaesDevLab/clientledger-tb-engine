@@ -1,0 +1,7 @@
+{
+  "data": null,
+  "error": {
+    "code": "DUPLICATE",
+    "message": "Account number already exists in this template"
+  }
+}

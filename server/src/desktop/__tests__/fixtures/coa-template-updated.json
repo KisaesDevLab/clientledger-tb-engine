@@ -1,0 +1,16 @@
+{
+  "data": {
+    "account_count": 0,
+    "business_type": "custom",
+    "created_at": "2026-11-21T15:07:54.594Z",
+    "created_by": 2,
+    "created_from_client_id": null,
+    "description": "Changed",
+    "id": 34,
+    "is_active": true,
+    "is_system": false,
+    "name": "Recorded template (renamed)",
+    "updated_at": "2026-11-21T15:07:54.606Z"
+  },
+  "error": null
+}
